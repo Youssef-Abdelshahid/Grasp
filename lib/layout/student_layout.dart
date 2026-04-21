@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/utils/user_utils.dart';
 import '../routing/app_router.dart';
 import '../features/student/profile/student_profile_page.dart';
 import '../features/student/dashboard/student_dashboard_page.dart';
@@ -9,6 +10,7 @@ import '../features/student/courses/student_courses_page.dart';
 import '../features/student/calendar/student_calendar_page.dart';
 import '../features/student/profile/student_settings_page.dart';
 import '../features/notifications/notifications_page.dart';
+import '../services/auth_service.dart';
 
 class StudentLayout extends StatefulWidget {
   final int initialIndex;
@@ -58,6 +60,7 @@ class _StudentLayoutState extends State<StudentLayout> {
 
   @override
   Widget build(BuildContext context) {
+    final user = AuthService.instance.currentUser;
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
 
@@ -77,6 +80,7 @@ class _StudentLayoutState extends State<StudentLayout> {
                     title: _pageTitles[_selectedIndex],
                     onNotificationsTap: _openNotifications,
                     onProfileTap: _openProfile,
+                    initials: UserUtils.initials(user?.name ?? 'Student'),
                   ),
                   Expanded(
                     child: _pages[_selectedIndex],
@@ -110,6 +114,7 @@ class _StudentLayoutState extends State<StudentLayout> {
   }
 
   AppBar _buildMobileAppBar() {
+    final user = AuthService.instance.currentUser;
     return AppBar(
       backgroundColor: AppColors.surface,
       title: Text(_pageTitles[_selectedIndex]),
@@ -127,7 +132,7 @@ class _StudentLayoutState extends State<StudentLayout> {
               radius: 16,
               backgroundColor: AppColors.cyanLight,
               child: Text(
-                'AH',
+                UserUtils.initials(user?.name ?? 'Student'),
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.cyan,
                   fontWeight: FontWeight.w700,
@@ -235,6 +240,9 @@ class _StudentSidebar extends StatelessWidget {
   }
 
   Widget _buildBottomSection(BuildContext context) {
+    final user = AuthService.instance.currentUser;
+    final name = user?.name ?? 'Student';
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: const BoxDecoration(
@@ -252,11 +260,17 @@ class _StudentSidebar extends StatelessWidget {
             icon: Icons.logout_rounded,
             label: 'Logout',
             isSelected: false,
-            onTap: () => Navigator.pushNamedAndRemoveUntil(
-              context,
-              AppRouter.landing,
-              (_) => false,
-            ),
+            onTap: () async {
+              await AuthService.instance.logout();
+              if (!context.mounted) {
+                return;
+              }
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRouter.landing,
+                (_) => false,
+              );
+            },
           ),
           const SizedBox(height: 8),
           GestureDetector(
@@ -275,7 +289,7 @@ class _StudentSidebar extends StatelessWidget {
                     radius: 16,
                     backgroundColor: AppColors.cyan,
                     child: Text(
-                      'AH',
+                      UserUtils.initials(name),
                       style: AppTextStyles.caption.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
@@ -288,14 +302,14 @@ class _StudentSidebar extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Ahmed Hassan',
+                          name,
                           style: AppTextStyles.label.copyWith(
                             color: AppColors.sidebarText,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          'Student',
+                          user?.role.label ?? 'Student',
                           style: AppTextStyles.caption.copyWith(
                             color: AppColors.sidebarTextMuted,
                           ),
@@ -377,11 +391,13 @@ class _StudentTopBar extends StatelessWidget {
   final String title;
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
+  final String initials;
 
   const _StudentTopBar({
     required this.title,
     this.onNotificationsTap,
     this.onProfileTap,
+    required this.initials,
   });
 
   @override
@@ -436,7 +452,7 @@ class _StudentTopBar extends StatelessWidget {
               radius: 18,
               backgroundColor: AppColors.cyanLight,
               child: Text(
-                'AH',
+                initials,
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.cyan,
                   fontWeight: FontWeight.w700,

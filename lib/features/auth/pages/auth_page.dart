@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/auth/app_role.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../routing/app_router.dart';
+import '../../../services/auth_service.dart';
 
 class AuthPage extends StatefulWidget {
   const AuthPage({super.key});
@@ -13,11 +16,12 @@ class AuthPage extends StatefulWidget {
 
 class _AuthPageState extends State<AuthPage> {
   bool _isLogin = true;
-  String _selectedRole = 'Student';
-  static const _roles = ['Student', 'Instructor', 'Admin'];
+  AppRole _selectedRole = AppRole.student;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
+  bool _isSubmitting = false;
 
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
@@ -96,36 +100,40 @@ class _AuthPageState extends State<AuthPage> {
               ),
               const Spacer(),
               Text(
-                'Unlock the power\nof AI learning',
+                'Backend-ready\nlearning platform',
                 style: AppTextStyles.displayMedium
                     .copyWith(color: Colors.white, height: 1.25),
               ),
               const SizedBox(height: 16),
               Text(
-                'Join thousands of students and instructors using AI to transform education.',
+                'Secure auth, role-based access, and real Supabase-backed dashboards are now built into the foundation.',
                 style: AppTextStyles.bodyLarge
                     .copyWith(color: AppColors.sidebarText),
               ),
               const SizedBox(height: 40),
-              ...[
-                (Icons.check_circle_rounded, 'Generate quizzes with one click'),
-                (Icons.check_circle_rounded, 'Smart flashcard creation'),
-                (Icons.check_circle_rounded, 'Progress tracking dashboard'),
-              ].map((item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Row(
-                      children: [
-                        Icon(item.$1,
-                            color: AppColors.emerald, size: 18),
-                        const SizedBox(width: 10),
-                        Text(
-                          item.$2,
+              ...const [
+                'Role-based access for students, instructors, and admins',
+                'Persistent sessions with Supabase Auth',
+                'Real dashboard summaries backed by the database',
+              ].map(
+                (item) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle_rounded,
+                          color: AppColors.emerald, size: 18),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          item,
                           style: AppTextStyles.body
                               .copyWith(color: AppColors.sidebarText),
                         ),
-                      ],
-                    ),
-                  )),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
               const Spacer(),
             ],
           ),
@@ -135,115 +143,173 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   Widget _buildForm() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        GestureDetector(
-          onTap: () => Navigator.pop(context),
-          child: Row(
-            children: [
-              const Icon(Icons.arrow_back_rounded,
-                  size: 18, color: AppColors.textSecondary),
-              const SizedBox(width: 4),
-              Text('Back', style: AppTextStyles.bodySmall),
-            ],
+    final auth = AuthService.instance;
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Row(
+              children: [
+                const Icon(Icons.arrow_back_rounded,
+                    size: 18, color: AppColors.textSecondary),
+                const SizedBox(width: 4),
+                Text('Back', style: AppTextStyles.bodySmall),
+              ],
+            ),
           ),
-        ),
-        const SizedBox(height: 32),
-        Text(
-          _isLogin ? 'Welcome back' : 'Create your account',
-          style: AppTextStyles.displayMedium,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          _isLogin
-              ? 'Sign in to continue your learning journey'
-              : 'Start your AI-powered learning journey today',
-          style: AppTextStyles.bodySmall,
-        ),
-        const SizedBox(height: 32),
-        _buildToggle(),
-        const SizedBox(height: 28),
-        _buildRoleSelector(),
-        const SizedBox(height: 20),
-        if (!_isLogin) ...[
+          const SizedBox(height: 32),
+          Text(
+            _isLogin ? 'Welcome back' : 'Create your account',
+            style: AppTextStyles.displayMedium,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _isLogin
+                ? 'Sign in and we will route you to the right dashboard automatically.'
+                : 'Create a student or instructor account. Admin accounts are managed separately.',
+            style: AppTextStyles.bodySmall,
+          ),
+          const SizedBox(height: 32),
+          _buildToggle(),
+          const SizedBox(height: 28),
+          if (!_isLogin) ...[
+            _buildRoleSelector(),
+            const SizedBox(height: 20),
+          ],
+          if (!_isLogin) ...[
+            _buildField(
+              controller: _nameController,
+              label: 'Full Name',
+              hint: 'Dr. Ahmed Ali',
+              icon: Icons.person_outline_rounded,
+              validator: (value) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter your full name.';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
           _buildField(
-            controller: _nameController,
-            label: 'Full Name',
-            hint: 'Dr. Ahmed Ali',
-            icon: Icons.person_outline_rounded,
+            controller: _emailController,
+            label: 'Email Address',
+            hint: 'name@university.edu',
+            icon: Icons.email_outlined,
+            keyboardType: TextInputType.emailAddress,
+            validator: (value) {
+              if (value == null || value.trim().isEmpty) {
+                return 'Please enter your email address.';
+              }
+              if (!value.contains('@')) {
+                return 'Please enter a valid email address.';
+              }
+              return null;
+            },
           ),
-          const SizedBox(height: 16),
-        ],
-        _buildField(
-          controller: _emailController,
-          label: 'Email Address',
-          hint: 'name@university.edu',
-          icon: Icons.email_outlined,
-          keyboardType: TextInputType.emailAddress,
-        ),
-        const SizedBox(height: 16),
-        _buildPasswordField(
-          controller: _passwordController,
-          label: 'Password',
-          obscure: _obscurePassword,
-          onToggle: () =>
-              setState(() => _obscurePassword = !_obscurePassword),
-        ),
-        if (!_isLogin) ...[
           const SizedBox(height: 16),
           _buildPasswordField(
-            controller: _confirmController,
-            label: 'Confirm Password',
-            obscure: _obscureConfirm,
+            controller: _passwordController,
+            label: 'Password',
+            obscure: _obscurePassword,
             onToggle: () =>
-                setState(() => _obscureConfirm = !_obscureConfirm),
+                setState(() => _obscurePassword = !_obscurePassword),
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Please enter your password.';
+              }
+              if (!_isLogin && value.length < 8) {
+                return 'Password must be at least 8 characters.';
+              }
+              return null;
+            },
           ),
-        ],
-        if (_isLogin) ...[
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () {},
-              child: const Text('Forgot password?'),
+          if (!_isLogin) ...[
+            const SizedBox(height: 16),
+            _buildPasswordField(
+              controller: _confirmController,
+              label: 'Confirm Password',
+              obscure: _obscureConfirm,
+              onToggle: () =>
+                  setState(() => _obscureConfirm = !_obscureConfirm),
+              validator: (value) {
+                if (value != _passwordController.text) {
+                  return 'Passwords do not match.';
+                }
+                return null;
+              },
             ),
-          ),
-        ],
-        const SizedBox(height: 24),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            onPressed: _onSubmit,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-            ),
-            child: Text(_isLogin ? 'Sign In' : 'Create Account'),
-          ),
-        ),
-        const SizedBox(height: 20),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
+          ],
+          if (_isLogin) ...[
+            const SizedBox(height: 8),
             Text(
-              _isLogin
-                  ? "Don't have an account? "
-                  : 'Already have an account? ',
-              style: AppTextStyles.bodySmall,
-            ),
-            GestureDetector(
-              onTap: () => setState(() => _isLogin = !_isLogin),
-              child: Text(
-                _isLogin ? 'Sign up' : 'Sign in',
-                style: AppTextStyles.bodySmall.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w600,
-                ),
+              'Your role is detected after sign in from your profile record.',
+              style: AppTextStyles.caption.copyWith(
+                color: AppColors.textMuted,
               ),
             ),
           ],
-        ),
-      ],
+          const SizedBox(height: 24),
+          if (auth.lastError != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.roseLight,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.rose.withValues(alpha: 0.3)),
+              ),
+              child: Text(
+                auth.lastError!,
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.rose),
+              ),
+            ),
+            const SizedBox(height: 16),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isSubmitting ? null : _onSubmit,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+              ),
+              child: _isSubmitting
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text(_isLogin ? 'Sign In' : 'Create Account'),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _isLogin
+                    ? "Don't have an account? "
+                    : 'Already have an account? ',
+                style: AppTextStyles.bodySmall,
+              ),
+              GestureDetector(
+                onTap: () => setState(() => _isLogin = !_isLogin),
+                child: Text(
+                  _isLogin ? 'Sign up' : 'Sign in',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -273,7 +339,7 @@ class _AuthPageState extends State<AuthPage> {
                             color: Color(0x14000000),
                             blurRadius: 4,
                             offset: Offset(0, 1),
-                          )
+                          ),
                         ]
                       : null,
                 ),
@@ -284,9 +350,7 @@ class _AuthPageState extends State<AuthPage> {
                     color: isActive
                         ? AppColors.textPrimary
                         : AppColors.textSecondary,
-                    fontWeight: isActive
-                        ? FontWeight.w600
-                        : FontWeight.w500,
+                    fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
               ),
@@ -298,32 +362,34 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   Widget _buildRoleSelector() {
+    final roles = [AppRole.student, AppRole.instructor];
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('I am a', style: AppTextStyles.label),
+        Text('Account Type', style: AppTextStyles.label),
         const SizedBox(height: 8),
         Wrap(
           spacing: 8,
           runSpacing: 8,
-          children: _roles.map((role) {
+          children: roles.map((role) {
             final isSelected = _selectedRole == role;
-            final isAdmin = role == 'Admin';
-            final activeColor =
-                isAdmin ? AppColors.rose : AppColors.primary;
-            final activeBg =
-                isAdmin ? AppColors.roseLight : AppColors.primaryLight;
-            final icon = role == 'Student'
+            final activeColor = role == AppRole.student
+                ? AppColors.primary
+                : AppColors.emerald;
+            final activeBg = role == AppRole.student
+                ? AppColors.primaryLight
+                : AppColors.emeraldLight;
+            final icon = role == AppRole.student
                 ? Icons.school_outlined
-                : role == 'Instructor'
-                    ? Icons.person_outline_rounded
-                    : Icons.admin_panel_settings_outlined;
+                : Icons.person_outline_rounded;
+
             return GestureDetector(
               onTap: () => setState(() => _selectedRole = role),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding: const EdgeInsets.symmetric(
-                    vertical: 10, horizontal: 14),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
                 decoration: BoxDecoration(
                   color: isSelected ? activeBg : AppColors.surface,
                   borderRadius: BorderRadius.circular(10),
@@ -337,21 +403,17 @@ class _AuthPageState extends State<AuthPage> {
                   children: [
                     Icon(
                       icon,
-                      color: isSelected
-                          ? activeColor
-                          : AppColors.textSecondary,
+                      color:
+                          isSelected ? activeColor : AppColors.textSecondary,
                       size: 17,
                     ),
                     const SizedBox(width: 7),
                     Text(
-                      role,
+                      role.label,
                       style: AppTextStyles.label.copyWith(
-                        color: isSelected
-                            ? activeColor
-                            : AppColors.textSecondary,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w500,
+                        color:
+                            isSelected ? activeColor : AppColors.textSecondary,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
                       ),
                     ),
                   ],
@@ -369,6 +431,7 @@ class _AuthPageState extends State<AuthPage> {
     required String label,
     required String hint,
     required IconData icon,
+    required String? Function(String?) validator,
     TextInputType? keyboardType,
   }) {
     return Column(
@@ -376,9 +439,10 @@ class _AuthPageState extends State<AuthPage> {
       children: [
         Text(label, style: AppTextStyles.label),
         const SizedBox(height: 6),
-        TextField(
+        TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          validator: validator,
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: Icon(icon, size: 18, color: AppColors.textMuted),
@@ -393,17 +457,19 @@ class _AuthPageState extends State<AuthPage> {
     required String label,
     required bool obscure,
     required VoidCallback onToggle,
+    required String? Function(String?) validator,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: AppTextStyles.label),
         const SizedBox(height: 6),
-        TextField(
+        TextFormField(
           controller: controller,
           obscureText: obscure,
+          validator: validator,
           decoration: InputDecoration(
-            hintText: '••••••••',
+            hintText: '........',
             prefixIcon: const Icon(Icons.lock_outline_rounded,
                 size: 18, color: AppColors.textMuted),
             suffixIcon: IconButton(
@@ -422,15 +488,55 @@ class _AuthPageState extends State<AuthPage> {
     );
   }
 
-  void _onSubmit() {
-    final String route;
-    if (_selectedRole == 'Student') {
-      route = AppRouter.studentDashboard;
-    } else if (_selectedRole == 'Admin') {
-      route = AppRouter.adminDashboard;
-    } else {
-      route = AppRouter.dashboard;
+  Future<void> _onSubmit() async {
+    if (!_formKey.currentState!.validate()) {
+      return;
     }
-    Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
+
+    setState(() => _isSubmitting = true);
+    final auth = AuthService.instance;
+
+    try {
+      if (_isLogin) {
+        await auth.login(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
+      } else {
+        await auth.register(
+          email: _emailController.text,
+          password: _passwordController.text,
+          fullName: _nameController.text,
+          role: _selectedRole,
+        );
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      final user = auth.currentUser;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Account created. If email confirmation is enabled, confirm your email before signing in.',
+            ),
+          ),
+        );
+        setState(() {
+          _isLogin = true;
+          _isSubmitting = false;
+        });
+        return;
+      }
+
+      final route = AppRouter.defaultRouteForRole(user.role);
+      Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
   }
 }

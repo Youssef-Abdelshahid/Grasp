@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/utils/user_utils.dart';
 import '../features/dashboard/pages/instructor_dashboard_page.dart';
 import '../features/profile/instructor_profile_page.dart';
 import '../features/courses/pages/courses_page.dart';
@@ -9,6 +10,7 @@ import '../features/calendar/instructor_calendar_page.dart';
 import '../features/ai_review/ai_review_page.dart';
 import '../features/profile/instructor_settings_page.dart';
 import '../features/notifications/notifications_page.dart';
+import '../services/auth_service.dart';
 import 'app_sidebar.dart';
 
 class MainLayout extends StatefulWidget {
@@ -61,6 +63,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
+    final user = AuthService.instance.currentUser;
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
 
@@ -81,14 +84,15 @@ class _MainLayoutState extends State<MainLayout> {
                     onMenuTap: null,
                     onNotificationsTap: _openNotifications,
                     onProfileTap: _openProfile,
+                    initials: UserUtils.initials(user?.name ?? 'Instructor'),
                   ),
                   Expanded(
                     child: _pages[_selectedIndex],
                   ),
                 ],
+                ),
               ),
-            ),
-          ],
+            ],
         ),
       );
     }
@@ -114,6 +118,7 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   AppBar _buildMobileAppBar() {
+    final user = AuthService.instance.currentUser;
     return AppBar(
       backgroundColor: AppColors.surface,
       title: Text(_pageTitles[_selectedIndex]),
@@ -131,7 +136,7 @@ class _MainLayoutState extends State<MainLayout> {
               radius: 16,
               backgroundColor: AppColors.primaryLight,
               child: Text(
-                'Dr',
+                UserUtils.initials(user?.name ?? 'Instructor'),
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.primary,
                   fontWeight: FontWeight.w700,
@@ -154,12 +159,14 @@ class _TopBar extends StatelessWidget {
   final VoidCallback? onMenuTap;
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
+  final String initials;
 
   const _TopBar({
     required this.title,
     this.onMenuTap,
     this.onNotificationsTap,
     this.onProfileTap,
+    required this.initials,
   });
 
   @override
@@ -219,7 +226,7 @@ class _TopBar extends StatelessWidget {
               radius: 18,
               backgroundColor: AppColors.primaryLight,
               child: Text(
-                'Dr',
+                initials,
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.primary,
                   fontWeight: FontWeight.w700,

@@ -1,86 +1,149 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/stat_card.dart';
+import '../../../models/dashboard_models.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/dashboard_service.dart';
 import '../users/admin_users_page.dart';
 
-class AdminDashboardPage extends StatelessWidget {
+class AdminDashboardPage extends StatefulWidget {
   const AdminDashboardPage({super.key});
 
-  static const _stats = [
-    (label: 'Total Users', value: '312', icon: Icons.people_rounded, color: AppColors.primary, bg: AppColors.primaryLight),
-    (label: 'Students', value: '247', icon: Icons.school_rounded, color: AppColors.cyan, bg: AppColors.cyanLight),
-    (label: 'Instructors', value: '18', icon: Icons.person_rounded, color: AppColors.violet, bg: AppColors.violetLight),
-    (label: 'Total Courses', value: '42', icon: Icons.menu_book_rounded, color: AppColors.emerald, bg: AppColors.emeraldLight),
-    (label: 'Active Courses', value: '31', icon: Icons.play_circle_rounded, color: AppColors.amber, bg: AppColors.amberLight),
-    (label: 'AI Tasks Today', value: '47', icon: Icons.auto_awesome_rounded, color: AppColors.rose, bg: AppColors.roseLight),
-  ];
+  @override
+  State<AdminDashboardPage> createState() => _AdminDashboardPageState();
+}
 
-  static const _registrations = [
-    (name: 'Ahmad Karim', email: 'ahmad.karim@student.edu', role: 'Student', time: 'Today, 9:41 AM', color: AppColors.cyan),
-    (name: 'Prof. Sara Mansour', email: 's.mansour@faculty.edu', role: 'Instructor', time: 'Yesterday', color: AppColors.violet),
-    (name: 'Nada Omar', email: 'nada.omar@student.edu', role: 'Student', time: '2 days ago', color: AppColors.cyan),
-    (name: 'Khaled Ibrahim', email: 'k.ibrahim@student.edu', role: 'Student', time: '2 days ago', color: AppColors.cyan),
-    (name: 'Dr. Mohammed Farid', email: 'm.farid@faculty.edu', role: 'Instructor', time: '3 days ago', color: AppColors.violet),
-  ];
+class _AdminDashboardPageState extends State<AdminDashboardPage> {
+  late Future<AdminDashboardSummary> _summaryFuture;
 
-  static const _activities = [
-    (icon: Icons.add_circle_rounded, color: AppColors.emerald, bg: AppColors.emeraldLight, title: 'New course created', subtitle: '"Advanced AI" by Dr. Sara Mansour', time: '30m ago'),
-    (icon: Icons.people_rounded, color: AppColors.cyan, bg: AppColors.cyanLight, title: '12 students enrolled', subtitle: 'Mobile Dev · CS401', time: '1h ago'),
-    (icon: Icons.auto_awesome_rounded, color: AppColors.violet, bg: AppColors.violetLight, title: 'AI generated 8 items', subtitle: 'Across 3 courses', time: '2h ago'),
-    (icon: Icons.quiz_rounded, color: AppColors.amber, bg: AppColors.amberLight, title: 'Quiz published', subtitle: '"Midterm Review" in CS411', time: '3h ago'),
-    (icon: Icons.person_add_rounded, color: AppColors.primary, bg: AppColors.primaryLight, title: '5 new registrations', subtitle: 'Platform-wide', time: 'Yesterday'),
-  ];
-
-  static const _alerts = [
-    (icon: Icons.info_rounded, color: AppColors.primary, bg: AppColors.primaryLight, title: 'Server maintenance scheduled', body: 'Planned downtime on Apr 15 from 2–4 AM. Notify users in advance.'),
-    (icon: Icons.warning_rounded, color: AppColors.amber, bg: AppColors.amberLight, title: 'High AI usage detected', body: 'AI task queue reached 85% capacity. Consider scaling resources.'),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _summaryFuture = DashboardService.instance.getAdminSummary();
+  }
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
-    final padding = EdgeInsets.all(isWide ? 28 : 16);
+    final user = AuthService.instance.currentUser;
 
-    return SingleChildScrollView(
-      padding: padding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildWelcome(context),
-          const SizedBox(height: 24),
-          _buildStatsGrid(isWide),
-          const SizedBox(height: 28),
-          _buildAlerts(),
-          const SizedBox(height: 28),
-          _buildQuickActions(context, isWide),
-          const SizedBox(height: 28),
-          if (isWide)
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(child: _buildRecentRegistrations(context)),
-                const SizedBox(width: 20),
-                Expanded(child: _buildRecentActivity()),
+    return FutureBuilder<AdminDashboardSummary>(
+      future: _summaryFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return _DashboardErrorState(
+            onRetry: () {
+              setState(() {
+                _summaryFuture = DashboardService.instance.getAdminSummary();
+              });
+            },
+          );
+        }
+
+        final summary = snapshot.data!;
+        final stats = [
+          (
+            label: 'Total Users',
+            value: '${summary.totalUsers}',
+            icon: Icons.people_rounded,
+            color: AppColors.primary,
+            bg: AppColors.primaryLight,
+          ),
+          (
+            label: 'Students',
+            value: '${summary.studentsCount}',
+            icon: Icons.school_rounded,
+            color: AppColors.cyan,
+            bg: AppColors.cyanLight,
+          ),
+          (
+            label: 'Instructors',
+            value: '${summary.instructorsCount}',
+            icon: Icons.person_rounded,
+            color: AppColors.violet,
+            bg: AppColors.violetLight,
+          ),
+          (
+            label: 'Total Courses',
+            value: '${summary.totalCourses}',
+            icon: Icons.menu_book_rounded,
+            color: AppColors.emerald,
+            bg: AppColors.emeraldLight,
+          ),
+          (
+            label: 'Active Courses',
+            value: '${summary.activeCourses}',
+            icon: Icons.play_circle_rounded,
+            color: AppColors.amber,
+            bg: AppColors.amberLight,
+          ),
+          (
+            label: 'AI Items Today',
+            value: '${summary.aiItemsToday}',
+            icon: Icons.auto_awesome_rounded,
+            color: AppColors.rose,
+            bg: AppColors.roseLight,
+          ),
+        ];
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.all(isWide ? 28 : 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildWelcome(
+                userName: user?.name ?? 'Admin',
+                totalUsers: summary.totalUsers,
+                alertsCount: summary.alerts.length,
+              ),
+              const SizedBox(height: 24),
+              _buildStatsGrid(isWide, stats),
+              const SizedBox(height: 28),
+              _buildAlerts(summary.alerts),
+              const SizedBox(height: 28),
+              if (isWide)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _buildRecentRegistrations(
+                        context,
+                        summary.recentRegistrations,
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: _buildSystemActivity(summary.systemActivity),
+                    ),
+                  ],
+                )
+              else ...[
+                _buildRecentRegistrations(context, summary.recentRegistrations),
+                const SizedBox(height: 24),
+                _buildSystemActivity(summary.systemActivity),
               ],
-            )
-          else ...[
-            _buildRecentRegistrations(context),
-            const SizedBox(height: 24),
-            _buildRecentActivity(),
-          ],
-        ],
-      ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildWelcome(BuildContext context) {
-    final width = MediaQuery.of(context).size.width;
-    final isNarrow = width < 400;
-
+  Widget _buildWelcome({
+    required String userName,
+    required int totalUsers,
+    required int alertsCount,
+  }) {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -92,80 +155,39 @@ class AdminDashboardPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.rose.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(color: AppColors.rose.withValues(alpha: 0.4)),
-                      ),
-                      child: Text(
-                        'ADMIN',
-                        style: AppTextStyles.overline.copyWith(
-                          color: AppColors.rose,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
                 Text(
-                  'Good morning, Admin!',
+                  'Welcome back, $userName',
                   style: AppTextStyles.h3.copyWith(color: Colors.white),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '5 new registrations today · 47 AI tasks processed · 2 alerts',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: Colors.white.withValues(alpha: 0.75),
-                  ),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 14),
-                ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.sidebarBg,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-                  ),
-                  child: const Text('View Reports'),
+                  '$totalUsers users are on the platform right now, and $alertsCount system alerts need attention.',
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: Colors.white.withValues(alpha: 0.8)),
                 ),
               ],
             ),
           ),
-          if (!isNarrow) ...[
-            const SizedBox(width: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: const Icon(Icons.admin_panel_settings_rounded,
-                  color: Colors.white, size: 30),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(12),
             ),
-          ],
+            child: const Icon(Icons.admin_panel_settings_rounded,
+                color: Colors.white, size: 30),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatsGrid(bool isWide) {
+  Widget _buildStatsGrid(bool isWide, List<dynamic> stats) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -180,15 +202,15 @@ class AdminDashboardPage extends StatelessWidget {
             crossAxisSpacing: 12,
             mainAxisExtent: 160,
           ),
-          itemCount: _stats.length,
-          itemBuilder: (_, i) {
-            final s = _stats[i];
+          itemCount: stats.length,
+          itemBuilder: (_, index) {
+            final item = stats[index];
             return StatCard(
-              label: s.label,
-              value: s.value,
-              icon: s.icon,
-              color: s.color,
-              bgColor: s.bg,
+              label: item.label,
+              value: item.value,
+              icon: item.icon,
+              color: item.color,
+              bgColor: item.bg,
             );
           },
         ),
@@ -196,19 +218,31 @@ class AdminDashboardPage extends StatelessWidget {
     );
   }
 
-  Widget _buildAlerts() {
+  Widget _buildAlerts(List<AdminAlertItem> alerts) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(title: 'System Alerts', actionLabel: 'Dismiss all', onAction: () {}),
+        const SectionHeader(title: 'System Alerts'),
         const SizedBox(height: 12),
-        ..._alerts.map((a) => Container(
+        if (alerts.isEmpty)
+          const EmptyState(
+            icon: Icons.notifications_active_rounded,
+            title: 'No active alerts',
+            subtitle: 'System alerts and activity warnings will appear here.',
+          )
+        else
+          ...alerts.map((alert) {
+            final isWarning = alert.level == 'warning';
+            final color = isWarning ? AppColors.amber : AppColors.primary;
+            final bg = isWarning ? AppColors.amberLight : AppColors.primaryLight;
+
+            return Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: a.color.withValues(alpha: 0.05),
+                color: color.withValues(alpha: 0.05),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: a.color.withValues(alpha: 0.25)),
+                border: Border.all(color: color.withValues(alpha: 0.2)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -216,254 +250,190 @@ class AdminDashboardPage extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: a.bg,
+                      color: bg,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(a.icon, color: a.color, size: 16),
+                    child: Icon(
+                      isWarning ? Icons.warning_rounded : Icons.info_rounded,
+                      color: color,
+                      size: 16,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(a.title, style: AppTextStyles.label),
+                        Text(alert.title, style: AppTextStyles.label),
                         const SizedBox(height: 2),
-                        Text(a.body, style: AppTextStyles.caption, maxLines: 2, overflow: TextOverflow.ellipsis),
+                        Text(alert.body, style: AppTextStyles.caption),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () {},
-                    child: const Icon(Icons.close_rounded, size: 16, color: AppColors.textMuted),
-                  ),
                 ],
               ),
-            )),
-      ],
-    );
-  }
-
-  Widget _buildQuickActions(BuildContext context, bool isWide) {
-    final actions = [
-      (icon: Icons.people_rounded, label: 'Manage Users', color: AppColors.primary, bg: AppColors.primaryLight,
-        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminUsersPage()))),
-      (icon: Icons.menu_book_rounded, label: 'View Courses', color: AppColors.emerald, bg: AppColors.emeraldLight, onTap: () {}),
-      (icon: Icons.bar_chart_rounded, label: 'Reports', color: AppColors.violet, bg: AppColors.violetLight, onTap: () {}),
-      (icon: Icons.settings_rounded, label: 'Platform Settings', color: AppColors.amber, bg: AppColors.amberLight, onTap: () {}),
-    ];
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionHeader(title: 'Quick Actions'),
-        const SizedBox(height: 16),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: isWide ? 4 : 2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-            mainAxisExtent: 64,
-          ),
-          itemCount: actions.length,
-          itemBuilder: (_, i) {
-            final a = actions[i];
-            return _QuickActionCard(
-              icon: a.icon,
-              label: a.label,
-              color: a.color,
-              bg: a.bg,
-              onTap: a.onTap,
             );
-          },
-        ),
+          }),
       ],
     );
   }
 
-  Widget _buildRecentRegistrations(BuildContext context) {
+  Widget _buildRecentRegistrations(
+      BuildContext context, List<AdminRegistrationItem> items) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(
           title: 'Recent Registrations',
-          actionLabel: 'View all',
+          actionLabel: 'View Users',
           onAction: () => Navigator.push(
-              context, MaterialPageRoute(builder: (_) => const AdminUsersPage())),
+            context,
+            MaterialPageRoute(builder: (_) => const AdminUsersPage()),
+          ),
         ),
         const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _registrations.length,
-            separatorBuilder: (_, _) =>
-                const Divider(height: 1, color: AppColors.border),
-            itemBuilder: (_, i) {
-              final r = _registrations[i];
-              final isInstructor = r.role == 'Instructor';
-              return ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                leading: CircleAvatar(
-                  radius: 18,
-                  backgroundColor: r.color.withValues(alpha: 0.15),
-                  child: Text(
-                    r.name.split(' ').map((w) => w[0]).take(2).join(),
-                    style: AppTextStyles.caption.copyWith(
-                      color: r.color,
-                      fontWeight: FontWeight.w700,
+        if (items.isEmpty)
+          const EmptyState(
+            icon: Icons.person_add_alt_1_rounded,
+            title: 'No registrations yet',
+            subtitle: 'New platform signups will appear here.',
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length,
+              separatorBuilder: (_, _) =>
+                  const Divider(height: 1, color: AppColors.border),
+              itemBuilder: (_, index) {
+                final item = items[index];
+                final isInstructor = item.role == 'Instructor';
+                final color =
+                    isInstructor ? AppColors.violet : AppColors.cyan;
+
+                return ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  leading: CircleAvatar(
+                    radius: 18,
+                    backgroundColor: color.withValues(alpha: 0.15),
+                    child: Text(
+                      item.name.isNotEmpty ? item.name[0].toUpperCase() : '?',
+                      style: AppTextStyles.caption.copyWith(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
-                ),
-                title: Text(r.name,
-                    style: AppTextStyles.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                subtitle: Text(r.email,
-                    style: AppTextStyles.caption,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isInstructor
-                            ? AppColors.violetLight
-                            : AppColors.cyanLight,
-                        borderRadius: BorderRadius.circular(100),
-                      ),
-                      child: Text(
-                        r.role,
-                        style: AppTextStyles.caption.copyWith(
-                          color:
-                              isInstructor ? AppColors.violet : AppColors.cyan,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(r.time, style: AppTextStyles.caption),
-                  ],
-                ),
-              );
-            },
+                  title: Text(item.name, style: AppTextStyles.label),
+                  subtitle: Text(item.email, style: AppTextStyles.caption),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(item.role, style: AppTextStyles.caption),
+                      const SizedBox(height: 3),
+                      Text(item.timeLabel, style: AppTextStyles.caption),
+                    ],
+                  ),
+                );
+              },
+            ),
           ),
-        ),
       ],
     );
   }
 
-  Widget _buildRecentActivity() {
+  Widget _buildSystemActivity(List<DashboardActivityItem> items) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(title: 'System Activity', actionLabel: 'View logs', onAction: () {}),
-        const SizedBox(height: 12),
-        Container(
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: _activities.length,
-            separatorBuilder: (_, _) =>
-                const Divider(height: 1, color: AppColors.border),
-            itemBuilder: (_, i) {
-              final a = _activities[i];
-              return ListTile(
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: a.bg,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(a.icon, color: a.color, size: 18),
-                ),
-                title: Text(a.title,
-                    style: AppTextStyles.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                subtitle: Text(a.subtitle,
-                    style: AppTextStyles.caption,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
-                trailing: Text(a.time, style: AppTextStyles.caption),
-              );
-            },
-          ),
+        SectionHeader(
+          title: 'System Activity',
+          actionLabel: 'Refresh',
+          onAction: () {
+            setState(() {
+              _summaryFuture = DashboardService.instance.getAdminSummary();
+            });
+          },
         ),
+        const SizedBox(height: 12),
+        if (items.isEmpty)
+          const EmptyState(
+            icon: Icons.analytics_rounded,
+            title: 'No activity yet',
+            subtitle: 'Platform-wide activity will appear here as users start working.',
+          )
+        else
+          Container(
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: items.length,
+              separatorBuilder: (_, _) =>
+                  const Divider(height: 1, color: AppColors.border),
+              itemBuilder: (_, index) {
+                final item = items[index];
+                return ListTile(
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  title: Text(item.title, style: AppTextStyles.label),
+                  subtitle: Text(item.subtitle, style: AppTextStyles.caption),
+                  trailing: Text(item.timestampLabel, style: AppTextStyles.caption),
+                );
+              },
+            ),
+          ),
       ],
     );
   }
 }
 
-class _QuickActionCard extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  final Color bg;
-  final VoidCallback onTap;
-
-  const _QuickActionCard({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.bg,
-    required this.onTap,
+class _DashboardErrorState extends StatelessWidget {
+  const _DashboardErrorState({
+    required this.onRetry,
   });
+
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(7),
-                decoration: BoxDecoration(
-                  color: bg,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 16),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  label,
-                  style: AppTextStyles.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 40),
+            const SizedBox(height: 12),
+            Text(
+              'Failed to load admin dashboard data.',
+              style: AppTextStyles.h3,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Make sure the migration has been applied and your account role is set to admin in the profiles table.',
+              style: AppTextStyles.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: onRetry,
+              child: const Text('Retry'),
+            ),
+          ],
         ),
       ),
     );

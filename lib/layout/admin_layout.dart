@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/utils/user_utils.dart';
 import '../features/admin/dashboard/admin_dashboard_page.dart';
 import '../features/admin/users/admin_users_page.dart';
 import '../features/admin/permissions/admin_permissions_page.dart';
@@ -11,6 +12,7 @@ import '../features/admin/platform/admin_platform_page.dart';
 import '../features/admin/profile/admin_profile_page.dart';
 import '../features/notifications/notifications_page.dart';
 import '../routing/app_router.dart';
+import '../services/auth_service.dart';
 
 class AdminLayout extends StatefulWidget {
   final int initialIndex;
@@ -64,6 +66,7 @@ class _AdminLayoutState extends State<AdminLayout> {
 
   @override
   Widget build(BuildContext context) {
+    final user = AuthService.instance.currentUser;
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
 
@@ -83,6 +86,7 @@ class _AdminLayoutState extends State<AdminLayout> {
                     title: _pageTitles[_selectedIndex],
                     onNotificationsTap: _openNotifications,
                     onProfileTap: _openProfile,
+                    initials: UserUtils.initials(user?.name ?? 'Admin'),
                   ),
                   Expanded(child: _pages[_selectedIndex]),
                 ],
@@ -114,6 +118,7 @@ class _AdminLayoutState extends State<AdminLayout> {
   }
 
   AppBar _buildMobileAppBar() {
+    final user = AuthService.instance.currentUser;
     return AppBar(
       backgroundColor: AppColors.surface,
       title: Text(_pageTitles[_selectedIndex]),
@@ -131,7 +136,7 @@ class _AdminLayoutState extends State<AdminLayout> {
               radius: 16,
               backgroundColor: AppColors.roseLight,
               child: Text(
-                'AD',
+                UserUtils.initials(user?.name ?? 'Admin'),
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.rose,
                   fontWeight: FontWeight.w700,
@@ -269,6 +274,8 @@ class _AdminSidebar extends StatelessWidget {
   }
 
   Widget _buildBottomSection(BuildContext context) {
+    final user = AuthService.instance.currentUser;
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: const BoxDecoration(
@@ -280,11 +287,17 @@ class _AdminSidebar extends StatelessWidget {
             icon: Icons.logout_rounded,
             label: 'Logout',
             isSelected: false,
-            onTap: () => Navigator.pushNamedAndRemoveUntil(
-              context,
-              AppRouter.landing,
-              (_) => false,
-            ),
+            onTap: () async {
+              await AuthService.instance.logout();
+              if (!context.mounted) {
+                return;
+              }
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRouter.landing,
+                (_) => false,
+              );
+            },
           ),
           const SizedBox(height: 8),
           GestureDetector(
@@ -318,7 +331,7 @@ class _AdminSidebar extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'System Admin',
+                          user?.name ?? 'System Admin',
                           style: AppTextStyles.label.copyWith(
                             color: AppColors.sidebarText,
                           ),
@@ -412,11 +425,13 @@ class _AdminTopBar extends StatelessWidget {
   final String title;
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
+  final String initials;
 
   const _AdminTopBar({
     required this.title,
     this.onNotificationsTap,
     this.onProfileTap,
+    required this.initials,
   });
 
   @override
@@ -488,7 +503,7 @@ class _AdminTopBar extends StatelessWidget {
               radius: 18,
               backgroundColor: AppColors.roseLight,
               child: Text(
-                'AD',
+                initials,
                 style: AppTextStyles.caption.copyWith(
                   color: AppColors.rose,
                   fontWeight: FontWeight.w700,

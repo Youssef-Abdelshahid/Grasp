@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
+import '../core/utils/user_utils.dart';
 import '../routing/app_router.dart';
+import '../services/auth_service.dart';
 
 class AppSidebar extends StatelessWidget {
   final int selectedIndex;
@@ -95,6 +97,10 @@ class AppSidebar extends StatelessWidget {
   }
 
   Widget _buildBottomSection(BuildContext context) {
+    final user = AuthService.instance.currentUser;
+    final name = user?.name ?? 'Instructor';
+    final initials = UserUtils.initials(name);
+
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: const BoxDecoration(
@@ -112,11 +118,17 @@ class AppSidebar extends StatelessWidget {
             icon: Icons.logout_rounded,
             label: 'Logout',
             isSelected: false,
-            onTap: () => Navigator.pushNamedAndRemoveUntil(
-              context,
-              AppRouter.landing,
-              (_) => false,
-            ),
+            onTap: () async {
+              await AuthService.instance.logout();
+              if (!context.mounted) {
+                return;
+              }
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRouter.landing,
+                (_) => false,
+              );
+            },
           ),
           const SizedBox(height: 8),
           GestureDetector(
@@ -135,7 +147,7 @@ class AppSidebar extends StatelessWidget {
                     radius: 16,
                     backgroundColor: AppColors.primary,
                     child: Text(
-                      'Dr',
+                      initials,
                       style: AppTextStyles.caption.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.w700,
@@ -148,14 +160,14 @@ class AppSidebar extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Dr. Ahmed Ali',
+                          name,
                           style: AppTextStyles.label.copyWith(
                             color: AppColors.sidebarText,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
-                          'Instructor',
+                          user?.role.label ?? 'Instructor',
                           style: AppTextStyles.caption.copyWith(
                             color: AppColors.sidebarTextMuted,
                           ),

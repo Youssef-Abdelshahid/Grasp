@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+
 import 'core/theme/app_theme.dart';
 import 'routing/app_router.dart';
+import 'services/auth_service.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await AuthService.instance.initialize();
   runApp(const GraspApp());
 }
 
@@ -15,7 +19,7 @@ class GraspApp extends StatelessWidget {
       title: 'Grasp',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      initialRoute: AppRouter.landing,
+      initialRoute: AppRouter.authGate,
       onGenerateRoute: AppRouter.onGenerateRoute,
     );
   }

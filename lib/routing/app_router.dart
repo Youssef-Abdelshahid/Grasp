@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+
+import '../core/auth/app_role.dart';
 import '../features/auth/pages/landing_page.dart';
 import '../features/auth/pages/auth_page.dart';
 import '../layout/main_layout.dart';
 import '../layout/student_layout.dart';
 import '../layout/admin_layout.dart';
+import '../widgets/auth/auth_gate_page.dart';
+import '../widgets/auth/protected_page.dart';
 
 class AppRouter {
   AppRouter._();
 
+  static const authGate = '/auth-gate';
   static const landing = '/';
   static const auth = '/auth';
   static const dashboard = '/dashboard';
@@ -21,32 +26,95 @@ class AppRouter {
   static const adminUploadLimits = '/admin/upload-limits';
   static const adminPlatform = '/admin/platform';
 
+  static String defaultRouteForRole(AppRole role) {
+    switch (role) {
+      case AppRole.student:
+        return studentDashboard;
+      case AppRole.instructor:
+        return dashboard;
+      case AppRole.admin:
+        return adminDashboard;
+    }
+  }
+
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case authGate:
+        return _fade(const AuthGatePage());
       case landing:
         return _fade(const LandingPage());
       case auth:
         return _fade(const AuthPage());
       case dashboard:
-        return _fade(const MainLayout(initialIndex: 0));
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.instructor],
+            child: MainLayout(initialIndex: 0),
+          ),
+        );
       case courses:
-        return _fade(const MainLayout(initialIndex: 1));
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.instructor],
+            child: MainLayout(initialIndex: 1),
+          ),
+        );
       case studentDashboard:
-        return _fade(const StudentLayout(initialIndex: 0));
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.student],
+            child: StudentLayout(initialIndex: 0),
+          ),
+        );
       case studentCourses:
-        return _fade(const StudentLayout(initialIndex: 1));
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.student],
+            child: StudentLayout(initialIndex: 1),
+          ),
+        );
       case adminDashboard:
-        return _fade(const AdminLayout(initialIndex: 0));
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.admin],
+            child: AdminLayout(initialIndex: 0),
+          ),
+        );
       case adminUsers:
-        return _fade(const AdminLayout(initialIndex: 1));
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.admin],
+            child: AdminLayout(initialIndex: 1),
+          ),
+        );
       case adminPermissions:
-        return _fade(const AdminLayout(initialIndex: 2));
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.admin],
+            child: AdminLayout(initialIndex: 2),
+          ),
+        );
       case adminAiControls:
-        return _fade(const AdminLayout(initialIndex: 3));
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.admin],
+            child: AdminLayout(initialIndex: 3),
+          ),
+        );
       case adminUploadLimits:
-        return _fade(const AdminLayout(initialIndex: 4));
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.admin],
+            child: AdminLayout(initialIndex: 4),
+          ),
+        );
       case adminPlatform:
-        return _fade(const AdminLayout(initialIndex: 5));
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.admin],
+            child: AdminLayout(initialIndex: 5),
+          ),
+        );
       default:
         return _fade(const LandingPage());
     }
