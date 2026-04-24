@@ -1,120 +1,139 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/utils/file_utils.dart';
+import '../../../../core/widgets/empty_state.dart';
+import '../../../../models/assignment_model.dart';
+import '../../../../models/submission_model.dart';
+import '../../../../services/assignment_service.dart';
+import '../../../../services/submission_service.dart';
 import '../../study/assignment_submission_page.dart';
 
-class StudentAssignmentsTab extends StatelessWidget {
-  const StudentAssignmentsTab({super.key});
+class StudentAssignmentsTab extends StatefulWidget {
+  const StudentAssignmentsTab({
+    super.key,
+    required this.courseId,
+  });
 
-  static const _assignments = [
-    (
-      title: 'Assignment 1: Project Proposal',
-      deadline: 'Mar 20, 2025',
-      status: 'Submitted',
-      grade: '92/100',
-    ),
-    (
-      title: 'Assignment 2: Implementation Phase',
-      deadline: 'Apr 10, 2025',
-      status: 'Pending',
-      grade: '',
-    ),
-    (
-      title: 'Assignment 3: Testing & Documentation',
-      deadline: 'Apr 25, 2025',
-      status: 'Not Started',
-      grade: '',
-    ),
-    (
-      title: 'Final Project Submission',
-      deadline: 'May 15, 2025',
-      status: 'Not Started',
-      grade: '',
-    ),
-  ];
+  final String courseId;
+
+  @override
+  State<StudentAssignmentsTab> createState() => _StudentAssignmentsTabState();
+}
+
+class _StudentAssignmentsTabState extends State<StudentAssignmentsTab> {
+  late Future<_StudentAssignmentData> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _load();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 20),
-          _buildAssignmentList(),
-        ],
+    return FutureBuilder<_StudentAssignmentData>(
+      future: _future,
+      builder: (context, snapshot) {
+        final data = snapshot.data ?? const _StudentAssignmentData([], {});
+        final assignments = data.assignments;
+        final submitted = data.latestSubmissions.length;
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Assignments', style: AppTextStyles.h2),
+              const SizedBox(height: 4),
+              Text(
+                '$submitted of ${assignments.length} submitted',
+                style: AppTextStyles.bodySmall,
+              ),
+              const SizedBox(height: 20),
+              if (snapshot.connectionState != ConnectionState.done)
+                const Center(child: CircularProgressIndicator())
+              else if (assignments.isEmpty)
+                const EmptyState(
+                  icon: Icons.assignment_rounded,
+                  title: 'No assignments available',
+                  subtitle:
+                      'Published assignments from your instructor will appear here once they are ready.',
+                )
+              else
+                ...assignments.map(
+                  (assignment) => Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _AssignmentCard(
+                      assignment: assignment,
+                      submission: data.latestSubmissions[assignment.id],
+                      onOpen: () => _openAssignment(
+                        assignment,
+                        data.latestSubmissions[assignment.id],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<_StudentAssignmentData> _load() async {
+    final assignments =
+        await AssignmentService.instance.getCourseAssignments(widget.courseId);
+    final submissions = await SubmissionService.instance
+        .getLatestAssignmentSubmissionsForCourse(widget.courseId);
+    return _StudentAssignmentData(assignments, submissions);
+  }
+
+  Future<void> _openAssignment(
+    AssignmentModel assignment,
+    SubmissionModel? submission,
+  ) async {
+    final result = await Navigator.push<SubmissionModel>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AssignmentSubmissionPage(
+          assignment: assignment,
+          latestSubmission: submission,
+        ),
       ),
     );
+
+    if (result != null) {
+      _refresh();
+    }
   }
 
-  Widget _buildHeader() {
-    final submitted = _assignments.where((a) => a.status == 'Submitted').length;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Assignments', style: AppTextStyles.h2),
-        const SizedBox(height: 4),
-        Text(
-          '$submitted of ${_assignments.length} submitted',
-          style: AppTextStyles.bodySmall,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAssignmentList() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('All Assignments', style: AppTextStyles.h3),
-        const SizedBox(height: 12),
-        ...List.generate(_assignments.length, (i) {
-          final a = _assignments[i];
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: _AssignmentCard(
-              title: a.title,
-              deadline: a.deadline,
-              status: a.status,
-              grade: a.grade,
-            ),
-          );
-        }),
-      ],
-    );
+  void _refresh() {
+    final future = _load();
+    setState(() {
+      _future = future;
+    });
   }
 }
 
 class _AssignmentCard extends StatelessWidget {
-  final String title;
-  final String deadline;
-  final String status;
-  final String grade;
-
   const _AssignmentCard({
-    required this.title,
-    required this.deadline,
-    required this.status,
-    required this.grade,
+    required this.assignment,
+    required this.submission,
+    required this.onOpen,
   });
 
-  (Color, Color) _statusConfig() {
-    switch (status) {
-      case 'Submitted':
-        return (AppColors.success, AppColors.successLight);
-      case 'Pending':
-        return (AppColors.amber, AppColors.amberLight);
-      default:
-        return (AppColors.textMuted, AppColors.background);
-    }
-  }
+  final AssignmentModel assignment;
+  final SubmissionModel? submission;
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
-    final (statusColor, statusBg) = _statusConfig();
-    final isSubmitted = status == 'Submitted';
-    final isPending = status == 'Pending';
+    final isSubmitted = submission != null;
+    final chipColor = isSubmitted ? AppColors.success : AppColors.amber;
+    final chipBackground =
+        isSubmitted ? AppColors.successLight : AppColors.amberLight;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -134,8 +153,11 @@ class _AssignmentCard extends StatelessWidget {
                   color: AppColors.emeraldLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.assignment_rounded,
-                    color: AppColors.emerald, size: 16),
+                child: const Icon(
+                  Icons.assignment_rounded,
+                  color: AppColors.emerald,
+                  size: 16,
+                ),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -143,135 +165,84 @@ class _AssignmentCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      title,
+                      assignment.title,
                       style: AppTextStyles.label,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      'Due: $deadline',
+                      assignment.dueAt == null
+                          ? 'No deadline'
+                          : 'Due: ${FileUtils.formatDate(assignment.dueAt!)}',
                       style: AppTextStyles.caption,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: statusBg,
+                  color: chipBackground,
                   borderRadius: BorderRadius.circular(100),
                 ),
                 child: Text(
-                  status,
+                  isSubmitted ? 'Submitted' : 'Pending',
                   style: AppTextStyles.caption.copyWith(
-                    color: statusColor,
+                    color: chipColor,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
             ],
           ),
-          if (isSubmitted) ...[
-            const SizedBox(height: 12),
-            const Divider(color: AppColors.border, height: 1),
-            const SizedBox(height: 12),
+          const SizedBox(height: 12),
+          const Divider(color: AppColors.border, height: 1),
+          const SizedBox(height: 12),
+          if (isSubmitted)
             Row(
               children: [
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                  decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.emerald, Color(0xFF059669)],
-                    ),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.grade_rounded,
-                          color: Colors.white, size: 14),
-                      const SizedBox(width: 5),
-                      Text(
-                        'Grade: $grade',
-                        style: AppTextStyles.buttonSmall
-                            .copyWith(color: Colors.white),
-                      ),
-                    ],
+                Expanded(
+                  child: Text(
+                    'Latest attempt: ${FileUtils.formatDateTime(submission!.submittedAt)}',
+                    style: AppTextStyles.caption,
                   ),
                 ),
-                const Spacer(),
-                TextButton(
-                  onPressed: () {},
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 6),
-                    minimumSize: Size.zero,
-                  ),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('View Submission'),
-                      SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_rounded, size: 13),
-                    ],
+                ElevatedButton.icon(
+                  onPressed: onOpen,
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  label: const Text('View / Resubmit'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.emerald,
+                    foregroundColor: Colors.white,
                   ),
                 ),
               ],
-            ),
-          ] else if (isPending) ...[
-            const SizedBox(height: 12),
-            const Divider(color: AppColors.border, height: 1),
-            const SizedBox(height: 12),
+            )
+          else
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => AssignmentSubmissionPage(
-                      title: title,
-                      deadline: deadline,
-                    ),
-                  ),
-                ),
+                onPressed: onOpen,
                 icon: const Icon(Icons.upload_rounded, size: 16),
                 label: const Text('Submit Assignment'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.emerald,
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  textStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
-          ] else ...[
-            const SizedBox(height: 12),
-            const Divider(color: AppColors.border, height: 1),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.lock_rounded, size: 16),
-                label: const Text('Not Yet Available'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textMuted,
-                  side: const BorderSide(color: AppColors.border),
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  textStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w500),
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
   }
+}
+
+class _StudentAssignmentData {
+  const _StudentAssignmentData(this.assignments, this.latestSubmissions);
+
+  final List<AssignmentModel> assignments;
+  final Map<String, SubmissionModel> latestSubmissions;
 }

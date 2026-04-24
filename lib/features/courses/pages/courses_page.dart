@@ -1,76 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/empty_state.dart';
 import '../../../models/course_model.dart';
+import '../../../services/course_service.dart';
 import '../../course_workspace/pages/course_workspace_page.dart';
 import 'create_course_page.dart';
 
-class CoursesPage extends StatelessWidget {
+class CoursesPage extends StatefulWidget {
   const CoursesPage({super.key});
 
-  static const _courses = [
-    CourseModel(
-      id: '1',
-      title: 'Mobile Device Programming',
-      code: 'CS401',
-      studentsCount: 42,
-      lecturesCount: 12,
-      instructor: 'Dr. Ahmed Ali',
-      description:
-          'An in-depth course covering modern mobile development with Flutter, iOS, and Android development principles.',
-    ),
-    CourseModel(
-      id: '2',
-      title: 'Machine Learning Basics',
-      code: 'CS310',
-      studentsCount: 35,
-      lecturesCount: 10,
-      instructor: 'Dr. Ahmed Ali',
-      description:
-          'Foundations of machine learning algorithms, supervised and unsupervised learning, neural networks.',
-    ),
-    CourseModel(
-      id: '3',
-      title: 'Database Systems',
-      code: 'CS302',
-      studentsCount: 51,
-      lecturesCount: 15,
-      instructor: 'Dr. Ahmed Ali',
-      description:
-          'Relational databases, SQL, normalization, transactions, and modern NoSQL approaches.',
-    ),
-    CourseModel(
-      id: '4',
-      title: 'Computer Networks',
-      code: 'CS315',
-      studentsCount: 28,
-      lecturesCount: 8,
-      instructor: 'Dr. Ahmed Ali',
-      description:
-          'Network protocols, TCP/IP stack, routing algorithms, and network security fundamentals.',
-    ),
-    CourseModel(
-      id: '5',
-      title: 'Software Engineering',
-      code: 'CS411',
-      studentsCount: 39,
-      lecturesCount: 14,
-      instructor: 'Dr. Ahmed Ali',
-      description:
-          'Software development lifecycle, agile methodologies, design patterns, and project management.',
-    ),
-    CourseModel(
-      id: '6',
-      title: 'Operating Systems',
-      code: 'CS308',
-      studentsCount: 44,
-      lecturesCount: 11,
-      instructor: 'Dr. Ahmed Ali',
-      description:
-          'Process management, memory management, file systems, and concurrency in modern operating systems.',
-    ),
-  ];
+  @override
+  State<CoursesPage> createState() => _CoursesPageState();
+}
+
+class _CoursesPageState extends State<CoursesPage> {
+  late Future<List<CourseModel>> _coursesFuture;
 
   static const _courseColors = [
     AppColors.primary,
@@ -82,25 +30,55 @@ class CoursesPage extends StatelessWidget {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    _coursesFuture = CourseService.instance.getInstructorCourses();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
     final padding = EdgeInsets.all(isWide ? 28 : 16);
 
-    return SingleChildScrollView(
-      padding: padding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(context, isWide),
-          const SizedBox(height: 20),
-          _buildList(context, isWide),
-        ],
-      ),
+    return FutureBuilder<List<CourseModel>>(
+      future: _coursesFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return _ErrorState(onRetry: _refresh);
+        }
+
+        final courses = snapshot.data ?? [];
+        return SingleChildScrollView(
+          padding: padding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(context, isWide, courses.length),
+              const SizedBox(height: 20),
+              if (courses.isEmpty)
+                EmptyState(
+                  icon: Icons.menu_book_rounded,
+                  title: 'No courses yet',
+                  subtitle:
+                      'Create your first course to start adding materials, announcements, and student enrollments.',
+                  actionLabel: 'Create Course',
+                  onAction: () => _openCreate(context),
+                )
+              else
+                _buildList(context, isWide, courses),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader(BuildContext context, bool isWide) {
+  Widget _buildHeader(BuildContext context, bool isWide, int count) {
     return Row(
       children: [
         Expanded(
@@ -110,7 +88,7 @@ class CoursesPage extends StatelessWidget {
               Text('My Courses', style: AppTextStyles.h1),
               const SizedBox(height: 4),
               Text(
-                '${_courses.length} active courses this semester',
+                '$count active courses in your workspace',
                 style: AppTextStyles.bodySmall,
               ),
             ],
@@ -119,17 +97,19 @@ class CoursesPage extends StatelessWidget {
         const SizedBox(width: 12),
         isWide
             ? ElevatedButton.icon(
-                onPressed: () => _showCreateDialog(context),
+                onPressed: () => _openCreate(context),
                 icon: const Icon(Icons.add_rounded, size: 18),
                 label: const Text('Create Course'),
               )
             : ElevatedButton(
-                onPressed: () => _showCreateDialog(context),
+                onPressed: () => _openCreate(context),
                 style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                   textStyle: const TextStyle(
-                      fontSize: 13, fontWeight: FontWeight.w600),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 child: const Text('+ Create'),
               ),
@@ -137,16 +117,22 @@ class CoursesPage extends StatelessWidget {
     );
   }
 
-  Widget _buildList(BuildContext context, bool isWide) {
+  Widget _buildList(
+    BuildContext context,
+    bool isWide,
+    List<CourseModel> courses,
+  ) {
     if (!isWide) {
       return Column(
-        children: List.generate(_courses.length, (i) {
+        children: List.generate(courses.length, (index) {
           return Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: _CourseCard(
-              course: _courses[i],
-              accentColor: _courseColors[i % _courseColors.length],
-              onTap: () => _openWorkspace(context, i),
+              course: courses[index],
+              accentColor: _courseColors[index % _courseColors.length],
+              onOpen: () => _openWorkspace(context, courses[index], index),
+              onEdit: () => _openEdit(context, courses[index]),
+              onArchive: () => _archiveCourse(courses[index]),
             ),
           );
         }),
@@ -161,49 +147,120 @@ class CoursesPage extends StatelessWidget {
         crossAxisCount: cols,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        mainAxisExtent: 230,
+        mainAxisExtent: 250,
       ),
-      itemCount: _courses.length,
-      itemBuilder: (context, i) {
+      itemCount: courses.length,
+      itemBuilder: (context, index) {
         return _CourseCard(
-          course: _courses[i],
-          accentColor: _courseColors[i % _courseColors.length],
-          onTap: () => _openWorkspace(context, i),
+          course: courses[index],
+          accentColor: _courseColors[index % _courseColors.length],
+          onOpen: () => _openWorkspace(context, courses[index], index),
+          onEdit: () => _openEdit(context, courses[index]),
+          onArchive: () => _archiveCourse(courses[index]),
         );
       },
     );
   }
 
-  void _openWorkspace(BuildContext context, int i) {
-    Navigator.push(
+  Future<void> _openWorkspace(
+    BuildContext context,
+    CourseModel course,
+    int index,
+  ) async {
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => CourseWorkspacePage(
-          course: _courses[i],
-          accentColor: _courseColors[i % _courseColors.length],
+          courseId: course.id,
+          initialCourse: course,
+          accentColor: _courseColors[index % _courseColors.length],
         ),
       ),
     );
+    _refresh();
   }
 
-  void _showCreateDialog(BuildContext context) {
-    Navigator.push(
+  Future<void> _openCreate(BuildContext context) async {
+    final created = await Navigator.push<CourseModel>(
       context,
       MaterialPageRoute(builder: (_) => const CreateCoursePage()),
+    );
+    if (created != null) {
+      _refresh();
+    }
+  }
+
+  Future<void> _openEdit(BuildContext context, CourseModel course) async {
+    final updated = await Navigator.push<CourseModel>(
+      context,
+      MaterialPageRoute(builder: (_) => CreateCoursePage(course: course)),
+    );
+    if (updated != null) {
+      _refresh();
+    }
+  }
+
+  Future<void> _archiveCourse(CourseModel course) async {
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Archive Course'),
+            content: Text(
+              'Archive "${course.title}"? Students will no longer see it in active course lists.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Archive'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await CourseService.instance.archiveCourse(course.id);
+      _refresh();
+    } on PostgrestException catch (error) {
+      _showMessage(error.message);
+    }
+  }
+
+  void _refresh() {
+    setState(() {
+      _coursesFuture = CourseService.instance.getInstructorCourses();
+    });
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 }
 
 class _CourseCard extends StatelessWidget {
-  final CourseModel course;
-  final Color accentColor;
-  final VoidCallback onTap;
-
   const _CourseCard({
     required this.course,
     required this.accentColor,
-    required this.onTap,
+    required this.onOpen,
+    required this.onEdit,
+    required this.onArchive,
   });
+
+  final CourseModel course;
+  final Color accentColor;
+  final VoidCallback onOpen;
+  final VoidCallback onEdit;
+  final VoidCallback onArchive;
 
   @override
   Widget build(BuildContext context) {
@@ -211,7 +268,7 @@ class _CourseCard extends StatelessWidget {
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        onTap: onTap,
+        onTap: onOpen,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.all(18),
@@ -241,9 +298,47 @@ class _CourseCard extends StatelessWidget {
                               .copyWith(color: accentColor),
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: course.isVisible
+                              ? AppColors.emeraldLight
+                              : AppColors.amberLight,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          course.isVisible ? 'Published' : 'Draft',
+                          style: AppTextStyles.caption.copyWith(
+                            color: course.isVisible
+                                ? AppColors.emerald
+                                : AppColors.amber,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                       const Spacer(),
-                      Icon(Icons.more_horiz_rounded,
-                          color: AppColors.textMuted, size: 20),
+                      PopupMenuButton<String>(
+                        onSelected: (value) {
+                          switch (value) {
+                            case 'open':
+                              onOpen();
+                              break;
+                            case 'edit':
+                              onEdit();
+                              break;
+                            case 'archive':
+                              onArchive();
+                              break;
+                          }
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(value: 'open', child: Text('Open')),
+                          PopupMenuItem(value: 'edit', child: Text('Edit')),
+                          PopupMenuItem(value: 'archive', child: Text('Archive')),
+                        ],
+                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -255,19 +350,25 @@ class _CourseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    course.description,
+                    course.description.isEmpty
+                        ? 'No course description yet.'
+                        : course.description,
                     style: AppTextStyles.bodySmall,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    course.semester.isEmpty ? 'Semester not set' : course.semester,
+                    style: AppTextStyles.caption,
                   ),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 12),
                   const Divider(color: AppColors.border, height: 1),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
@@ -282,14 +383,14 @@ class _CourseCard extends StatelessWidget {
                             ),
                             _InfoChip(
                               icon: Icons.book_rounded,
-                              label: '${course.lecturesCount} lectures',
+                              label: '${course.lecturesCount} materials',
                               color: AppColors.textSecondary,
                             ),
                           ],
                         ),
                       ),
                       TextButton(
-                        onPressed: onTap,
+                        onPressed: onOpen,
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 10, vertical: 6),
@@ -317,15 +418,15 @@ class _CourseCard extends StatelessWidget {
 }
 
 class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-
   const _InfoChip({
     required this.icon,
     required this.label,
     required this.color,
   });
+
+  final IconData icon;
+  final String label;
+  final Color color;
 
   @override
   Widget build(BuildContext context) {
@@ -334,12 +435,29 @@ class _InfoChip extends StatelessWidget {
       children: [
         Icon(icon, size: 12, color: color),
         const SizedBox(width: 3),
-        Text(
-          label,
-          style: AppTextStyles.caption,
-          overflow: TextOverflow.ellipsis,
-        ),
+        Text(label, style: AppTextStyles.caption),
       ],
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({
+    required this.onRetry,
+  });
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: EmptyState(
+        icon: Icons.cloud_off_rounded,
+        title: 'Unable to load courses',
+        subtitle: 'Please check your database migration and try again.',
+        actionLabel: 'Retry',
+        onAction: onRetry,
+      ),
     );
   }
 }

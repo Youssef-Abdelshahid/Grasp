@@ -1,107 +1,92 @@
 import 'package:flutter/material.dart';
+
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
+import '../../../../core/utils/file_utils.dart';
+import '../../../../core/widgets/empty_state.dart';
+import '../../../../models/announcement_model.dart';
+import '../../../../services/announcement_service.dart';
 
-class StudentAnnouncementsTab extends StatelessWidget {
-  const StudentAnnouncementsTab({super.key});
+class StudentAnnouncementsTab extends StatefulWidget {
+  const StudentAnnouncementsTab({
+    super.key,
+    required this.courseId,
+  });
 
-  static const _announcements = [
-    (
-      title: 'Office hours moved to Thursday',
-      body: 'This week only, office hours will be held on Thursday at 2PM instead of Wednesday. Please bring your questions about the upcoming quiz.',
-      date: 'Apr 5, 2025',
-      time: '2h ago',
-      isPinned: true,
-    ),
-    (
-      title: 'Assignment 2 deadline extended',
-      body: 'Due to the upcoming holiday, the Assignment 2 deadline has been extended by 3 days. New deadline: April 10th.',
-      date: 'Apr 2, 2025',
-      time: '5h ago',
-      isPinned: false,
-    ),
-    (
-      title: 'Midterm exam schedule published',
-      body: 'The midterm exam schedule has been published on the university portal. Please check the dates and prepare accordingly.',
-      date: 'Mar 28, 2025',
-      time: 'Yesterday',
-      isPinned: false,
-    ),
-    (
-      title: 'New study resources uploaded',
-      body: 'Additional study materials including practice problems and sample solutions have been uploaded under Materials.',
-      date: 'Mar 25, 2025',
-      time: '3 days ago',
-      isPinned: false,
-    ),
-    (
-      title: 'Quiz 1 results are now available',
-      body: 'Results for Quiz 1 have been published. You can view your score and detailed feedback in the Quizzes tab.',
-      date: 'Mar 20, 2025',
-      time: '1 week ago',
-      isPinned: false,
-    ),
-  ];
+  final String courseId;
+
+  @override
+  State<StudentAnnouncementsTab> createState() => _StudentAnnouncementsTabState();
+}
+
+class _StudentAnnouncementsTabState extends State<StudentAnnouncementsTab> {
+  late Future<List<AnnouncementModel>> _announcementsFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _announcementsFuture =
+        AnnouncementService.instance.getCourseAnnouncements(widget.courseId);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          const SizedBox(height: 16),
-          ..._announcements
-              .asMap()
-              .entries
-              .map((entry) => Padding(
+    return FutureBuilder<List<AnnouncementModel>>(
+      future: _announcementsFuture,
+      builder: (context, snapshot) {
+        final announcements = snapshot.data ?? [];
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Announcements', style: AppTextStyles.h2),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${announcements.length} announcements',
+                    style: AppTextStyles.bodySmall,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (snapshot.connectionState != ConnectionState.done)
+                const Center(child: CircularProgressIndicator())
+              else if (announcements.isEmpty)
+                const EmptyState(
+                  icon: Icons.campaign_rounded,
+                  title: 'No announcements yet',
+                  subtitle:
+                      'Announcements from your instructor will appear here.',
+                )
+              else
+                ...announcements.map(
+                  (announcement) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _AnnouncementCard(
-                      title: entry.value.title,
-                      body: entry.value.body,
-                      date: entry.value.date,
-                      time: entry.value.time,
-                      isPinned: entry.value.isPinned,
-                    ),
-                  )),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHeader() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Announcements', style: AppTextStyles.h2),
-        const SizedBox(height: 4),
-        Text(
-          '${_announcements.length} announcements',
-          style: AppTextStyles.bodySmall,
-        ),
-      ],
+                    child: _AnnouncementCard(announcement: announcement),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
 
 class _AnnouncementCard extends StatelessWidget {
-  final String title;
-  final String body;
-  final String date;
-  final String time;
-  final bool isPinned;
-
   const _AnnouncementCard({
-    required this.title,
-    required this.body,
-    required this.date,
-    required this.time,
-    required this.isPinned,
+    required this.announcement,
   });
+
+  final AnnouncementModel announcement;
 
   @override
   Widget build(BuildContext context) {
+    final isPinned = announcement.isPinned;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -138,40 +123,16 @@ class _AnnouncementCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title,
-                        style: AppTextStyles.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      announcement.title,
+                      style: AppTextStyles.label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Text(date, style: AppTextStyles.caption),
-                        const SizedBox(width: 6),
-                        Text('·',
-                            style: AppTextStyles.caption
-                                .copyWith(color: AppColors.textMuted)),
-                        const SizedBox(width: 6),
-                        Text(time, style: AppTextStyles.caption),
-                        if (isPinned) ...[
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: AppColors.amber,
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              'Pinned',
-                              style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ],
+                    Text(
+                      FileUtils.formatDate(announcement.createdAt),
+                      style: AppTextStyles.caption,
                     ),
                   ],
                 ),
@@ -179,10 +140,7 @@ class _AnnouncementCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            body,
-            style: AppTextStyles.bodySmall,
-          ),
+          Text(announcement.body, style: AppTextStyles.bodySmall),
         ],
       ),
     );

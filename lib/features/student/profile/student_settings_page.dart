@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../routing/app_router.dart';
+import '../../../models/user_model.dart';
+import '../../../services/auth_service.dart';
+import '../../../services/profile_service.dart';
 
 class StudentSettingsPage extends StatefulWidget {
   const StudentSettingsPage({super.key});
@@ -12,6 +15,8 @@ class StudentSettingsPage extends StatefulWidget {
 }
 
 class _StudentSettingsPageState extends State<StudentSettingsPage> {
+  late Future<UserModel> _future;
+  bool _didPopulate = false;
   bool _emailNotifications = true;
   bool _pushNotifications = true;
   bool _assignmentReminders = true;
@@ -21,225 +26,191 @@ class _StudentSettingsPageState extends State<StudentSettingsPage> {
   bool _deadlineReminder24h = true;
   bool _deadlineReminder1h = false;
   bool _studyReminders = true;
-  bool _darkMode = false;
   bool _compactView = false;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = ProfileService.instance.getCurrentProfile();
+  }
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(isWide ? 28 : 16),
-      child: isWide
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    children: [
-                      _buildNotificationPrefs(),
-                      const SizedBox(height: 20),
-                      _buildReminderPrefs(),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  flex: 1,
-                  child: Column(
-                    children: [
-                      _buildAppearance(),
-                      const SizedBox(height: 20),
-                      _buildAccountSettings(),
-                    ],
-                  ),
-                ),
+    return FutureBuilder<UserModel>(
+      future: _future,
+      builder: (context, snapshot) {
+        final profile = snapshot.data;
+        if (snapshot.connectionState != ConnectionState.done && profile == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        if (profile != null && !_didPopulate) {
+          _apply(profile.preferences);
+        }
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.all(isWide ? 28 : 16),
+          child: Column(
+            children: [
+              if (isWide)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _notificationSection()),
+                    const SizedBox(width: 20),
+                    Expanded(child: _reminderSection()),
+                  ],
+                )
+              else ...[
+                _notificationSection(),
+                const SizedBox(height: 20),
+                _reminderSection(),
               ],
-            )
-          : Column(
-              children: [
-                _buildNotificationPrefs(),
+              const SizedBox(height: 20),
+              if (isWide)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: _appearanceSection()),
+                    const SizedBox(width: 20),
+                    Expanded(child: _accountSection()),
+                  ],
+                )
+              else ...[
+                _appearanceSection(),
                 const SizedBox(height: 20),
-                _buildReminderPrefs(),
-                const SizedBox(height: 20),
-                _buildAppearance(),
-                const SizedBox(height: 20),
-                _buildAccountSettings(),
+                _accountSection(),
               ],
-            ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _saving ? null : _save,
+                  child: _saving
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Save Settings'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildNotificationPrefs() {
-    return _Section(
-      title: 'Notification Preferences',
-      icon: Icons.notifications_rounded,
-      iconColor: AppColors.amber,
-      iconBg: AppColors.amberLight,
-      child: Column(
-        children: [
-          _ToggleTile(
-            label: 'Email Notifications',
-            subtitle: 'Receive updates via email',
-            value: _emailNotifications,
-            onChanged: (v) => setState(() => _emailNotifications = v),
-          ),
-          _ToggleTile(
-            label: 'Push Notifications',
-            subtitle: 'In-app alerts and banners',
-            value: _pushNotifications,
-            onChanged: (v) => setState(() => _pushNotifications = v),
-          ),
-          _ToggleTile(
-            label: 'Assignment Alerts',
-            subtitle: 'New assignments and grade updates',
-            value: _assignmentReminders,
-            onChanged: (v) => setState(() => _assignmentReminders = v),
-          ),
-          _ToggleTile(
-            label: 'Quiz Alerts',
-            subtitle: 'When new quizzes open or results are out',
-            value: _quizReminders,
-            onChanged: (v) => setState(() => _quizReminders = v),
-          ),
-          _ToggleTile(
-            label: 'Announcements',
-            subtitle: 'Course announcements from instructors',
-            value: _announcementAlerts,
-            onChanged: (v) => setState(() => _announcementAlerts = v),
-          ),
-          _ToggleTile(
-            label: 'Grade Alerts',
-            subtitle: 'When grades are published',
-            value: _gradeAlerts,
-            onChanged: (v) => setState(() => _gradeAlerts = v),
-          ),
-        ],
-      ),
+  void _apply(Map<String, dynamic> prefs) {
+    _didPopulate = true;
+    _emailNotifications = prefs['email_notifications'] as bool? ?? true;
+    _pushNotifications = prefs['push_notifications'] as bool? ?? true;
+    _assignmentReminders = prefs['assignment_reminders'] as bool? ?? true;
+    _quizReminders = prefs['quiz_reminders'] as bool? ?? true;
+    _announcementAlerts = prefs['announcement_alerts'] as bool? ?? true;
+    _gradeAlerts = prefs['grade_alerts'] as bool? ?? true;
+    _deadlineReminder24h = prefs['deadline_reminder_24h'] as bool? ?? true;
+    _deadlineReminder1h = prefs['deadline_reminder_1h'] as bool? ?? false;
+    _studyReminders = prefs['study_reminders'] as bool? ?? true;
+    _compactView = prefs['compact_view'] as bool? ?? false;
+  }
+
+  Future<void> _save() async {
+    setState(() => _saving = true);
+    await ProfileService.instance.updatePreferences({
+      'email_notifications': _emailNotifications,
+      'push_notifications': _pushNotifications,
+      'assignment_reminders': _assignmentReminders,
+      'quiz_reminders': _quizReminders,
+      'announcement_alerts': _announcementAlerts,
+      'grade_alerts': _gradeAlerts,
+      'deadline_reminder_24h': _deadlineReminder24h,
+      'deadline_reminder_1h': _deadlineReminder1h,
+      'study_reminders': _studyReminders,
+      'compact_view': _compactView,
+    });
+    if (!mounted) return;
+    setState(() => _saving = false);
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Settings saved.')),
     );
   }
 
-  Widget _buildReminderPrefs() {
-    return _Section(
-      title: 'Reminder Preferences',
-      icon: Icons.alarm_rounded,
-      iconColor: AppColors.violet,
-      iconBg: AppColors.violetLight,
-      child: Column(
+  Widget _notificationSection() => _SettingsSection(
+        title: 'Notification Preferences',
         children: [
-          _ToggleTile(
-            label: '24-hour Deadline Reminder',
-            subtitle: 'Remind me 1 day before assignment/quiz closes',
-            value: _deadlineReminder24h,
-            onChanged: (v) => setState(() => _deadlineReminder24h = v),
-          ),
-          _ToggleTile(
-            label: '1-hour Deadline Reminder',
-            subtitle: 'Remind me 1 hour before deadline',
-            value: _deadlineReminder1h,
-            onChanged: (v) => setState(() => _deadlineReminder1h = v),
-          ),
-          _ToggleTile(
-            label: 'Study Reminders',
-            subtitle: 'Daily study session suggestions',
-            value: _studyReminders,
-            onChanged: (v) => setState(() => _studyReminders = v),
-          ),
+          _toggle('Email Notifications', _emailNotifications,
+              (value) => setState(() => _emailNotifications = value)),
+          _toggle('Push Notifications', _pushNotifications,
+              (value) => setState(() => _pushNotifications = value)),
+          _toggle('Assignment Alerts', _assignmentReminders,
+              (value) => setState(() => _assignmentReminders = value)),
+          _toggle('Quiz Alerts', _quizReminders,
+              (value) => setState(() => _quizReminders = value)),
+          _toggle('Announcement Alerts', _announcementAlerts,
+              (value) => setState(() => _announcementAlerts = value)),
+          _toggle('Grade Alerts', _gradeAlerts,
+              (value) => setState(() => _gradeAlerts = value)),
         ],
-      ),
-    );
-  }
+      );
 
-  Widget _buildAppearance() {
-    return _Section(
-      title: 'Appearance',
-      icon: Icons.palette_rounded,
-      iconColor: AppColors.emerald,
-      iconBg: AppColors.emeraldLight,
-      child: Column(
+  Widget _reminderSection() => _SettingsSection(
+        title: 'Reminder Preferences',
         children: [
-          _ToggleTile(
-            label: 'Dark Mode',
-            subtitle: 'Switch to dark theme',
-            value: _darkMode,
-            onChanged: (v) => setState(() => _darkMode = v),
-          ),
-          _ToggleTile(
-            label: 'Compact View',
-            subtitle: 'Show more content with less spacing',
-            value: _compactView,
-            onChanged: (v) => setState(() => _compactView = v),
-          ),
+          _toggle('24-hour Deadline Reminder', _deadlineReminder24h,
+              (value) => setState(() => _deadlineReminder24h = value)),
+          _toggle('1-hour Deadline Reminder', _deadlineReminder1h,
+              (value) => setState(() => _deadlineReminder1h = value)),
+          _toggle('Study Reminders', _studyReminders,
+              (value) => setState(() => _studyReminders = value)),
         ],
-      ),
-    );
-  }
+      );
 
-  Widget _buildAccountSettings() {
-    return _Section(
-      title: 'Account Settings',
-      icon: Icons.security_rounded,
-      iconColor: AppColors.primary,
-      iconBg: AppColors.primaryLight,
-      child: Column(
+  Widget _appearanceSection() => _SettingsSection(
+        title: 'Appearance',
         children: [
-          _ActionTile(
-            icon: Icons.lock_rounded,
-            label: 'Change Password',
-            subtitle: 'Last changed 2 months ago',
-            color: AppColors.primary,
-            onTap: () {},
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          _ActionTile(
-            icon: Icons.shield_rounded,
-            label: 'Two-Factor Authentication',
-            subtitle: 'Not enabled',
-            color: AppColors.amber,
-            onTap: () {},
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          _ActionTile(
-            icon: Icons.bar_chart_rounded,
-            label: 'Academic Progress Report',
-            subtitle: 'Download your progress summary',
-            color: AppColors.cyan,
-            onTap: () {},
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          _ActionTile(
-            icon: Icons.logout_rounded,
-            label: 'Sign Out',
-            subtitle: 'Sign out of your account',
-            color: AppColors.error,
-            onTap: () => Navigator.pushNamedAndRemoveUntil(
-              context,
-              AppRouter.landing,
-              (_) => false,
-            ),
+          _toggle('Compact View', _compactView,
+              (value) => setState(() => _compactView = value)),
+        ],
+      );
+
+  Widget _accountSection() => _SettingsSection(
+        title: 'Account',
+        children: [
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.logout_rounded, color: AppColors.error),
+            title: const Text('Sign Out'),
+            onTap: () async => AuthService.instance.logout(),
           ),
         ],
-      ),
+      );
+
+  Widget _toggle(String label, bool value, ValueChanged<bool> onChanged) {
+    return SwitchListTile(
+      value: value,
+      onChanged: onChanged,
+      contentPadding: EdgeInsets.zero,
+      title: Text(label, style: AppTextStyles.label),
     );
   }
 }
 
-class _Section extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBg;
-  final Widget child;
-
-  const _Section({
+class _SettingsSection extends StatelessWidget {
+  const _SettingsSection({
     required this.title,
-    required this.icon,
-    required this.iconColor,
-    required this.iconBg,
-    required this.child,
+    required this.children,
   });
+
+  final String title;
+  final List<Widget> children;
 
   @override
   Widget build(BuildContext context) {
@@ -253,100 +224,11 @@ class _Section extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                    color: iconBg, borderRadius: BorderRadius.circular(8)),
-                child: Icon(icon, color: iconColor, size: 16),
-              ),
-              const SizedBox(width: 10),
-              Text(title, style: AppTextStyles.h3),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Divider(color: AppColors.border, height: 1),
-          const SizedBox(height: 16),
-          child,
+          Text(title, style: AppTextStyles.h3),
+          const SizedBox(height: 12),
+          ...children,
         ],
       ),
-    );
-  }
-}
-
-class _ToggleTile extends StatelessWidget {
-  final String label;
-  final String subtitle;
-  final bool value;
-  final ValueChanged<bool> onChanged;
-
-  const _ToggleTile({
-    required this.label,
-    required this.subtitle,
-    required this.value,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label, style: AppTextStyles.label),
-                Text(subtitle, style: AppTextStyles.caption),
-              ],
-            ),
-          ),
-          Switch(
-            value: value,
-            onChanged: onChanged,
-            activeThumbColor: AppColors.cyan,
-            activeTrackColor: AppColors.cyanLight,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ActionTile({
-    required this.icon,
-    required this.label,
-    required this.subtitle,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(vertical: 4),
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: color, size: 16),
-      ),
-      title: Text(label, style: AppTextStyles.label),
-      subtitle: Text(subtitle, style: AppTextStyles.caption),
-      trailing: const Icon(Icons.chevron_right_rounded,
-          size: 16, color: AppColors.textMuted),
-      onTap: onTap,
     );
   }
 }

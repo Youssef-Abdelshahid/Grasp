@@ -8,6 +8,11 @@ class SubmissionModel {
     this.score,
     required this.status,
     required this.submittedAt,
+    required this.attemptNumber,
+    this.fileName,
+    this.fileSizeBytes,
+    this.storagePath,
+    this.gradedAt,
   });
 
   final String id;
@@ -18,6 +23,11 @@ class SubmissionModel {
   final double? score;
   final String status;
   final DateTime submittedAt;
+  final int attemptNumber;
+  final String? fileName;
+  final int? fileSizeBytes;
+  final String? storagePath;
+  final DateTime? gradedAt;
 
   factory SubmissionModel.fromJson(Map<String, dynamic> json) {
     return SubmissionModel(
@@ -29,6 +39,13 @@ class SubmissionModel {
       score: (json['score'] as num?)?.toDouble(),
       status: json['status'] as String? ?? 'submitted',
       submittedAt: DateTime.parse(json['submitted_at'] as String),
+      attemptNumber: (json['attempt_number'] as num?)?.toInt() ?? 1,
+      fileName: json['file_name'] as String?,
+      fileSizeBytes: (json['file_size_bytes'] as num?)?.toInt(),
+      storagePath: json['storage_path'] as String?,
+      gradedAt: json['graded_at'] == null
+          ? null
+          : DateTime.parse(json['graded_at'] as String),
     );
   }
 }

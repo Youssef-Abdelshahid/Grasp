@@ -1,65 +1,22 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/widgets/empty_state.dart';
 import '../../../models/course_model.dart';
+import '../../../services/course_service.dart';
 import '../course_workspace/student_course_workspace_page.dart';
 
-class StudentCoursesPage extends StatelessWidget {
+class StudentCoursesPage extends StatefulWidget {
   const StudentCoursesPage({super.key});
 
-  static const _courses = [
-    CourseModel(
-      id: '1',
-      title: 'Mobile Device Programming',
-      code: 'CS401',
-      studentsCount: 42,
-      lecturesCount: 12,
-      instructor: 'Dr. Ahmed Ali',
-      description:
-          'An in-depth course covering modern mobile development with Flutter, iOS, and Android development principles.',
-    ),
-    CourseModel(
-      id: '2',
-      title: 'Machine Learning Basics',
-      code: 'CS310',
-      studentsCount: 35,
-      lecturesCount: 10,
-      instructor: 'Dr. Sara Nour',
-      description:
-          'Foundations of machine learning algorithms, supervised and unsupervised learning, neural networks.',
-    ),
-    CourseModel(
-      id: '3',
-      title: 'Database Systems',
-      code: 'CS302',
-      studentsCount: 51,
-      lecturesCount: 15,
-      instructor: 'Dr. Khalid Omar',
-      description:
-          'Relational databases, SQL, normalization, transactions, and modern NoSQL approaches.',
-    ),
-    CourseModel(
-      id: '4',
-      title: 'Computer Networks',
-      code: 'CS315',
-      studentsCount: 28,
-      lecturesCount: 8,
-      instructor: 'Dr. Mona Hassan',
-      description:
-          'Network protocols, TCP/IP stack, routing algorithms, and network security fundamentals.',
-    ),
-    CourseModel(
-      id: '5',
-      title: 'Software Engineering',
-      code: 'CS411',
-      studentsCount: 39,
-      lecturesCount: 14,
-      instructor: 'Dr. Ahmed Ali',
-      description:
-          'Software development lifecycle, agile methodologies, design patterns, and project management.',
-    ),
-  ];
+  @override
+  State<StudentCoursesPage> createState() => _StudentCoursesPageState();
+}
+
+class _StudentCoursesPageState extends State<StudentCoursesPage> {
+  late Future<List<CourseModel>> _coursesFuture;
 
   static const _courseColors = [
     AppColors.primary,
@@ -69,15 +26,11 @@ class StudentCoursesPage extends StatelessWidget {
     AppColors.amber,
   ];
 
-  static const _progress = [0.72, 0.45, 0.60, 0.30, 0.88];
-
-  static const _nextDeadlines = [
-    'Quiz 2 · Apr 10',
-    'Assignment 2 · Apr 12',
-    'Midterm Quiz · Apr 15',
-    'Lab Sheet 3 · Apr 18',
-    'Final Project · May 15',
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _coursesFuture = CourseService.instance.getStudentCourses();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -85,45 +38,61 @@ class StudentCoursesPage extends StatelessWidget {
     final isWide = width >= AppConstants.mobileBreakpoint;
     final padding = EdgeInsets.all(isWide ? 28 : 16);
 
-    return SingleChildScrollView(
-      padding: padding,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(isWide),
-          const SizedBox(height: 20),
-          _buildList(context, isWide),
-        ],
-      ),
+    return FutureBuilder<List<CourseModel>>(
+      future: _coursesFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final courses = snapshot.data ?? [];
+        return SingleChildScrollView(
+          padding: padding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('My Courses', style: AppTextStyles.h1),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${courses.length} enrolled courses this semester',
+                    style: AppTextStyles.bodySmall,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              if (courses.isEmpty)
+                const EmptyState(
+                  icon: Icons.menu_book_rounded,
+                  title: 'No enrolled courses',
+                  subtitle:
+                      'Once an instructor enrolls you in a course, it will appear here.',
+                )
+              else
+                _buildList(context, isWide, courses),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader(bool isWide) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('My Courses', style: AppTextStyles.h1),
-        const SizedBox(height: 4),
-        Text(
-          '${_courses.length} enrolled courses this semester',
-          style: AppTextStyles.bodySmall,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildList(BuildContext context, bool isWide) {
+  Widget _buildList(
+    BuildContext context,
+    bool isWide,
+    List<CourseModel> courses,
+  ) {
     if (!isWide) {
       return Column(
-        children: List.generate(_courses.length, (i) {
+        children: List.generate(courses.length, (index) {
           return Padding(
             padding: const EdgeInsets.only(bottom: 14),
             child: _StudentCourseCard(
-              course: _courses[i],
-              accentColor: _courseColors[i % _courseColors.length],
-              progress: _progress[i % _progress.length],
-              nextDeadline: _nextDeadlines[i % _nextDeadlines.length],
-              onTap: () => _openWorkspace(context, i),
+              course: courses[index],
+              accentColor: _courseColors[index % _courseColors.length],
+              onTap: () => _openWorkspace(context, courses[index], index),
             ),
           );
         }),
@@ -138,29 +107,27 @@ class StudentCoursesPage extends StatelessWidget {
         crossAxisCount: cols,
         mainAxisSpacing: 16,
         crossAxisSpacing: 16,
-        mainAxisExtent: 248,
+        mainAxisExtent: 220,
       ),
-      itemCount: _courses.length,
-      itemBuilder: (context, i) {
+      itemCount: courses.length,
+      itemBuilder: (context, index) {
         return _StudentCourseCard(
-          course: _courses[i],
-          accentColor: _courseColors[i % _courseColors.length],
-          progress: _progress[i % _progress.length],
-          nextDeadline: _nextDeadlines[i % _nextDeadlines.length],
-          onTap: () => _openWorkspace(context, i),
+          course: courses[index],
+          accentColor: _courseColors[index % _courseColors.length],
+          onTap: () => _openWorkspace(context, courses[index], index),
         );
       },
     );
   }
 
-  void _openWorkspace(BuildContext context, int i) {
+  void _openWorkspace(BuildContext context, CourseModel course, int index) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => StudentCourseWorkspacePage(
-          course: _courses[i],
-          accentColor: _courseColors[i % _courseColors.length],
-          progress: _progress[i % _progress.length],
+          courseId: course.id,
+          initialCourse: course,
+          accentColor: _courseColors[index % _courseColors.length],
         ),
       ),
     );
@@ -168,24 +135,18 @@ class StudentCoursesPage extends StatelessWidget {
 }
 
 class _StudentCourseCard extends StatelessWidget {
-  final CourseModel course;
-  final Color accentColor;
-  final double progress;
-  final String nextDeadline;
-  final VoidCallback onTap;
-
   const _StudentCourseCard({
     required this.course,
     required this.accentColor,
-    required this.progress,
-    required this.nextDeadline,
     required this.onTap,
   });
 
+  final CourseModel course;
+  final Color accentColor;
+  final VoidCallback onTap;
+
   @override
   Widget build(BuildContext context) {
-    final percent = (progress * 100).round();
-
     return Material(
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(12),
@@ -220,23 +181,6 @@ class _StudentCourseCard extends StatelessWidget {
                               .copyWith(color: accentColor),
                         ),
                       ),
-                      const Spacer(),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.background,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Text(
-                          '$percent%',
-                          style: AppTextStyles.caption.copyWith(
-                            color: accentColor,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
                     ],
                   ),
                   const SizedBox(height: 12),
@@ -253,40 +197,35 @@ class _StudentCourseCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
+                  const SizedBox(height: 10),
+                  Text(
+                    course.semester.isEmpty ? 'Semester not set' : course.semester,
+                    style: AppTextStyles.caption,
+                  ),
                 ],
               ),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(100),
-                    child: LinearProgressIndicator(
-                      value: progress,
-                      backgroundColor: AppColors.background,
-                      color: accentColor,
-                      minHeight: 6,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
                   const Divider(color: AppColors.border, height: 1),
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      Icon(Icons.schedule_rounded,
-                          size: 12, color: AppColors.amber),
+                      Icon(Icons.book_rounded, size: 12, color: accentColor),
                       const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          'Next: $nextDeadline',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.amber,
-                            fontWeight: FontWeight.w600,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                      Text(
+                        '${course.lecturesCount} materials',
+                        style: AppTextStyles.caption,
                       ),
+                      const SizedBox(width: 10),
+                      Icon(Icons.people_rounded,
+                          size: 12, color: AppColors.textSecondary),
+                      const SizedBox(width: 4),
+                      Text(
+                        '${course.studentsCount} students',
+                        style: AppTextStyles.caption,
+                      ),
+                      const Spacer(),
                       TextButton(
                         onPressed: onTap,
                         style: TextButton.styleFrom(

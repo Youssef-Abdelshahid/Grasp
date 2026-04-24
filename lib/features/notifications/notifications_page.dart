@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../core/utils/file_utils.dart';
+import '../../models/notification_model.dart';
+import '../../services/notification_service.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -11,189 +15,121 @@ class NotificationsPage extends StatefulWidget {
 
 class _NotificationsPageState extends State<NotificationsPage> {
   int _selectedFilter = 0;
+  late Future<List<NotificationModel>> _notificationsFuture;
 
-  static const _filters = ['All', 'Unread', 'Assignments', 'Quizzes', 'Announcements'];
-
-  static final _notifications = [
-    _Notif(
-      icon: Icons.assignment_rounded,
-      color: AppColors.emerald,
-      bg: AppColors.emeraldLight,
-      title: 'Assignment 2 due in 2 days',
-      body: 'Mobile Dev · CS401 — Submit your implementation before Apr 10.',
-      time: '2h ago',
-      read: false,
-      type: 'Assignments',
-    ),
-    _Notif(
-      icon: Icons.quiz_rounded,
-      color: AppColors.violet,
-      bg: AppColors.violetLight,
-      title: 'Quiz 2 is now available',
-      body: 'Machine Learning · CS310 — Quiz closes April 12 at 11:59 PM.',
-      time: '4h ago',
-      read: false,
-      type: 'Quizzes',
-    ),
-    _Notif(
-      icon: Icons.campaign_rounded,
-      color: AppColors.cyan,
-      bg: AppColors.cyanLight,
-      title: 'New announcement in CS302',
-      body: 'Dr. Ahmed posted: Office hours have been moved to Thursday.',
-      time: '5h ago',
-      read: false,
-      type: 'Announcements',
-    ),
-    _Notif(
-      icon: Icons.auto_awesome_rounded,
-      color: AppColors.amber,
-      bg: AppColors.amberLight,
-      title: 'AI Flashcards ready',
-      body: 'Your flashcard set for Database Systems is ready to review.',
-      time: 'Yesterday',
-      read: false,
-      type: 'All',
-    ),
-    _Notif(
-      icon: Icons.assignment_turned_in_rounded,
-      color: AppColors.primary,
-      bg: AppColors.primaryLight,
-      title: 'Assignment 1 graded',
-      body: 'You scored 88/100 on Assignment 1 in Mobile Dev · CS401.',
-      time: '2 days ago',
-      read: true,
-      type: 'Assignments',
-    ),
-    _Notif(
-      icon: Icons.quiz_rounded,
-      color: AppColors.violet,
-      bg: AppColors.violetLight,
-      title: 'Quiz 1 results published',
-      body: 'Quiz 1 results are now available. Score: 9/10.',
-      time: '3 days ago',
-      read: true,
-      type: 'Quizzes',
-    ),
-    _Notif(
-      icon: Icons.people_rounded,
-      color: AppColors.rose,
-      bg: AppColors.roseLight,
-      title: 'Welcome to CS315',
-      body: 'You have been successfully enrolled in Computer Networks.',
-      time: '1 week ago',
-      read: true,
-      type: 'Announcements',
-    ),
-    _Notif(
-      icon: Icons.upload_file_rounded,
-      color: AppColors.cyan,
-      bg: AppColors.cyanLight,
-      title: 'New material uploaded',
-      body: 'Lecture 5 slides are now available in Mobile Dev · CS401.',
-      time: '1 week ago',
-      read: true,
-      type: 'Announcements',
-    ),
+  static const _filters = [
+    'All',
+    'Unread',
+    'Assignments',
+    'Quizzes',
+    'Announcements',
   ];
 
-  List<_Notif> get _filtered {
-    switch (_selectedFilter) {
-      case 1:
-        return _notifications.where((n) => !n.read).toList();
-      case 2:
-        return _notifications.where((n) => n.type == 'Assignments').toList();
-      case 3:
-        return _notifications.where((n) => n.type == 'Quizzes').toList();
-      case 4:
-        return _notifications.where((n) => n.type == 'Announcements').toList();
-      default:
-        return _notifications;
-    }
+  @override
+  void initState() {
+    super.initState();
+    _notificationsFuture = NotificationService.instance.getNotifications();
   }
-
-  int get _unreadCount => _notifications.where((n) => !n.read).length;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          _buildFilters(),
-          Expanded(
-            child: _filtered.isEmpty
-                ? _buildEmptyState()
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    itemCount: _filtered.length,
-                    separatorBuilder: (_, _) =>
-                        const Divider(height: 1, color: AppColors.divider),
-                    itemBuilder: (_, i) =>
-                        _buildNotificationTile(_filtered[i]),
+    return FutureBuilder<List<NotificationModel>>(
+      future: _notificationsFuture,
+      builder: (context, snapshot) {
+        final notifications = snapshot.data ?? [];
+        final filtered = _filterNotifications(notifications);
+        final unreadCount = notifications.where((item) => !item.isRead).length;
+
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: AppBar(
+            backgroundColor: AppColors.surface,
+            leading: const BackButton(color: AppColors.textPrimary),
+            title: Row(
+              children: [
+                Text('Notifications', style: AppTextStyles.h2),
+                if (unreadCount > 0) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      borderRadius: BorderRadius.circular(100),
+                    ),
+                    child: Text(
+                      '$unreadCount',
+                      style: AppTextStyles.caption.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  AppBar _buildAppBar() {
-    return AppBar(
-      backgroundColor: AppColors.surface,
-      leading: const BackButton(color: AppColors.textPrimary),
-      title: Row(
-        children: [
-          Text('Notifications', style: AppTextStyles.h2),
-          if (_unreadCount > 0) ...[
-            const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(100),
-              ),
-              child: Text(
-                '$_unreadCount',
-                style: AppTextStyles.caption.copyWith(
-                    color: Colors.white, fontWeight: FontWeight.w700),
-              ),
+                ],
+              ],
             ),
-          ],
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => setState(() {}),
-          child: Text(
-            'Mark all read',
-            style: AppTextStyles.bodySmall
-                .copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
+            actions: [
+              TextButton(
+                onPressed: unreadCount == 0 ? null : _markAllRead,
+                child: Text(
+                  'Mark all read',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(1),
+              child: Container(height: 1, color: AppColors.border),
+            ),
           ),
-        ),
-      ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(height: 1, color: AppColors.border),
-      ),
+          body: Column(
+            children: [
+              _buildFilters(unreadCount),
+              Expanded(
+                child: snapshot.connectionState != ConnectionState.done
+                    ? const Center(child: CircularProgressIndicator())
+                    : filtered.isEmpty
+                        ? _buildEmptyState()
+                        : RefreshIndicator(
+                            onRefresh: _refresh,
+                            child: ListView.separated(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              itemCount: filtered.length,
+                              separatorBuilder: (_, _) => const Divider(
+                                height: 1,
+                                color: AppColors.border,
+                              ),
+                              itemBuilder: (_, index) => _NotificationTile(
+                                notification: filtered[index],
+                                onTap: () => _handleTap(filtered[index]),
+                              ),
+                            ),
+                          ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildFilters() {
+  Widget _buildFilters(int unreadCount) {
     return Container(
       color: AppColors.surface,
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: List.generate(_filters.length, (i) {
-            final isSelected = _selectedFilter == i;
-            final showBadge = i == 1 && _unreadCount > 0;
+          children: List.generate(_filters.length, (index) {
+            final isSelected = _selectedFilter == index;
+            final showBadge = index == 1 && unreadCount > 0;
             return Padding(
               padding: const EdgeInsets.only(right: 8),
               child: GestureDetector(
-                onTap: () => setState(() => _selectedFilter = i),
+                onTap: () => setState(() => _selectedFilter = index),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
                   padding:
@@ -206,10 +142,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                     ),
                   ),
                   child: Row(
-                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        _filters[i],
+                        _filters[index],
                         style: AppTextStyles.caption.copyWith(
                           color: isSelected
                               ? Colors.white
@@ -231,7 +166,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             borderRadius: BorderRadius.circular(100),
                           ),
                           child: Text(
-                            '$_unreadCount',
+                            '$unreadCount',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -251,13 +186,92 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 
-  Widget _buildNotificationTile(_Notif n) {
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: const BoxDecoration(
+              color: AppColors.background,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.notifications_off_rounded,
+              size: 32,
+              color: AppColors.textMuted,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('No notifications', style: AppTextStyles.h3),
+          const SizedBox(height: 8),
+          Text('You\'re all caught up!', style: AppTextStyles.bodySmall),
+        ],
+      ),
+    );
+  }
+
+  List<NotificationModel> _filterNotifications(
+      List<NotificationModel> notifications) {
+    switch (_selectedFilter) {
+      case 1:
+        return notifications.where((item) => !item.isRead).toList();
+      case 2:
+        return notifications
+            .where((item) => item.category.contains('assignment'))
+            .toList();
+      case 3:
+        return notifications
+            .where((item) => item.category.contains('quiz'))
+            .toList();
+      case 4:
+        return notifications
+            .where((item) => item.category.contains('announcement'))
+            .toList();
+      default:
+        return notifications;
+    }
+  }
+
+  Future<void> _handleTap(NotificationModel notification) async {
+    if (!notification.isRead) {
+      await NotificationService.instance.markAsRead(notification.id);
+      await _refresh();
+    }
+  }
+
+  Future<void> _markAllRead() async {
+    await NotificationService.instance.markAllAsRead();
+    await _refresh();
+  }
+
+  Future<void> _refresh() async {
+    setState(() {
+      _notificationsFuture = NotificationService.instance.getNotifications();
+    });
+    await _notificationsFuture;
+  }
+}
+
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({
+    required this.notification,
+    required this.onTap,
+  });
+
+  final NotificationModel notification;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _styleForCategory(notification.category);
     return Material(
-      color: n.read
+      color: notification.isRead
           ? AppColors.surface
-          : AppColors.primaryLight.withValues(alpha: 0.35),
+          : AppColors.primaryLight.withValues(alpha: 0.25),
       child: InkWell(
-        onTap: () {},
+        onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(
@@ -266,10 +280,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: n.bg,
+                  color: style.background,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(n.icon, color: n.color, size: 18),
+                child: Icon(style.icon, color: style.color, size: 18),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -280,9 +294,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       children: [
                         Expanded(
                           child: Text(
-                            n.title,
+                            notification.title,
                             style: AppTextStyles.label.copyWith(
-                              fontWeight: n.read
+                              fontWeight: notification.isRead
                                   ? FontWeight.w500
                                   : FontWeight.w700,
                             ),
@@ -290,7 +304,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                             overflow: TextOverflow.ellipsis,
                           ),
                         ),
-                        if (!n.read)
+                        if (!notification.isRead)
                           Container(
                             width: 8,
                             height: 8,
@@ -303,12 +317,17 @@ class _NotificationsPageState extends State<NotificationsPage> {
                       ],
                     ),
                     const SizedBox(height: 3),
-                    Text(n.body,
-                        style: AppTextStyles.bodySmall,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      notification.body,
+                      style: AppTextStyles.bodySmall,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 4),
-                    Text(n.time, style: AppTextStyles.caption),
+                    Text(
+                      FileUtils.formatDateTime(notification.createdAt),
+                      style: AppTextStyles.caption,
+                    ),
                   ],
                 ),
               ),
@@ -319,46 +338,44 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-                color: AppColors.background, shape: BoxShape.circle),
-            child: const Icon(Icons.notifications_off_rounded,
-                size: 32, color: AppColors.textMuted),
-          ),
-          const SizedBox(height: 16),
-          Text('No notifications', style: AppTextStyles.h3),
-          const SizedBox(height: 8),
-          Text('You\'re all caught up!', style: AppTextStyles.bodySmall),
-        ],
-      ),
+  _NotificationVisualStyle _styleForCategory(String category) {
+    if (category.contains('assignment')) {
+      return const _NotificationVisualStyle(
+        icon: Icons.assignment_rounded,
+        color: AppColors.emerald,
+        background: AppColors.emeraldLight,
+      );
+    }
+    if (category.contains('quiz')) {
+      return const _NotificationVisualStyle(
+        icon: Icons.quiz_rounded,
+        color: AppColors.violet,
+        background: AppColors.violetLight,
+      );
+    }
+    if (category.contains('announcement')) {
+      return const _NotificationVisualStyle(
+        icon: Icons.campaign_rounded,
+        color: AppColors.cyan,
+        background: AppColors.cyanLight,
+      );
+    }
+    return const _NotificationVisualStyle(
+      icon: Icons.notifications_rounded,
+      color: AppColors.primary,
+      background: AppColors.primaryLight,
     );
   }
 }
 
-class _Notif {
-  final IconData icon;
-  final Color color;
-  final Color bg;
-  final String title;
-  final String body;
-  final String time;
-  final bool read;
-  final String type;
-
-  const _Notif({
+class _NotificationVisualStyle {
+  const _NotificationVisualStyle({
     required this.icon,
     required this.color,
-    required this.bg,
-    required this.title,
-    required this.body,
-    required this.time,
-    required this.read,
-    required this.type,
+    required this.background,
   });
+
+  final IconData icon;
+  final Color color;
+  final Color background;
 }

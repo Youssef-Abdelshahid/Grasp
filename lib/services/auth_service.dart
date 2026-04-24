@@ -148,6 +148,13 @@ class AuthService extends ChangeNotifier {
     return roles.contains(userRole);
   }
 
+  Future<void> reloadProfile() async {
+    if (_session == null) {
+      return;
+    }
+    await _loadCurrentProfile();
+  }
+
   Future<void> _loadCurrentProfile() async {
     _isInitializing = true;
     notifyListeners();

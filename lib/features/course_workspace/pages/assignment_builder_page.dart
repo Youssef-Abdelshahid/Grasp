@@ -1,35 +1,72 @@
 import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/file_utils.dart';
+import '../../../models/assignment_model.dart';
+import '../../../models/assignment_rubric_item_model.dart';
+import '../../../services/assignment_service.dart';
 
 class AssignmentBuilderPage extends StatefulWidget {
-  const AssignmentBuilderPage({super.key});
+  const AssignmentBuilderPage({
+    super.key,
+    required this.courseId,
+    this.assignment,
+  });
+
+  final String courseId;
+  final AssignmentModel? assignment;
 
   @override
   State<AssignmentBuilderPage> createState() => _AssignmentBuilderPageState();
 }
 
 class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
+  final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _instructionsCtrl = TextEditingController();
-  final _deadlineCtrl = TextEditingController(text: 'May 15, 2025');
+  final _attachmentRequirementsCtrl = TextEditingController();
   final _marksCtrl = TextEditingController(text: '100');
 
-  final List<_RubricRow> _rubric = [
-    _RubricRow('Code Quality', 'Clean, well-structured code', 30),
-    _RubricRow('Functionality', 'All features working correctly', 40),
-    _RubricRow('Documentation', 'README and inline documentation', 20),
-    _RubricRow('Presentation', 'Demo video or live demo', 10),
-  ];
+  late final List<_RubricDraft> _rubric;
+  DateTime? _dueAt;
+  bool _isSaving = false;
+
+  bool get _isEditing => widget.assignment != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final assignment = widget.assignment;
+    _rubric = assignment == null
+        ? [_RubricDraft()]
+        : assignment.rubric
+            .map(AssignmentRubricItemModel.fromJson)
+            .map(_RubricDraft.fromModel)
+            .toList();
+
+    if (_rubric.isEmpty) {
+      _rubric.add(_RubricDraft());
+    }
+
+    if (assignment != null) {
+      _titleCtrl.text = assignment.title;
+      _instructionsCtrl.text = assignment.instructions;
+      _attachmentRequirementsCtrl.text = assignment.attachmentRequirements;
+      _marksCtrl.text = assignment.maxPoints.toString();
+      _dueAt = assignment.dueAt?.toLocal();
+    }
+  }
 
   @override
   void dispose() {
     _titleCtrl.dispose();
     _instructionsCtrl.dispose();
-    _deadlineCtrl.dispose();
+    _attachmentRequirementsCtrl.dispose();
     _marksCtrl.dispose();
-    for (final r in _rubric) {
-      r.dispose();
+    for (final row in _rubric) {
+      row.dispose();
     }
     super.dispose();
   }
@@ -44,338 +81,492 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
-          onPressed: () => Navigator.pop(context),
+          onPressed: _isSaving ? null : () => Navigator.pop(context),
         ),
-        title: Text('Assignment Builder', style: AppTextStyles.h3),
+        title: Text(
+          _isEditing ? 'Edit Assignment' : 'Create Assignment',
+          style: AppTextStyles.h3,
+        ),
         actions: [
-          TextButton(onPressed: () {}, child: const Text('Save Draft')),
-          const SizedBox(width: 4),
+          TextButton(
+            onPressed: _isSaving ? null : () => _save(false),
+            child: const Text('Save Draft'),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: 12),
-            child: ElevatedButton(onPressed: () {}, child: const Text('Publish')),
+            child: ElevatedButton(
+              onPressed: _isSaving ? null : () => _save(true),
+              child: Text(_isEditing ? 'Update & Publish' : 'Publish'),
+            ),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _buildDetails(),
-          const SizedBox(height: 20),
-          _buildAiBanner(context),
-          const SizedBox(height: 20),
-          _buildAttachments(),
-          const SizedBox(height: 20),
-          _buildRubric(),
-        ]),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildSummaryCard(),
+              const SizedBox(height: 20),
+              _buildDetailsCard(),
+              const SizedBox(height: 20),
+              _buildRubricCard(),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Widget _buildDetails() {
+  Widget _buildSummaryCard() {
     return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Assignment Details', style: AppTextStyles.h3),
-        const SizedBox(height: 16),
-        _label('Assignment Title *'),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _titleCtrl,
-          decoration: const InputDecoration(hintText: 'e.g. Assignment 2: Implementation Phase'),
-        ),
-        const SizedBox(height: 16),
-        _label('Instructions'),
-        const SizedBox(height: 6),
-        TextField(
-          controller: _instructionsCtrl,
-          maxLines: 4,
-          decoration: const InputDecoration(hintText: 'Detailed instructions for students...'),
-        ),
-        const SizedBox(height: 16),
-        LayoutBuilder(builder: (_, constraints) {
-          final narrow = constraints.maxWidth < 360;
-          final deadlineField = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _label('Deadline'),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _deadlineCtrl,
-              decoration: const InputDecoration(
-                hintText: 'May 15, 2025',
-                prefixIcon: Icon(Icons.calendar_today_rounded, size: 18),
-              ),
-            ),
-          ]);
-          final marksField = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            _label('Total Marks'),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _marksCtrl,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(hintText: '100'),
-            ),
-          ]);
-          if (narrow) {
-            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              deadlineField, const SizedBox(height: 16), marksField,
-            ]);
-          }
-          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Expanded(child: deadlineField),
-            const SizedBox(width: 16),
-            Expanded(child: marksField),
-          ]);
-        }),
-      ]),
-    );
-  }
-
-  Widget _buildAiBanner(BuildContext context) {
-    return Container(
+      width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.emeraldLight,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.emerald.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.emerald.withValues(alpha: 0.2)),
       ),
-      child: Row(children: [
-        const Icon(Icons.auto_awesome_rounded, color: AppColors.emerald, size: 20),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('AI Assignment Generator', style: AppTextStyles.label.copyWith(color: AppColors.emerald)),
-          Text(
-            'Generate rubric-based assignments with AI assistance',
-            style: AppTextStyles.caption,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ])),
-        const SizedBox(width: 12),
-        ElevatedButton(
-          onPressed: () => _showAiSheet(context),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.emerald,
-            foregroundColor: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
-          child: const Text('Generate'),
-        ),
-      ]),
-    );
-  }
-
-  Widget _buildAttachments() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Attachments', style: AppTextStyles.h3),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Row(children: [
-            const Icon(Icons.attach_file_rounded, color: AppColors.textSecondary, size: 20),
-            const SizedBox(width: 10),
-            const Expanded(child: Text('No files attached', style: TextStyle(color: AppColors.textSecondary, fontSize: 14))),
-            TextButton(onPressed: () {}, child: const Text('Add Files')),
-          ]),
-        ),
-        const SizedBox(height: 8),
-        Text('Supported: PDF, DOCX, PPTX, ZIP (max 100 MB each)', style: AppTextStyles.caption),
-      ]),
-    );
-  }
-
-  Widget _buildRubric() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Grading Rubric', style: AppTextStyles.h3),
-        const SizedBox(height: 16),
-        Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.border),
-          ),
-          child: Column(children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: const BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(7)),
-              ),
-              child: Row(children: [
-                Expanded(flex: 2, child: Text('Criterion', style: AppTextStyles.label)),
-                Expanded(flex: 3, child: Text('Description', style: AppTextStyles.label)),
-                SizedBox(width: 56, child: Text('Marks', style: AppTextStyles.label, textAlign: TextAlign.center)),
-                const SizedBox(width: 32),
-              ]),
-            ),
-            const Divider(height: 1, color: AppColors.border),
-            ...List.generate(_rubric.length, (i) {
-              final r = _rubric[i];
-              return Column(children: [
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  child: Row(children: [
-                    Expanded(flex: 2, child: TextField(
-                      controller: r.criterionCtrl,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                        hintText: 'Criterion',
-                      ),
-                      style: AppTextStyles.body,
-                    )),
-                    Expanded(flex: 3, child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: TextField(
-                        controller: r.descCtrl,
-                        decoration: const InputDecoration(
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                          hintText: 'Description',
-                        ),
-                        style: AppTextStyles.bodySmall,
-                      ),
-                    )),
-                    SizedBox(width: 56, child: TextField(
-                      controller: r.marksCtrl,
-                      keyboardType: TextInputType.number,
-                      textAlign: TextAlign.center,
-                      decoration: const InputDecoration(
-                        border: InputBorder.none,
-                        isDense: true,
-                        contentPadding: EdgeInsets.zero,
-                        hintText: '10',
-                      ),
-                      style: AppTextStyles.body,
-                    )),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 16, color: AppColors.textSecondary),
-                      onPressed: () {
-                        r.dispose();
-                        setState(() => _rubric.removeAt(i));
-                      },
-                      padding: const EdgeInsets.all(4),
-                      constraints: const BoxConstraints(),
-                    ),
-                  ]),
+      child: Row(
+        children: [
+          const Icon(Icons.assignment_rounded, color: AppColors.emerald),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Manual assignment setup', style: AppTextStyles.label),
+                const SizedBox(height: 4),
+                Text(
+                  'This stores assignment details, rubric structure, and publish state for the next submission phase.',
+                  style: AppTextStyles.bodySmall,
                 ),
-                if (i < _rubric.length - 1) const Divider(height: 1, color: AppColors.border),
-              ]);
-            }),
-          ]),
-        ),
-        const SizedBox(height: 12),
-        TextButton.icon(
-          onPressed: () => setState(() => _rubric.add(_RubricRow('', '', 10))),
-          icon: const Icon(Icons.add_rounded, size: 16),
-          label: const Text('Add Criterion'),
-        ),
-      ]),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
-  void _showAiSheet(BuildContext context) {
-    showModalBottomSheet(
+  Widget _buildDetailsCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Assignment Details', style: AppTextStyles.h3),
+          const SizedBox(height: 16),
+          _label('Assignment Title *'),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _titleCtrl,
+            decoration: const InputDecoration(
+              hintText: 'e.g. Assignment 2: Implementation Phase',
+            ),
+            validator: (value) =>
+                value == null || value.trim().isEmpty ? 'Title is required' : null,
+          ),
+          const SizedBox(height: 16),
+          _label('Instructions'),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _instructionsCtrl,
+            maxLines: 5,
+            decoration: const InputDecoration(
+              hintText: 'Detailed instructions for students...',
+            ),
+          ),
+          const SizedBox(height: 16),
+          _label('Attachment Requirements'),
+          const SizedBox(height: 6),
+          TextFormField(
+            controller: _attachmentRequirementsCtrl,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              hintText: 'Optional notes about files, format, or upload expectations',
+            ),
+          ),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (_, constraints) {
+              final isNarrow = constraints.maxWidth < 420;
+              final dateField = _DateField(
+                label: 'Deadline',
+                value: _dueAt == null ? 'No deadline' : FileUtils.formatDate(_dueAt!),
+                onTap: _pickDueDate,
+                onClear: _dueAt == null
+                    ? null
+                    : () => setState(() {
+                          _dueAt = null;
+                        }),
+              );
+              final marksField = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _label('Total Marks *'),
+                  const SizedBox(height: 6),
+                  TextFormField(
+                    controller: _marksCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(hintText: '100'),
+                    validator: (value) {
+                      final parsed = int.tryParse(value?.trim() ?? '');
+                      if (parsed == null || parsed <= 0) {
+                        return 'Enter valid marks';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    dateField,
+                    const SizedBox(height: 16),
+                    marksField,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(child: dateField),
+                  const SizedBox(width: 16),
+                  Expanded(child: marksField),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRubricCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Grading Rubric', style: AppTextStyles.h3),
+              const SizedBox(width: 8),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.emeraldLight,
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                child: Text(
+                  '${_rubric.length}',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.emerald,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Rubric rows are stored as structured JSON so later grading and submissions can build on this cleanly.',
+            style: AppTextStyles.bodySmall,
+          ),
+          const SizedBox(height: 16),
+          ...List.generate(
+            _rubric.length,
+            (index) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: _RubricRowCard(
+                number: index + 1,
+                draft: _rubric[index],
+                canDelete: _rubric.length > 1,
+                onDelete: () => _removeRubric(index),
+              ),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: _addRubric,
+            icon: const Icon(Icons.add_rounded, size: 16),
+            label: const Text('Add Criterion'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _pickDueDate() async {
+    final now = DateTime.now();
+    final selected = await showDatePicker(
       context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (_) => const _AiAssignmentSheet(),
+      initialDate: _dueAt ?? now,
+      firstDate: DateTime(now.year - 2),
+      lastDate: DateTime(now.year + 5),
+    );
+    if (selected == null) {
+      return;
+    }
+
+    setState(() {
+      _dueAt = DateTime(
+        selected.year,
+        selected.month,
+        selected.day,
+        23,
+        59,
+      );
+    });
+  }
+
+  void _addRubric() {
+    setState(() => _rubric.add(_RubricDraft()));
+  }
+
+  void _removeRubric(int index) {
+    final item = _rubric.removeAt(index);
+    item.dispose();
+    setState(() {});
+  }
+
+  Future<void> _save(bool publish) async {
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
+
+    final validationError = _validateRubric();
+    if (validationError != null) {
+      _showMessage(validationError);
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final rubric = _rubric.map((item) => item.toModel().toJson()).toList();
+      final assignment = _isEditing
+          ? await AssignmentService.instance.updateAssignment(
+              assignmentId: widget.assignment!.id,
+              title: _titleCtrl.text,
+              instructions: _instructionsCtrl.text,
+              attachmentRequirements: _attachmentRequirementsCtrl.text,
+              dueAt: _dueAt,
+              maxPoints: int.parse(_marksCtrl.text.trim()),
+              isPublished: publish,
+              rubric: rubric,
+            )
+          : await AssignmentService.instance.createAssignment(
+              courseId: widget.courseId,
+              title: _titleCtrl.text,
+              instructions: _instructionsCtrl.text,
+              attachmentRequirements: _attachmentRequirementsCtrl.text,
+              dueAt: _dueAt,
+              maxPoints: int.parse(_marksCtrl.text.trim()),
+              isPublished: publish,
+              rubric: rubric,
+            );
+
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(context, assignment);
+    } on PostgrestException catch (error) {
+      _showMessage(error.message);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  String? _validateRubric() {
+    if (_rubric.isEmpty) {
+      return 'Add at least one rubric criterion before saving.';
+    }
+
+    for (var index = 0; index < _rubric.length; index++) {
+      final item = _rubric[index];
+      if (item.criterionCtrl.text.trim().isEmpty) {
+        return 'Rubric criterion ${index + 1} needs a title.';
+      }
+      if (item.marks <= 0) {
+        return 'Rubric criterion ${index + 1} needs valid marks.';
+      }
+    }
+    return null;
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
     );
   }
 
   Widget _label(String text) => Text(text, style: AppTextStyles.label);
 }
 
-class _RubricRow {
+class _RubricDraft {
+  _RubricDraft()
+      : criterionCtrl = TextEditingController(),
+        descriptionCtrl = TextEditingController(),
+        marksCtrl = TextEditingController(text: '10');
+
+  _RubricDraft.fromModel(AssignmentRubricItemModel model)
+      : criterionCtrl = TextEditingController(text: model.criterion),
+        descriptionCtrl = TextEditingController(text: model.description),
+        marksCtrl = TextEditingController(text: model.marks.toString());
+
   final TextEditingController criterionCtrl;
-  final TextEditingController descCtrl;
+  final TextEditingController descriptionCtrl;
   final TextEditingController marksCtrl;
 
-  _RubricRow(String criterion, String desc, int marks)
-      : criterionCtrl = TextEditingController(text: criterion),
-        descCtrl = TextEditingController(text: desc),
-        marksCtrl = TextEditingController(text: '$marks');
+  int get marks => int.tryParse(marksCtrl.text.trim()) ?? 0;
+
+  AssignmentRubricItemModel toModel() {
+    return AssignmentRubricItemModel(
+      criterion: criterionCtrl.text.trim(),
+      description: descriptionCtrl.text.trim(),
+      marks: marks,
+    );
+  }
 
   void dispose() {
     criterionCtrl.dispose();
-    descCtrl.dispose();
+    descriptionCtrl.dispose();
     marksCtrl.dispose();
   }
 }
 
-class _AiAssignmentSheet extends StatelessWidget {
-  const _AiAssignmentSheet();
+class _RubricRowCard extends StatelessWidget {
+  const _RubricRowCard({
+    required this.number,
+    required this.draft,
+    required this.canDelete,
+    required this.onDelete,
+  });
+
+  final int number;
+  final _RubricDraft draft;
+  final bool canDelete;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Container(
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(20)),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            padding: const EdgeInsets.all(18),
-            decoration: const BoxDecoration(color: AppColors.emeraldLight, shape: BoxShape.circle),
-            child: const Icon(Icons.auto_awesome_rounded, color: AppColors.emerald, size: 28),
-          ),
-          const SizedBox(height: 16),
-          Text('AI Assignment Generator', style: AppTextStyles.h3, textAlign: TextAlign.center),
-          const SizedBox(height: 8),
-          Text(
-            'Describe the assignment and AI will generate complete instructions and a grading rubric.',
-            style: AppTextStyles.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: 16),
-          const TextField(
-            maxLines: 3,
-            decoration: InputDecoration(
-              hintText: 'e.g. A project on mobile app development with implementation and testing phases...',
-            ),
-          ),
-          const SizedBox(height: 20),
-          SizedBox(width: double.infinity, child: ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.auto_awesome_rounded, size: 16),
-            label: const Text('Generate Assignment'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.emerald,
-              foregroundColor: Colors.white,
-            ),
-          )),
-          const SizedBox(height: 10),
-          SizedBox(width: double.infinity, child: OutlinedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          )),
-        ]),
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
       ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.emeraldLight,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  'Criterion $number',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.emerald,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const Spacer(),
+              if (canDelete)
+                IconButton(
+                  icon: const Icon(
+                    Icons.delete_outline_rounded,
+                    size: 18,
+                    color: AppColors.textSecondary,
+                  ),
+                  onPressed: onDelete,
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: draft.criterionCtrl,
+            decoration: const InputDecoration(labelText: 'Criterion title'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: draft.descriptionCtrl,
+            maxLines: 2,
+            decoration: const InputDecoration(labelText: 'Description'),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: draft.marksCtrl,
+            keyboardType: TextInputType.number,
+            decoration: const InputDecoration(labelText: 'Marks'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DateField extends StatelessWidget {
+  const _DateField({
+    required this.label,
+    required this.value,
+    required this.onTap,
+    this.onClear,
+  });
+
+  final String label;
+  final String value;
+  final VoidCallback onTap;
+  final VoidCallback? onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.label),
+        const SizedBox(height: 6),
+        InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: InputDecorator(
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.calendar_today_rounded, size: 18),
+              suffixIcon: onClear == null
+                  ? null
+                  : IconButton(
+                      icon: const Icon(Icons.close_rounded, size: 18),
+                      onPressed: onClear,
+                    ),
+            ),
+            child: Text(value, style: AppTextStyles.body),
+          ),
+        ),
+      ],
     );
   }
 }

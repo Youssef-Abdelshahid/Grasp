@@ -9,9 +9,8 @@ import '../../../core/widgets/stat_card.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/dashboard_service.dart';
-import '../../course_workspace/pages/assignment_builder_page.dart';
-import '../../course_workspace/pages/quiz_builder_page.dart';
 import '../../courses/pages/create_course_page.dart';
+import '../../courses/pages/courses_page.dart';
 
 class InstructorDashboardPage extends StatefulWidget {
   const InstructorDashboardPage({super.key});
@@ -217,22 +216,22 @@ class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
       ),
       (
         icon: Icons.quiz_rounded,
-        label: 'Create Quiz',
+        label: 'Course Quizzes',
         color: AppColors.violet,
         bg: AppColors.violetLight,
         onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const QuizBuilderPage()),
+              MaterialPageRoute(builder: (_) => const CoursesPage()),
             ),
       ),
       (
         icon: Icons.assignment_rounded,
-        label: 'Create Assignment',
+        label: 'Course Assignments',
         color: AppColors.emerald,
         bg: AppColors.emeraldLight,
         onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => const AssignmentBuilderPage()),
+              MaterialPageRoute(builder: (_) => const CoursesPage()),
             ),
       ),
     ];
