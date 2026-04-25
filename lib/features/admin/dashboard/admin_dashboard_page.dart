@@ -81,18 +81,25 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             bg: AppColors.emeraldLight,
           ),
           (
-            label: 'Active Courses',
-            value: '${summary.activeCourses}',
-            icon: Icons.play_circle_rounded,
+            label: 'Materials',
+            value: '${summary.totalMaterials}',
+            icon: Icons.description_rounded,
             color: AppColors.amber,
             bg: AppColors.amberLight,
           ),
           (
-            label: 'AI Items Today',
-            value: '${summary.aiItemsToday}',
-            icon: Icons.auto_awesome_rounded,
+            label: 'Assessments',
+            value: '${summary.totalQuizzes + summary.totalAssignments}',
+            icon: Icons.assignment_rounded,
             color: AppColors.rose,
             bg: AppColors.roseLight,
+          ),
+          (
+            label: 'Announcements',
+            value: '${summary.totalAnnouncements}',
+            icon: Icons.campaign_rounded,
+            color: AppColors.success,
+            bg: AppColors.successLight,
           ),
         ];
 
@@ -104,7 +111,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               _buildWelcome(
                 userName: user?.name ?? 'Admin',
                 totalUsers: summary.totalUsers,
-                alertsCount: summary.alerts.length,
+                alertsCount: summary.recentActivityCount,
               ),
               const SizedBox(height: 24),
               _buildStatsGrid(isWide, stats),
@@ -131,6 +138,55 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 _buildRecentRegistrations(context, summary.recentRegistrations),
                 const SizedBox(height: 24),
                 _buildSystemActivity(summary.systemActivity),
+              ],
+              const SizedBox(height: 28),
+              if (isWide)
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _buildActivityList(
+                        'Recent Courses',
+                        summary.recentCourses,
+                        Icons.menu_book_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: _buildActivityList(
+                        'Recent Materials',
+                        summary.recentMaterials,
+                        Icons.description_rounded,
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: _buildActivityList(
+                        'Recent Assessments',
+                        summary.recentAssessments,
+                        Icons.assignment_rounded,
+                      ),
+                    ),
+                  ],
+                )
+              else ...[
+                _buildActivityList(
+                  'Recent Courses',
+                  summary.recentCourses,
+                  Icons.menu_book_rounded,
+                ),
+                const SizedBox(height: 24),
+                _buildActivityList(
+                  'Recent Materials',
+                  summary.recentMaterials,
+                  Icons.description_rounded,
+                ),
+                const SizedBox(height: 24),
+                _buildActivityList(
+                  'Recent Assessments',
+                  summary.recentAssessments,
+                  Icons.assignment_rounded,
+                ),
               ],
             ],
           ),
@@ -166,9 +222,10 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  '$totalUsers users are on the platform right now, and $alertsCount system alerts need attention.',
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: Colors.white.withValues(alpha: 0.8)),
+                  '$totalUsers users are on the platform right now, with $alertsCount admin actions recorded this week.',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
                 ),
               ],
             ),
@@ -179,8 +236,11 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               color: Colors.white.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.admin_panel_settings_rounded,
-                color: Colors.white, size: 30),
+            child: const Icon(
+              Icons.admin_panel_settings_rounded,
+              color: Colors.white,
+              size: 30,
+            ),
           ),
         ],
       ),
@@ -234,7 +294,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
           ...alerts.map((alert) {
             final isWarning = alert.level == 'warning';
             final color = isWarning ? AppColors.amber : AppColors.primary;
-            final bg = isWarning ? AppColors.amberLight : AppColors.primaryLight;
+            final bg = isWarning
+                ? AppColors.amberLight
+                : AppColors.primaryLight;
 
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
@@ -279,7 +341,9 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildRecentRegistrations(
-      BuildContext context, List<AdminRegistrationItem> items) {
+    BuildContext context,
+    List<AdminRegistrationItem> items,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -314,12 +378,13 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               itemBuilder: (_, index) {
                 final item = items[index];
                 final isInstructor = item.role == 'Instructor';
-                final color =
-                    isInstructor ? AppColors.violet : AppColors.cyan;
+                final color = isInstructor ? AppColors.violet : AppColors.cyan;
 
                 return ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
                   leading: CircleAvatar(
                     radius: 18,
                     backgroundColor: color.withValues(alpha: 0.15),
@@ -351,24 +416,28 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   Widget _buildSystemActivity(List<DashboardActivityItem> items) {
+    return _buildActivityList(
+      'System Activity',
+      items,
+      Icons.analytics_rounded,
+    );
+  }
+
+  Widget _buildActivityList(
+    String title,
+    List<DashboardActivityItem> items,
+    IconData emptyIcon,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SectionHeader(
-          title: 'System Activity',
-          actionLabel: 'Refresh',
-          onAction: () {
-            setState(() {
-              _summaryFuture = DashboardService.instance.getAdminSummary();
-            });
-          },
-        ),
+        SectionHeader(title: title),
         const SizedBox(height: 12),
         if (items.isEmpty)
-          const EmptyState(
-            icon: Icons.analytics_rounded,
-            title: 'No activity yet',
-            subtitle: 'Platform-wide activity will appear here as users start working.',
+          EmptyState(
+            icon: emptyIcon,
+            title: 'No items yet',
+            subtitle: 'Recent platform content and activity will appear here.',
           )
         else
           Container(
@@ -386,11 +455,16 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               itemBuilder: (_, index) {
                 final item = items[index];
                 return ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
                   title: Text(item.title, style: AppTextStyles.label),
                   subtitle: Text(item.subtitle, style: AppTextStyles.caption),
-                  trailing: Text(item.timestampLabel, style: AppTextStyles.caption),
+                  trailing: Text(
+                    item.timestampLabel,
+                    style: AppTextStyles.caption,
+                  ),
                 );
               },
             ),
@@ -401,9 +475,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
 }
 
 class _DashboardErrorState extends StatelessWidget {
-  const _DashboardErrorState({
-    required this.onRetry,
-  });
+  const _DashboardErrorState({required this.onRetry});
 
   final VoidCallback onRetry;
 
@@ -429,10 +501,7 @@ class _DashboardErrorState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),

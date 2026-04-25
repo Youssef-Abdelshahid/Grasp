@@ -33,6 +33,25 @@ class ProtectedPage extends StatelessWidget {
           return const AuthPage();
         }
 
+        if (!auth.currentUser!.isActive) {
+          return _ProtectedStateScaffold(
+            message:
+                'Your account is ${auth.currentUser!.accountStatus}. Contact an administrator to restore access.',
+            onAction: () async {
+              await AuthService.instance.logout();
+              if (!context.mounted) {
+                return;
+              }
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRouter.landing,
+                (_) => false,
+              );
+            },
+            actionLabel: 'Sign Out',
+          );
+        }
+
         if (allowedRoles.isNotEmpty &&
             !allowedRoles.contains(auth.currentUser!.role)) {
           return _ProtectedStateScaffold(
@@ -83,10 +102,7 @@ class _ProtectedStateScaffold extends StatelessWidget {
                   const CircularProgressIndicator(),
                   const SizedBox(height: 16),
                 ],
-                Text(
-                  message,
-                  textAlign: TextAlign.center,
-                ),
+                Text(message, textAlign: TextAlign.center),
                 if (onAction != null && actionLabel != null) ...[
                   const SizedBox(height: 16),
                   ElevatedButton(

@@ -19,13 +19,18 @@ class QuizService {
         .order('created_at', ascending: false);
 
     return (response as List<dynamic>)
-        .map((item) => QuizModel.fromJson(Map<String, dynamic>.from(item as Map)))
+        .map(
+          (item) => QuizModel.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
         .toList();
   }
 
   Future<QuizModel> getQuizDetails(String quizId) async {
-    final response =
-        await _client.from('quizzes').select().eq('id', quizId).single();
+    final response = await _client
+        .from('quizzes')
+        .select()
+        .eq('id', quizId)
+        .single();
     return QuizModel.fromJson(Map<String, dynamic>.from(response));
   }
 
@@ -52,7 +57,9 @@ class QuizService {
           'max_points': maxPoints,
           'duration_minutes': durationMinutes,
           'is_published': isPublished,
-          'published_at': isPublished ? DateTime.now().toUtc().toIso8601String() : null,
+          'published_at': isPublished
+              ? DateTime.now().toUtc().toIso8601String()
+              : null,
           'question_schema': questionSchema,
           'created_by': userId,
         })
@@ -73,26 +80,52 @@ class QuizService {
     required bool isPublished,
     required List<Map<String, dynamic>> questionSchema,
   }) async {
-    final response = await _client
-        .from('quizzes')
-        .update({
-          'title': title.trim(),
-          'description': description.trim(),
-          'instructions': instructions.trim(),
-          'due_at': dueAt?.toUtc().toIso8601String(),
-          'max_points': maxPoints,
-          'duration_minutes': durationMinutes,
-          'is_published': isPublished,
-          'published_at':
-              isPublished ? DateTime.now().toUtc().toIso8601String() : null,
-          'question_schema': questionSchema,
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-        })
-        .eq('id', quizId)
-        .select()
-        .single();
+    try {
+      final response = await _client
+          .from('quizzes')
+          .update({
+            'title': title.trim(),
+            'description': description.trim(),
+            'instructions': instructions.trim(),
+            'due_at': dueAt?.toUtc().toIso8601String(),
+            'max_points': maxPoints,
+            'duration_minutes': durationMinutes,
+            'is_published': isPublished,
+            'published_at': isPublished
+                ? DateTime.now().toUtc().toIso8601String()
+                : null,
+            'question_schema': questionSchema,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', quizId)
+          .select();
 
-    return QuizModel.fromJson(Map<String, dynamic>.from(response));
+      final rows = response as List<dynamic>;
+      if (rows.isNotEmpty) {
+        return QuizModel.fromJson(Map<String, dynamic>.from(rows.first as Map));
+      }
+    } on PostgrestException catch (error) {
+      if (!error.message.contains('single JSON object')) {
+        rethrow;
+      }
+    }
+
+    final adminResponse = await _client.rpc(
+      'admin_update_quiz_full',
+      params: {
+        'p_quiz_id': quizId,
+        'p_title': title,
+        'p_description': description,
+        'p_instructions': instructions,
+        'p_due_at': dueAt?.toUtc().toIso8601String(),
+        'p_max_points': maxPoints,
+        'p_duration_minutes': durationMinutes,
+        'p_is_published': isPublished,
+        'p_question_schema': questionSchema,
+      },
+    );
+
+    return QuizModel.fromJson(Map<String, dynamic>.from(adminResponse as Map));
   }
 
   Future<QuizModel> setPublished({
@@ -103,8 +136,9 @@ class QuizService {
         .from('quizzes')
         .update({
           'is_published': isPublished,
-          'published_at':
-              isPublished ? DateTime.now().toUtc().toIso8601String() : null,
+          'published_at': isPublished
+              ? DateTime.now().toUtc().toIso8601String()
+              : null,
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', quizId)

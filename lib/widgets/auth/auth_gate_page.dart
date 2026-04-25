@@ -14,19 +14,24 @@ class AuthGatePage extends StatelessWidget {
       builder: (context, _) {
         final auth = AuthService.instance;
         if (auth.isInitializing) {
-          return const _LoadingScaffold(
-            message: 'Preparing your workspace...',
-          );
+          return const _LoadingScaffold(message: 'Preparing your workspace...');
         }
 
         if (!auth.isSupabaseConfigured) {
           return const _LoadingScaffold(
-            message: 'Supabase is not configured yet. Add your project keys to .env to continue.',
+            message:
+                'Supabase is not configured yet. Add your project keys to .env to continue.',
           );
         }
 
         if (!auth.isAuthenticated || auth.currentUser == null) {
           return const LandingPage();
+        }
+
+        if (!auth.currentUser!.isActive) {
+          return _InactiveAccountScaffold(
+            status: auth.currentUser!.accountStatus,
+          );
         }
 
         final route = AppRouter.defaultRouteForRole(auth.currentUser!.role);
@@ -39,10 +44,54 @@ class AuthGatePage extends StatelessWidget {
   }
 }
 
+class _InactiveAccountScaffold extends StatelessWidget {
+  const _InactiveAccountScaffold({required this.status});
+
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 360),
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.lock_rounded, size: 40),
+                const SizedBox(height: 16),
+                Text(
+                  'Your account is $status. Contact an administrator to restore access.',
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () async {
+                    await AuthService.instance.logout();
+                    if (!context.mounted) {
+                      return;
+                    }
+                    Navigator.pushNamedAndRemoveUntil(
+                      context,
+                      AppRouter.landing,
+                      (_) => false,
+                    );
+                  },
+                  child: const Text('Sign Out'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _LoadingScaffold extends StatelessWidget {
-  const _LoadingScaffold({
-    required this.message,
-  });
+  const _LoadingScaffold({required this.message});
 
   final String message;
 
@@ -57,10 +106,7 @@ class _LoadingScaffold extends StatelessWidget {
             children: [
               const CircularProgressIndicator(),
               const SizedBox(height: 16),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-              ),
+              Text(message, textAlign: TextAlign.center),
             ],
           ),
         ),

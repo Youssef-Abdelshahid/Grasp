@@ -12,6 +12,8 @@ class UserModel {
   final String department;
   final String employeeId;
   final String bio;
+  final String accountStatus;
+  final String phone;
   final Map<String, dynamic> preferences;
   final DateTime? createdAt;
 
@@ -27,9 +29,13 @@ class UserModel {
     this.department = '',
     this.employeeId = '',
     this.bio = '',
+    this.accountStatus = 'active',
+    this.phone = '',
     this.preferences = const {},
     this.createdAt,
   });
+
+  bool get isActive => accountStatus == 'active';
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
@@ -44,6 +50,8 @@ class UserModel {
       department: json['department'] as String? ?? '',
       employeeId: json['employee_id'] as String? ?? '',
       bio: json['bio'] as String? ?? '',
+      accountStatus: json['account_status'] as String? ?? 'active',
+      phone: json['phone'] as String? ?? '',
       preferences: (json['preferences'] as Map<String, dynamic>? ?? const {}),
       createdAt: json['created_at'] == null
           ? null

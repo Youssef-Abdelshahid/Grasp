@@ -19,8 +19,10 @@ class AssignmentService {
         .order('created_at', ascending: false);
 
     return (response as List<dynamic>)
-        .map((item) =>
-            AssignmentModel.fromJson(Map<String, dynamic>.from(item as Map)))
+        .map(
+          (item) =>
+              AssignmentModel.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
         .toList();
   }
 
@@ -54,7 +56,9 @@ class AssignmentService {
           'due_at': dueAt?.toUtc().toIso8601String(),
           'max_points': maxPoints,
           'is_published': isPublished,
-          'published_at': isPublished ? DateTime.now().toUtc().toIso8601String() : null,
+          'published_at': isPublished
+              ? DateTime.now().toUtc().toIso8601String()
+              : null,
           'rubric': rubric,
           'created_by': userId,
         })
@@ -74,25 +78,54 @@ class AssignmentService {
     required bool isPublished,
     required List<Map<String, dynamic>> rubric,
   }) async {
-    final response = await _client
-        .from('assignments')
-        .update({
-          'title': title.trim(),
-          'instructions': instructions.trim(),
-          'attachment_requirements': attachmentRequirements.trim(),
-          'due_at': dueAt?.toUtc().toIso8601String(),
-          'max_points': maxPoints,
-          'is_published': isPublished,
-          'published_at':
-              isPublished ? DateTime.now().toUtc().toIso8601String() : null,
-          'rubric': rubric,
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-        })
-        .eq('id', assignmentId)
-        .select()
-        .single();
+    try {
+      final response = await _client
+          .from('assignments')
+          .update({
+            'title': title.trim(),
+            'instructions': instructions.trim(),
+            'attachment_requirements': attachmentRequirements.trim(),
+            'due_at': dueAt?.toUtc().toIso8601String(),
+            'max_points': maxPoints,
+            'is_published': isPublished,
+            'published_at': isPublished
+                ? DateTime.now().toUtc().toIso8601String()
+                : null,
+            'rubric': rubric,
+            'updated_at': DateTime.now().toUtc().toIso8601String(),
+          })
+          .eq('id', assignmentId)
+          .select();
 
-    return AssignmentModel.fromJson(Map<String, dynamic>.from(response));
+      final rows = response as List<dynamic>;
+      if (rows.isNotEmpty) {
+        return AssignmentModel.fromJson(
+          Map<String, dynamic>.from(rows.first as Map),
+        );
+      }
+    } on PostgrestException catch (error) {
+      if (!error.message.contains('single JSON object')) {
+        rethrow;
+      }
+    }
+
+    final adminResponse = await _client.rpc(
+      'admin_update_assignment_full',
+      params: {
+        'p_assignment_id': assignmentId,
+        'p_title': title,
+        'p_instructions': instructions,
+        'p_attachment_requirements': attachmentRequirements,
+        'p_due_at': dueAt?.toUtc().toIso8601String(),
+        'p_max_points': maxPoints,
+        'p_is_published': isPublished,
+        'p_rubric': rubric,
+      },
+    );
+
+    return AssignmentModel.fromJson(
+      Map<String, dynamic>.from(adminResponse as Map),
+    );
   }
 
   Future<AssignmentModel> setPublished({
@@ -103,8 +136,9 @@ class AssignmentService {
         .from('assignments')
         .update({
           'is_published': isPublished,
-          'published_at':
-              isPublished ? DateTime.now().toUtc().toIso8601String() : null,
+          'published_at': isPublished
+              ? DateTime.now().toUtc().toIso8601String()
+              : null,
           'updated_at': DateTime.now().toUtc().toIso8601String(),
         })
         .eq('id', assignmentId)

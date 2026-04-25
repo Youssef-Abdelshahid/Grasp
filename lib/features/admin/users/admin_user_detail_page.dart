@@ -1,102 +1,215 @@
 import 'package:flutter/material.dart';
+
+import '../../../core/auth/app_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/user_utils.dart';
+import '../../../models/admin_models.dart';
+import '../../../services/admin_service.dart';
+import '../../../services/auth_service.dart';
 
 class AdminUserDetailPage extends StatefulWidget {
-  final String name;
-  final String email;
-  final String role;
-  final String status;
-  final String joined;
-  final Color roleColor;
-  final Color roleBg;
+  const AdminUserDetailPage({super.key, required this.userId});
 
-  const AdminUserDetailPage({
-    super.key,
-    required this.name,
-    required this.email,
-    required this.role,
-    required this.status,
-    required this.joined,
-    required this.roleColor,
-    required this.roleBg,
-  });
+  final String userId;
 
   @override
   State<AdminUserDetailPage> createState() => _AdminUserDetailPageState();
 }
 
 class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
-  late String _status;
-  late String _role;
-  late String _displayName;
+  late Future<AdminUserDetail> _detailFuture;
+  AdminUserDetail? _detail;
+  bool _saving = false;
+  bool _changed = false;
 
   @override
   void initState() {
     super.initState();
-    _status = widget.status;
-    _role = widget.role;
-    _displayName = widget.name;
+    _loadDetail();
   }
 
-  String get _initials =>
-      _displayName.split(' ').map((w) => w[0]).take(2).join();
+  void _loadDetail() {
+    _detailFuture = AdminService.instance.getUserDetail(widget.userId);
+  }
 
-  Color get _roleColor =>
-      _role == 'Instructor' ? AppColors.violet : AppColors.cyan;
+  Future<void> _refresh() async {
+    setState(_loadDetail);
+  }
+
+  Future<void> _updateUser({
+    String? fullName,
+    AppRole? role,
+    AdminAccountStatus? status,
+    String? department,
+    String? phone,
+  }) async {
+    setState(() => _saving = true);
+    try {
+      final updated = await AdminService.instance.updateUser(
+        userId: widget.userId,
+        fullName: fullName,
+        role: role,
+        status: status,
+        department: department,
+        phone: phone,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _detail = updated;
+        _detailFuture = Future.value(updated);
+        _saving = false;
+        _changed = true;
+      });
+      _showSnackBar('User updated');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() => _saving = false);
+      _showSnackBar(error.toString(), isError: true);
+    }
+  }
+
+  Future<void> _removeUser() async {
+    final user = _detail?.user;
+    if (user == null) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Remove Account'),
+        content: Text(
+          'Remove ${user.name}? This marks the account as removed and keeps admin history intact.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      await AdminService.instance.removeUser(user.id);
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(context, true);
+    } catch (error) {
+      _showSnackBar(error.toString(), isError: true);
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+      ),
+    );
+  }
+
+  bool get _isSelf => widget.userId == AuthService.instance.currentUser?.id;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: _buildAppBar(),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildProfileCard(),
-            const SizedBox(height: 20),
-            _buildInfoSection(),
-            const SizedBox(height: 20),
-            _buildActivityStats(),
-            const SizedBox(height: 20),
-            _buildCourseActivity(),
-            const SizedBox(height: 20),
-            _buildActivityHistory(),
-            const SizedBox(height: 20),
-            _buildActions(),
-            const SizedBox(height: 20),
-          ],
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        leading: BackButton(
+          color: AppColors.textPrimary,
+          onPressed: () => Navigator.pop(context, _changed),
         ),
+        title: Text('User Details', style: AppTextStyles.h2),
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.refresh_rounded,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
+            onPressed: _refresh,
+          ),
+          IconButton(
+            icon: const Icon(
+              Icons.edit_rounded,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
+            onPressed: _detail == null || _saving ? null : _showEditUserSheet,
+          ),
+          const SizedBox(width: 8),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: AppColors.border),
+        ),
+      ),
+      body: FutureBuilder<AdminUserDetail>(
+        future: _detailFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState != ConnectionState.done &&
+              _detail == null) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasError && _detail == null) {
+            return _ErrorState(onRetry: _refresh);
+          }
+
+          _detail = snapshot.data ?? _detail;
+          final detail = _detail!;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildProfileCard(detail.user),
+                const SizedBox(height: 20),
+                _buildInfoSection(detail.user),
+                const SizedBox(height: 20),
+                _buildActivityStats(detail.user),
+                const SizedBox(height: 20),
+                _buildCourseActivity(detail),
+                const SizedBox(height: 20),
+                _buildActivityHistory(detail),
+                const SizedBox(height: 20),
+                _buildActions(detail.user),
+                const SizedBox(height: 20),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 
-  AppBar _buildAppBar() {
-    return AppBar(
-      backgroundColor: AppColors.surface,
-      leading: const BackButton(color: AppColors.textPrimary),
-      title: Text('User Details', style: AppTextStyles.h2),
-      actions: [
-        IconButton(
-          icon: const Icon(Icons.edit_rounded,
-              color: AppColors.textSecondary, size: 20),
-          onPressed: _showEditUserSheet,
-        ),
-        const SizedBox(width: 8),
-      ],
-      bottom: PreferredSize(
-        preferredSize: const Size.fromHeight(1),
-        child: Container(height: 1, color: AppColors.border),
-      ),
-    );
-  }
-
-  Widget _buildProfileCard() {
-    final isActive = _status == 'Active';
-    final statusColor = isActive ? AppColors.success : AppColors.error;
-    final statusBg = isActive ? AppColors.successLight : AppColors.errorLight;
+  Widget _buildProfileCard(AdminUser user) {
+    final roleColor = _roleColor(user.role);
+    final statusColor = _statusColor(user.status);
+    final statusBg = _statusBg(user.status);
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -104,10 +217,7 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            _roleColor.withValues(alpha: 0.9),
-            _roleColor,
-          ],
+          colors: [roleColor.withValues(alpha: 0.9), roleColor],
         ),
         borderRadius: BorderRadius.circular(16),
       ),
@@ -117,9 +227,11 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
             radius: 36,
             backgroundColor: Colors.white.withValues(alpha: 0.2),
             child: Text(
-              _initials,
+              UserUtils.initials(user.name),
               style: AppTextStyles.h2.copyWith(
-                  color: Colors.white, fontWeight: FontWeight.w800),
+                color: Colors.white,
+                fontWeight: FontWeight.w800,
+              ),
             ),
           ),
           const SizedBox(width: 16),
@@ -127,45 +239,43 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(_displayName,
-                    style: AppTextStyles.h3.copyWith(color: Colors.white),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  user.name,
+                  style: AppTextStyles.h3.copyWith(color: Colors.white),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 3),
-                Text(widget.email,
-                    style: AppTextStyles.caption.copyWith(
-                        color: Colors.white.withValues(alpha: 0.8)),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis),
+                Text(
+                  user.email,
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.white.withValues(alpha: 0.8),
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 const SizedBox(height: 8),
-                Row(
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
+                    _Pill(label: user.roleLabel, color: Colors.white),
                     Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(100),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.4)),
+                        horizontal: 10,
+                        vertical: 4,
                       ),
-                      child: Text(_role,
-                          style: AppTextStyles.caption.copyWith(
-                              color: Colors.white,
-                              fontWeight: FontWeight.w600)),
-                    ),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
                         color: statusBg,
                         borderRadius: BorderRadius.circular(100),
                       ),
-                      child: Text(_status,
-                          style: AppTextStyles.caption.copyWith(
-                              color: statusColor,
-                              fontWeight: FontWeight.w600)),
+                      child: Text(
+                        user.statusLabel,
+                        style: AppTextStyles.caption.copyWith(
+                          color: statusColor,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ],
                 ),
@@ -177,9 +287,7 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
     );
   }
 
-  Widget _buildInfoSection() {
-    final dept =
-        _role == 'Instructor' ? 'Computer Science' : 'Engineering · CS';
+  Widget _buildInfoSection(AdminUser user) {
     return _Card(
       title: 'Account Information',
       icon: Icons.info_rounded,
@@ -187,74 +295,55 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
       iconBg: AppColors.primaryLight,
       child: Column(
         children: [
-          _InfoRow(label: 'Full Name', value: _displayName),
+          _InfoRow(label: 'Full Name', value: user.name),
           const Divider(height: 20, color: AppColors.border),
-          _InfoRow(label: 'Email Address', value: widget.email),
+          _InfoRow(label: 'Email Address', value: user.email),
           const Divider(height: 20, color: AppColors.border),
-          _InfoRow(label: 'Role', value: _role),
+          _InfoRow(label: 'Role', value: user.roleLabel),
           const Divider(height: 20, color: AppColors.border),
-          _InfoRow(label: 'Account Status', value: _status),
+          _InfoRow(label: 'Account Status', value: user.statusLabel),
           const Divider(height: 20, color: AppColors.border),
-          _InfoRow(label: 'Joined', value: widget.joined),
+          _InfoRow(label: 'Joined', value: user.joinedLabel),
           const Divider(height: 20, color: AppColors.border),
-          _InfoRow(label: 'Last Active', value: '2 hours ago'),
+          _InfoRow(label: 'Last Active', value: user.lastActiveLabel),
           const Divider(height: 20, color: AppColors.border),
-          _InfoRow(label: 'Department', value: dept),
+          _InfoRow(
+            label: 'Department',
+            value: user.department.isEmpty ? 'Not set' : user.department,
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildActivityStats() {
-    final isInstructor = _role == 'Instructor';
+  Widget _buildActivityStats(AdminUser user) {
+    final courseLabel = user.role == AppRole.instructor
+        ? 'Teaching'
+        : 'Courses';
 
-    final stats = isInstructor
-        ? [
-            (
-              label: 'Courses',
-              value: '4',
-              color: AppColors.primary,
-              bg: AppColors.primaryLight,
-              icon: Icons.menu_book_rounded
-            ),
-            (
-              label: 'Students',
-              value: '86',
-              color: AppColors.cyan,
-              bg: AppColors.cyanLight,
-              icon: Icons.people_rounded
-            ),
-            (
-              label: 'Avg Score',
-              value: '81%',
-              color: AppColors.emerald,
-              bg: AppColors.emeraldLight,
-              icon: Icons.insights_rounded
-            ),
-          ]
-        : [
-            (
-              label: 'Enrolled',
-              value: '5',
-              color: AppColors.primary,
-              bg: AppColors.primaryLight,
-              icon: Icons.menu_book_rounded
-            ),
-            (
-              label: 'Avg Score',
-              value: '74%',
-              color: AppColors.emerald,
-              bg: AppColors.emeraldLight,
-              icon: Icons.insights_rounded
-            ),
-            (
-              label: 'Submitted',
-              value: '12',
-              color: AppColors.violet,
-              bg: AppColors.violetLight,
-              icon: Icons.assignment_turned_in_rounded
-            ),
-          ];
+    final stats = [
+      (
+        label: courseLabel,
+        value: '${user.coursesCount}',
+        color: AppColors.primary,
+        bg: AppColors.primaryLight,
+        icon: Icons.menu_book_rounded,
+      ),
+      (
+        label: 'Submissions',
+        value: '${user.submissionsCount}',
+        color: AppColors.emerald,
+        bg: AppColors.emeraldLight,
+        icon: Icons.assignment_turned_in_rounded,
+      ),
+      (
+        label: 'Admin Actions',
+        value: '${user.adminActionsCount}',
+        color: AppColors.violet,
+        bg: AppColors.violetLight,
+        icon: Icons.history_rounded,
+      ),
+    ];
 
     return _Card(
       title: 'Activity Summary',
@@ -263,79 +352,53 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
       iconBg: AppColors.violetLight,
       child: Row(
         children: stats
-            .map((s) => Expanded(
-                  child: Column(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: s.bg,
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(s.icon, color: s.color, size: 20),
+            .map(
+              (s) => Expanded(
+                child: Column(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: s.bg,
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      const SizedBox(height: 8),
-                      Text(s.value,
-                          style: AppTextStyles.h2.copyWith(
-                              color: s.color,
-                              fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 2),
-                      Text(s.label, style: AppTextStyles.caption),
-                    ],
-                  ),
-                ))
+                      child: Icon(s.icon, color: s.color, size: 20),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      s.value,
+                      style: AppTextStyles.h2.copyWith(
+                        color: s.color,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(s.label, style: AppTextStyles.caption),
+                  ],
+                ),
+              ),
+            )
             .toList(),
       ),
     );
   }
 
-  Widget _buildCourseActivity() {
-    final isInstructor = _role == 'Instructor';
-
-    final items = isInstructor
-        ? [
-            (
-              title: 'Mobile Development · CS401',
-              sub: '32 students enrolled',
-              color: AppColors.primary
-            ),
-            (
-              title: 'Machine Learning · CS310',
-              sub: '28 students enrolled',
-              color: AppColors.cyan
-            ),
-            (
-              title: 'Database Systems · CS302',
-              sub: '26 students enrolled',
-              color: AppColors.emerald
-            ),
-          ]
-        : [
-            (
-              title: 'Mobile Development · CS401',
-              sub: 'Score: 82% · 3 assignments',
-              color: AppColors.primary
-            ),
-            (
-              title: 'Machine Learning · CS310',
-              sub: 'Score: 71% · 2 quizzes done',
-              color: AppColors.cyan
-            ),
-            (
-              title: 'Database Systems · CS302',
-              sub: 'Score: 79% · In progress',
-              color: AppColors.emerald
-            ),
-          ];
+  Widget _buildCourseActivity(AdminUserDetail detail) {
+    final user = detail.user;
+    final title = user.role == AppRole.instructor
+        ? 'Teaching'
+        : 'Enrolled Courses';
 
     return _Card(
-      title: isInstructor ? 'Teaching' : 'Enrolled Courses',
+      title: title,
       icon: Icons.menu_book_rounded,
       iconColor: AppColors.emerald,
       iconBg: AppColors.emeraldLight,
-      child: Column(
-        children: items
-            .map((item) => Padding(
+      child: detail.courses.isEmpty
+          ? Text('No related courses yet.', style: AppTextStyles.bodySmall)
+          : Column(
+              children: detail.courses.map((item) {
+                return Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: Row(
                     children: [
@@ -343,7 +406,7 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
                         width: 4,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: item.color,
+                          color: AppColors.emerald,
                           borderRadius: BorderRadius.circular(2),
                         ),
                       ),
@@ -352,170 +415,111 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(item.title,
-                                style: AppTextStyles.label,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis),
-                            Text(item.sub,
-                                style: AppTextStyles.caption,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis),
+                            Text(
+                              item.title,
+                              style: AppTextStyles.label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              item.subtitle,
+                              style: AppTextStyles.caption,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                ))
-            .toList(),
-      ),
+                );
+              }).toList(),
+            ),
     );
   }
 
-  Widget _buildActivityHistory() {
-    final isInstructor = _role == 'Instructor';
-
-    final activities = isInstructor
-        ? [
-            (
-              icon: Icons.login_rounded,
-              label: 'Logged in',
-              sub: 'Web · Chrome on Windows',
-              time: '2 hours ago',
-              color: AppColors.primary
-            ),
-            (
-              icon: Icons.auto_awesome_rounded,
-              label: 'Generated AI Quiz',
-              sub: 'Mobile Dev · CS401',
-              time: '5 hours ago',
-              color: AppColors.violet
-            ),
-            (
-              icon: Icons.upload_file_rounded,
-              label: 'Uploaded Lecture Material',
-              sub: 'Machine Learning · Week 8',
-              time: '1 day ago',
-              color: AppColors.emerald
-            ),
-            (
-              icon: Icons.quiz_rounded,
-              label: 'Published Quiz 5',
-              sub: 'Database Systems · CS302',
-              time: '2 days ago',
-              color: AppColors.cyan
-            ),
-            (
-              icon: Icons.person_add_rounded,
-              label: 'Account Created',
-              sub: 'System registration',
-              time: widget.joined,
-              color: AppColors.amber
-            ),
-          ]
-        : [
-            (
-              icon: Icons.login_rounded,
-              label: 'Logged in',
-              sub: 'Mobile · iOS App',
-              time: '2 hours ago',
-              color: AppColors.primary
-            ),
-            (
-              icon: Icons.assignment_turned_in_rounded,
-              label: 'Submitted Assignment 3',
-              sub: 'Mobile Dev · CS401',
-              time: '1 day ago',
-              color: AppColors.violet
-            ),
-            (
-              icon: Icons.quiz_rounded,
-              label: 'Completed Quiz 2',
-              sub: 'Machine Learning · Score: 85%',
-              time: '2 days ago',
-              color: AppColors.emerald
-            ),
-            (
-              icon: Icons.menu_book_rounded,
-              label: 'Viewed Lecture 7',
-              sub: 'Database Systems · CS302',
-              time: '3 days ago',
-              color: AppColors.cyan
-            ),
-            (
-              icon: Icons.person_add_rounded,
-              label: 'Account Created',
-              sub: 'System registration',
-              time: widget.joined,
-              color: AppColors.amber
-            ),
-          ];
-
+  Widget _buildActivityHistory(AdminUserDetail detail) {
     return _Card(
       title: 'Activity History',
       icon: Icons.history_rounded,
       iconColor: AppColors.amber,
       iconBg: AppColors.amberLight,
-      child: Column(
-        children: activities.asMap().entries.map((entry) {
-          final i = entry.key;
-          final a = entry.value;
-          final isLast = i == activities.length - 1;
-          return Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(7),
-                    decoration: BoxDecoration(
-                      color: a.color.withValues(alpha: 0.12),
-                      shape: BoxShape.circle,
+      child: detail.activity.isEmpty
+          ? Text('No activity recorded yet.', style: AppTextStyles.bodySmall)
+          : Column(
+              children: detail.activity.asMap().entries.map((entry) {
+                final i = entry.key;
+                final activity = entry.value;
+                final isLast = i == detail.activity.length - 1;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Column(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(7),
+                          decoration: BoxDecoration(
+                            color: AppColors.amber.withValues(alpha: 0.12),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(
+                            Icons.circle_rounded,
+                            size: 8,
+                            color: AppColors.amber,
+                          ),
+                        ),
+                        if (!isLast)
+                          Container(
+                            width: 1.5,
+                            height: 28,
+                            color: AppColors.border,
+                            margin: const EdgeInsets.symmetric(vertical: 3),
+                          ),
+                      ],
                     ),
-                    child: Icon(a.icon, size: 13, color: a.color),
-                  ),
-                  if (!isLast)
-                    Container(
-                      width: 1.5,
-                      height: 28,
-                      color: AppColors.border,
-                      margin: const EdgeInsets.symmetric(vertical: 3),
-                    ),
-                ],
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(bottom: isLast ? 0 : 14),
+                        child: Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(a.label, style: AppTextStyles.label),
-                            const SizedBox(height: 1),
-                            Text(a.sub, style: AppTextStyles.caption),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    activity.title,
+                                    style: AppTextStyles.label,
+                                  ),
+                                  const SizedBox(height: 1),
+                                  Text(
+                                    activity.subtitle,
+                                    style: AppTextStyles.caption,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              activity.timestampLabel,
+                              style: AppTextStyles.caption.copyWith(
+                                color: AppColors.textMuted,
+                              ),
+                            ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      Text(a.time,
-                          style: AppTextStyles.caption
-                              .copyWith(color: AppColors.textMuted)),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          );
-        }).toList(),
-      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
     );
   }
 
-  Widget _buildActions() {
-    final isActive = _status == 'Active';
+  Widget _buildActions(AdminUser user) {
+    final isActive = user.status == AdminAccountStatus.active;
 
     return _Card(
       title: 'Account Actions',
@@ -527,84 +531,54 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
           _ActionTile(
             icon: Icons.edit_rounded,
             label: 'Edit User',
-            subtitle: 'Update name, email or role',
+            subtitle: 'Update name, phone, department, role, or status',
             color: AppColors.primary,
-            onTap: _showEditUserSheet,
+            onTap: _saving ? null : _showEditUserSheet,
           ),
           const Divider(height: 1, color: AppColors.border),
           _ActionTile(
-            icon:
-                isActive ? Icons.block_rounded : Icons.check_circle_rounded,
+            icon: isActive ? Icons.block_rounded : Icons.check_circle_rounded,
             label: isActive ? 'Suspend Account' : 'Activate Account',
-            subtitle: isActive
-                ? 'Prevent user from logging in'
-                : 'Restore user access',
+            subtitle: isActive ? 'Prevent app access' : 'Restore app access',
             color: isActive ? AppColors.amber : AppColors.success,
-            onTap: () {
-              final newStatus = isActive ? 'Suspended' : 'Active';
-              setState(() => _status = newStatus);
-              _showSnackBar(
-                  isActive ? 'Account suspended' : 'Account activated');
-            },
+            onTap: _isSelf || _saving
+                ? null
+                : () => _updateUser(
+                    status: isActive
+                        ? AdminAccountStatus.suspended
+                        : AdminAccountStatus.active,
+                  ),
           ),
           const Divider(height: 1, color: AppColors.border),
           _ActionTile(
             icon: Icons.swap_horiz_rounded,
             label: 'Change Role',
-            subtitle: 'Switch between Student and Instructor',
+            subtitle: 'Switch between student, instructor, and admin',
             color: AppColors.violet,
-            onTap: _showChangeRoleDialog,
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          _ActionTile(
-            icon: Icons.lock_reset_rounded,
-            label: 'Reset Password',
-            subtitle: 'Send a password reset link to user',
-            color: AppColors.cyan,
-            onTap: _showResetPasswordDialog,
+            onTap: _saving ? null : _showChangeRoleDialog,
           ),
           const Divider(height: 1, color: AppColors.border),
           _ActionTile(
             icon: Icons.delete_rounded,
-            label: 'Delete Account',
-            subtitle: 'Permanently remove this user',
+            label: 'Remove Account',
+            subtitle: _isSelf
+                ? 'You cannot remove yourself'
+                : 'Soft-remove this user',
             color: AppColors.error,
-            onTap: _showDeleteDialog,
+            onTap: _isSelf || _saving ? null : _removeUser,
           ),
         ],
       ),
     );
   }
 
-  void _showSnackBar(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              isError
-                  ? Icons.error_rounded
-                  : Icons.check_circle_rounded,
-              color: Colors.white,
-              size: 16,
-            ),
-            const SizedBox(width: 8),
-            Text(message),
-          ],
-        ),
-        backgroundColor: isError ? AppColors.error : AppColors.success,
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        duration: const Duration(seconds: 2),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
-  }
-
   void _showEditUserSheet() {
-    final nameCtrl = TextEditingController(text: _displayName);
-    final emailCtrl = TextEditingController(text: widget.email);
+    final user = _detail!.user;
+    final nameCtrl = TextEditingController(text: user.name);
+    final phoneCtrl = TextEditingController(text: user.phone);
+    final departmentCtrl = TextEditingController(text: user.department);
+    var selectedRole = user.role;
+    var selectedStatus = user.status;
 
     showModalBottomSheet(
       context: context,
@@ -613,104 +587,102 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(
-          left: 24,
-          right: 24,
-          top: 20,
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            Row(
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Edit User', style: AppTextStyles.h2),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.close_rounded,
-                      size: 20, color: AppColors.textSecondary),
-                  onPressed: () => Navigator.pop(ctx),
+                const SizedBox(height: 18),
+                _SheetTextField(label: 'Full Name', controller: nameCtrl),
+                const SizedBox(height: 14),
+                _SheetTextField(
+                  label: 'Phone',
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                ),
+                const SizedBox(height: 14),
+                _SheetTextField(
+                  label: 'Department',
+                  controller: departmentCtrl,
+                ),
+                const SizedBox(height: 14),
+                Text('Role', style: AppTextStyles.label),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: AppRole.values.map((role) {
+                    return ChoiceChip(
+                      label: Text(role.label),
+                      selected: selectedRole == role,
+                      onSelected: (_) => setSheet(() => selectedRole = role),
+                    );
+                  }).toList(),
+                ),
+                const SizedBox(height: 14),
+                Text('Status', style: AppTextStyles.label),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children:
+                      [
+                        AdminAccountStatus.active,
+                        AdminAccountStatus.inactive,
+                        AdminAccountStatus.suspended,
+                      ].map((status) {
+                        return ChoiceChip(
+                          label: Text(status.label),
+                          selected: selectedStatus == status,
+                          onSelected: (_) =>
+                              setSheet(() => selectedStatus = status),
+                        );
+                      }).toList(),
+                ),
+                const SizedBox(height: 22),
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () => Navigator.pop(ctx),
+                        child: const Text('Cancel'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _updateUser(
+                            fullName: nameCtrl.text,
+                            phone: phoneCtrl.text,
+                            department: departmentCtrl.text,
+                            role: selectedRole,
+                            status: selectedStatus,
+                          );
+                        },
+                        child: const Text('Save'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            Text('Update account details for ${widget.name}.',
-                style: AppTextStyles.bodySmall),
-            const SizedBox(height: 22),
-            Text('Full Name', style: AppTextStyles.label),
-            const SizedBox(height: 6),
-            TextField(
-              controller: nameCtrl,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                hintText: 'Enter full name',
-                prefixIcon: Icon(Icons.person_rounded,
-                    size: 18, color: AppColors.textMuted),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Text('Email Address', style: AppTextStyles.label),
-            const SizedBox(height: 6),
-            TextField(
-              controller: emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                hintText: 'Enter email address',
-                prefixIcon: Icon(Icons.email_rounded,
-                    size: 18, color: AppColors.textMuted),
-              ),
-            ),
-            const SizedBox(height: 22),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                    ),
-                    child: const Text('Cancel'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () {
-                      final trimmed = nameCtrl.text.trim();
-                      if (trimmed.isNotEmpty) {
-                        setState(() => _displayName = trimmed);
-                      }
-                      Navigator.pop(ctx);
-                      _showSnackBar('User updated successfully');
-                    },
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 13),
-                    ),
-                    child: const Text('Save Changes'),
-                  ),
-                ),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   void _showChangeRoleDialog() {
-    String selected = _role;
+    var selected = _detail!.user.role;
     showDialog(
       context: context,
       builder: (_) => StatefulBuilder(
@@ -718,31 +690,20 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
           title: const Text('Change Role'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Select a new role for $_displayName.',
-                  style: AppTextStyles.bodySmall),
-              const SizedBox(height: 14),
-              _RoleOption(
-                label: 'Student',
-                subtitle: 'Can enroll in courses and submit work',
-                icon: Icons.school_rounded,
-                color: AppColors.cyan,
-                bg: AppColors.cyanLight,
-                selected: selected == 'Student',
-                onTap: () => setDlg(() => selected = 'Student'),
-              ),
-              const SizedBox(height: 8),
-              _RoleOption(
-                label: 'Instructor',
-                subtitle: 'Can create courses and use AI tools',
-                icon: Icons.menu_book_rounded,
-                color: AppColors.violet,
-                bg: AppColors.violetLight,
-                selected: selected == 'Instructor',
-                onTap: () => setDlg(() => selected = 'Instructor'),
-              ),
-            ],
+            children: AppRole.values.map((role) {
+              final isSelected = selected == role;
+              return ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Icon(
+                  isSelected
+                      ? Icons.radio_button_checked_rounded
+                      : Icons.radio_button_off_rounded,
+                  color: isSelected ? AppColors.primary : AppColors.textMuted,
+                ),
+                title: Text(role.label),
+                onTap: () => setDlg(() => selected = role),
+              );
+            }).toList(),
           ),
           actions: [
             TextButton(
@@ -751,9 +712,8 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
             ),
             ElevatedButton(
               onPressed: () {
-                setState(() => _role = selected);
                 Navigator.pop(context);
-                _showSnackBar('Role changed to $selected');
+                _updateUser(role: selected);
               },
               child: const Text('Apply'),
             ),
@@ -762,156 +722,63 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
       ),
     );
   }
+}
 
-  void _showResetPasswordDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Reset Password'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: const BoxDecoration(
-                color: AppColors.cyanLight,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.lock_reset_rounded,
-                  color: AppColors.cyan, size: 28),
-            ),
-            const SizedBox(height: 14),
-            Text(
-              'A password reset link will be sent to:',
-              style: AppTextStyles.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 6),
-            Text(
-              widget.email,
-              style: AppTextStyles.label,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _showSnackBar('Reset link sent to ${widget.email}');
-            },
-            child: const Text('Send Link'),
-          ),
-        ],
+class _Pill extends StatelessWidget {
+  const _Pill({required this.label, required this.color});
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(100),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.4)),
       ),
-    );
-  }
-
-  void _showDeleteDialog() {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete Account'),
-        content: Text(
-            'Are you sure you want to permanently delete $_displayName? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
+      child: Text(
+        label,
+        style: AppTextStyles.caption.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
 }
 
-class _RoleOption extends StatelessWidget {
-  final String label;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final Color bg;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _RoleOption({
+class _SheetTextField extends StatelessWidget {
+  const _SheetTextField({
     required this.label,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.bg,
-    required this.selected,
-    required this.onTap,
+    required this.controller,
+    this.keyboardType = TextInputType.text,
   });
+
+  final String label;
+  final TextEditingController controller;
+  final TextInputType keyboardType;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: selected ? color.withValues(alpha: 0.08) : AppColors.background,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected ? color : AppColors.border,
-            width: selected ? 1.5 : 1,
-          ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.label),
+        const SizedBox(height: 6),
+        TextField(
+          controller: controller,
+          keyboardType: keyboardType,
+          decoration: InputDecoration(hintText: label),
         ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: bg,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, size: 16, color: color),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(label,
-                      style: AppTextStyles.label
-                          .copyWith(color: selected ? color : AppColors.textPrimary)),
-                  Text(subtitle, style: AppTextStyles.caption),
-                ],
-              ),
-            ),
-            if (selected)
-              Icon(Icons.check_circle_rounded, size: 16, color: color),
-          ],
-        ),
-      ),
+      ],
     );
   }
 }
 
 class _Card extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final Color iconColor;
-  final Color iconBg;
-  final Widget child;
-
   const _Card({
     required this.title,
     required this.icon,
@@ -919,6 +786,12 @@ class _Card extends StatelessWidget {
     required this.iconBg,
     required this.child,
   });
+
+  final String title;
+  final IconData icon;
+  final Color iconColor;
+  final Color iconBg;
+  final Widget child;
 
   @override
   Widget build(BuildContext context) {
@@ -937,7 +810,9 @@ class _Card extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(7),
                 decoration: BoxDecoration(
-                    color: iconBg, borderRadius: BorderRadius.circular(8)),
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: Icon(icon, color: iconColor, size: 15),
               ),
               const SizedBox(width: 10),
@@ -955,10 +830,10 @@ class _Card extends StatelessWidget {
 }
 
 class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+
   final String label;
   final String value;
-
-  const _InfoRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
@@ -967,16 +842,21 @@ class _InfoRow extends StatelessWidget {
       children: [
         SizedBox(
           width: 120,
-          child: Text(label,
-              style: AppTextStyles.caption.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.textSecondary)),
+          child: Text(
+            label,
+            style: AppTextStyles.caption.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.textSecondary,
+            ),
+          ),
         ),
         Expanded(
-          child: Text(value,
-              style: AppTextStyles.label,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis),
+          child: Text(
+            value,
+            style: AppTextStyles.label,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
@@ -984,12 +864,6 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _ActionTile extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final String subtitle;
-  final Color color;
-  final VoidCallback onTap;
-
   const _ActionTile({
     required this.icon,
     required this.label,
@@ -998,23 +872,96 @@ class _ActionTile extends StatelessWidget {
     required this.onTap,
   });
 
+  final IconData icon;
+  final String label;
+  final String subtitle;
+  final Color color;
+  final VoidCallback? onTap;
+
   @override
   Widget build(BuildContext context) {
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(vertical: 2),
+      enabled: onTap != null,
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Icon(icon, color: color, size: 16),
+        child: Icon(
+          icon,
+          color: onTap == null ? AppColors.textMuted : color,
+          size: 16,
+        ),
       ),
       title: Text(label, style: AppTextStyles.label),
       subtitle: Text(subtitle, style: AppTextStyles.caption),
-      trailing: const Icon(Icons.chevron_right_rounded,
-          size: 16, color: AppColors.textMuted),
+      trailing: const Icon(
+        Icons.chevron_right_rounded,
+        size: 16,
+        color: AppColors.textMuted,
+      ),
       onTap: onTap,
     );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off_rounded, size: 36),
+          const SizedBox(height: 12),
+          Text('Failed to load user details', style: AppTextStyles.h3),
+          const SizedBox(height: 12),
+          ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
+}
+
+Color _roleColor(AppRole role) {
+  switch (role) {
+    case AppRole.instructor:
+      return AppColors.violet;
+    case AppRole.admin:
+      return AppColors.rose;
+    case AppRole.student:
+      return AppColors.cyan;
+  }
+}
+
+Color _statusColor(AdminAccountStatus status) {
+  switch (status) {
+    case AdminAccountStatus.active:
+      return AppColors.success;
+    case AdminAccountStatus.suspended:
+      return AppColors.error;
+    case AdminAccountStatus.inactive:
+      return AppColors.textMuted;
+    case AdminAccountStatus.removed:
+      return AppColors.error;
+  }
+}
+
+Color _statusBg(AdminAccountStatus status) {
+  switch (status) {
+    case AdminAccountStatus.active:
+      return AppColors.successLight;
+    case AdminAccountStatus.suspended:
+      return AppColors.errorLight;
+    case AdminAccountStatus.inactive:
+      return AppColors.background;
+    case AdminAccountStatus.removed:
+      return AppColors.errorLight;
   }
 }

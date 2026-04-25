@@ -4,6 +4,10 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
 import '../features/admin/dashboard/admin_dashboard_page.dart';
+import '../features/admin/content/admin_announcements_page.dart';
+import '../features/admin/content/admin_assessments_page.dart';
+import '../features/admin/content/admin_courses_page.dart';
+import '../features/admin/content/admin_materials_page.dart';
 import '../features/admin/users/admin_users_page.dart';
 import '../features/admin/permissions/admin_permissions_page.dart';
 import '../features/admin/ai_controls/admin_ai_controls_page.dart';
@@ -29,6 +33,11 @@ class _AdminLayoutState extends State<AdminLayout> {
   static const _pageTitles = [
     'Dashboard',
     'Users',
+    'Courses',
+    'Materials',
+    'Quizzes',
+    'Assignments',
+    'Announcements',
     'Permissions',
     'AI Controls',
     'Upload Limits',
@@ -38,6 +47,11 @@ class _AdminLayoutState extends State<AdminLayout> {
   static const _pages = [
     AdminDashboardPage(),
     AdminUsersPage(),
+    AdminCoursesPage(),
+    AdminMaterialsPage(),
+    AdminAssessmentsPage.quizzes(),
+    AdminAssessmentsPage.assignments(),
+    AdminAnnouncementsPage(),
     AdminPermissionsPage(),
     AdminAiControlsPage(),
     AdminUploadLimitsPage(),
@@ -124,8 +138,11 @@ class _AdminLayoutState extends State<AdminLayout> {
       title: Text(_pageTitles[_selectedIndex]),
       actions: [
         IconButton(
-          icon: const Icon(Icons.notifications_outlined,
-              color: AppColors.textSecondary, size: 22),
+          icon: const Icon(
+            Icons.notifications_outlined,
+            color: AppColors.textSecondary,
+            size: 22,
+          ),
           onPressed: _openNotifications,
         ),
         GestureDetector(
@@ -168,6 +185,11 @@ class _AdminSidebar extends StatelessWidget {
   static const _navItems = [
     (icon: Icons.dashboard_rounded, label: 'Dashboard'),
     (icon: Icons.people_rounded, label: 'Users'),
+    (icon: Icons.menu_book_rounded, label: 'Courses'),
+    (icon: Icons.description_rounded, label: 'Materials'),
+    (icon: Icons.quiz_rounded, label: 'Quizzes'),
+    (icon: Icons.assignment_rounded, label: 'Assignments'),
+    (icon: Icons.campaign_rounded, label: 'Announcements'),
     (icon: Icons.shield_rounded, label: 'Permissions'),
     (icon: Icons.auto_awesome_rounded, label: 'AI Controls'),
     (icon: Icons.upload_rounded, label: 'Upload Limits'),
@@ -185,12 +207,10 @@ class _AdminSidebar extends StatelessWidget {
           const SizedBox(height: 8),
           Expanded(
             child: ListView(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               children: [
                 Padding(
-                  padding:
-                      const EdgeInsets.only(left: 12, bottom: 8, top: 4),
+                  padding: const EdgeInsets.only(left: 12, bottom: 8, top: 4),
                   child: Text(
                     'NAVIGATION',
                     style: AppTextStyles.overline.copyWith(
@@ -231,8 +251,11 @@ class _AdminSidebar extends StatelessWidget {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.school_rounded,
-                color: Colors.white, size: 18),
+            child: const Icon(
+              Icons.school_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -249,12 +272,15 @@ class _AdminSidebar extends StatelessWidget {
                 Container(
                   margin: const EdgeInsets.only(top: 3),
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 6, vertical: 1),
+                    horizontal: 6,
+                    vertical: 1,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.rose.withValues(alpha: 0.25),
                     borderRadius: BorderRadius.circular(4),
                     border: Border.all(
-                        color: AppColors.rose.withValues(alpha: 0.4)),
+                      color: AppColors.rose.withValues(alpha: 0.4),
+                    ),
                   ),
                   child: Text(
                     'ADMIN',
@@ -317,7 +343,8 @@ class _AdminSidebar extends StatelessWidget {
                       color: AppColors.rose.withValues(alpha: 0.3),
                       shape: BoxShape.circle,
                       border: Border.all(
-                          color: AppColors.rose.withValues(alpha: 0.5)),
+                        color: AppColors.rose.withValues(alpha: 0.5),
+                      ),
                     ),
                     child: const Icon(
                       Icons.admin_panel_settings_rounded,
@@ -346,8 +373,11 @@ class _AdminSidebar extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const Icon(Icons.chevron_right_rounded,
-                      size: 14, color: AppColors.sidebarTextMuted),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    size: 14,
+                    color: AppColors.sidebarTextMuted,
+                  ),
                 ],
               ),
             ),
@@ -382,12 +412,9 @@ class _NavItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? AppColors.sidebarActive
-                  : Colors.transparent,
+              color: isSelected ? AppColors.sidebarActive : Colors.transparent,
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -395,20 +422,14 @@ class _NavItem extends StatelessWidget {
                 Icon(
                   icon,
                   size: 18,
-                  color: isSelected
-                      ? Colors.white
-                      : AppColors.sidebarTextMuted,
+                  color: isSelected ? Colors.white : AppColors.sidebarTextMuted,
                 ),
                 const SizedBox(width: 10),
                 Text(
                   label,
                   style: AppTextStyles.body.copyWith(
-                    color: isSelected
-                        ? Colors.white
-                        : AppColors.sidebarText,
-                    fontWeight: isSelected
-                        ? FontWeight.w600
-                        : FontWeight.w400,
+                    color: isSelected ? Colors.white : AppColors.sidebarText,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                     fontSize: 14,
                   ),
                 ),
@@ -448,8 +469,7 @@ class _AdminTopBar extends StatelessWidget {
           Text(title, style: AppTextStyles.h2),
           const SizedBox(width: 10),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
               color: AppColors.roseLight,
               borderRadius: BorderRadius.circular(6),
@@ -464,8 +484,7 @@ class _AdminTopBar extends StatelessWidget {
           ),
           const Spacer(),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
               color: AppColors.background,
               borderRadius: BorderRadius.circular(8),
@@ -473,12 +492,18 @@ class _AdminTopBar extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.search_rounded,
-                    color: AppColors.textMuted, size: 16),
+                const Icon(
+                  Icons.search_rounded,
+                  color: AppColors.textMuted,
+                  size: 16,
+                ),
                 const SizedBox(width: 6),
-                Text('Search...',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textMuted)),
+                Text(
+                  'Search...',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
               ],
             ),
           ),
@@ -492,8 +517,11 @@ class _AdminTopBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.border),
               ),
-              child: const Icon(Icons.notifications_outlined,
-                  color: AppColors.textSecondary, size: 20),
+              child: const Icon(
+                Icons.notifications_outlined,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
             ),
           ),
           const SizedBox(width: 12),

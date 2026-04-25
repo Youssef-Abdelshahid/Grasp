@@ -1,7 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+
+import '../../../core/auth/app_role.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../core/utils/user_utils.dart';
+import '../../../models/admin_models.dart';
+import '../../../services/admin_service.dart';
+import '../../../services/auth_service.dart';
 import 'admin_user_detail_page.dart';
 
 class AdminUsersPage extends StatefulWidget {
@@ -12,262 +20,119 @@ class AdminUsersPage extends StatefulWidget {
 }
 
 class _AdminUsersPageState extends State<AdminUsersPage> {
-  int _filterIndex = 0;
   final _searchController = TextEditingController();
-  String _searchQuery = '';
+  Timer? _searchDebounce;
 
-  static const _filters = ['All', 'Students', 'Instructors', 'Active', 'Suspended'];
+  AppRole? _roleFilter;
+  AdminAccountStatus? _statusFilter;
+  Future<List<AdminUser>>? _usersFuture;
 
-  static final _allUsers = [
-    _User(name: 'Ahmed Hassan', email: 'ahmed.hassan@student.edu', role: 'Student', status: 'Active', joined: 'Jan 15, 2025'),
-    _User(name: 'Dr. Ahmed Ali', email: 'ahmed.ali@faculty.edu', role: 'Instructor', status: 'Active', joined: 'Sep 1, 2024'),
-    _User(name: 'Nada Omar', email: 'nada.omar@student.edu', role: 'Student', status: 'Active', joined: 'Jan 20, 2025'),
-    _User(name: 'Khaled Ibrahim', email: 'k.ibrahim@student.edu', role: 'Student', status: 'Active', joined: 'Feb 1, 2025'),
-    _User(name: 'Prof. Sara Mansour', email: 's.mansour@faculty.edu', role: 'Instructor', status: 'Active', joined: 'Aug 15, 2024'),
-    _User(name: 'Yousef Adel', email: 'yousef.adel@student.edu', role: 'Student', status: 'Active', joined: 'Jan 10, 2025'),
-    _User(name: 'Mona Hassan', email: 'mona.hassan@student.edu', role: 'Student', status: 'Suspended', joined: 'Feb 5, 2025'),
-    _User(name: 'Dr. Mohammed Farid', email: 'm.farid@faculty.edu', role: 'Instructor', status: 'Active', joined: 'Oct 1, 2024'),
-    _User(name: 'Layla Ahmad', email: 'layla.ahmad@student.edu', role: 'Student', status: 'Active', joined: 'Jan 25, 2025'),
-    _User(name: 'Tarek Ali', email: 'tarek.ali@student.edu', role: 'Student', status: 'Inactive', joined: 'Dec 20, 2024'),
-    _User(name: 'Fatima Zahra', email: 'fatima.z@student.edu', role: 'Student', status: 'Active', joined: 'Jan 5, 2025'),
-    _User(name: 'Dr. Omar Hassan', email: 'o.hassan@faculty.edu', role: 'Instructor', status: 'Active', joined: 'Sep 15, 2024'),
-  ];
-
-  List<_User> get _filtered {
-    var users = List<_User>.from(_allUsers);
-    switch (_filterIndex) {
-      case 1:
-        users = users.where((u) => u.role == 'Student').toList();
-      case 2:
-        users = users.where((u) => u.role == 'Instructor').toList();
-      case 3:
-        users = users.where((u) => u.status == 'Active').toList();
-      case 4:
-        users = users.where((u) => u.status == 'Suspended').toList();
-    }
-    if (_searchQuery.isNotEmpty) {
-      final q = _searchQuery.toLowerCase();
-      users = users.where((u) =>
-          u.name.toLowerCase().contains(q) ||
-          u.email.toLowerCase().contains(q)).toList();
-    }
-    return users;
+  @override
+  void initState() {
+    super.initState();
+    _loadUsers();
   }
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     super.dispose();
   }
 
-  void _showAddUserSheet() {
-    final nameCtrl = TextEditingController();
-    final emailCtrl = TextEditingController();
-    String selectedRole = 'Student';
-    bool nameError = false;
-    bool emailError = false;
+  void _loadUsers() {
+    setState(() {
+      _usersFuture = AdminService.instance.listUsers(
+        search: _searchController.text,
+        role: _roleFilter,
+        status: _statusFilter,
+      );
+    });
+  }
 
-    showModalBottomSheet(
+  void _onSearchChanged(String _) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(const Duration(milliseconds: 350), _loadUsers);
+  }
+
+  Future<void> _openDetail(AdminUser user) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => AdminUserDetailPage(userId: user.id)),
+    );
+    if (changed == true && mounted) {
+      _loadUsers();
+    }
+  }
+
+  Future<void> _toggleStatus(AdminUser user) async {
+    final newStatus = user.status == AdminAccountStatus.active
+        ? AdminAccountStatus.suspended
+        : AdminAccountStatus.active;
+
+    try {
+      await AdminService.instance.updateUser(
+        userId: user.id,
+        status: newStatus,
+      );
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar('${user.name} is now ${newStatus.label.toLowerCase()}');
+      _loadUsers();
+    } catch (error) {
+      _showSnackBar(error.toString(), isError: true);
+    }
+  }
+
+  Future<void> _removeUser(AdminUser user) async {
+    final confirmed = await showDialog<bool>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) => Padding(
-          padding: EdgeInsets.only(
-            left: 24,
-            right: 24,
-            top: 20,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.border,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 18),
-              Row(
-                children: [
-                  Text('Add User', style: AppTextStyles.h2),
-                  const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.close_rounded,
-                        size: 20, color: AppColors.textSecondary),
-                    onPressed: () => Navigator.pop(ctx),
-                  ),
-                ],
-              ),
-              Text('Create a new user account on the platform.',
-                  style: AppTextStyles.bodySmall),
-              const SizedBox(height: 22),
-              Text('Full Name', style: AppTextStyles.label),
-              const SizedBox(height: 6),
-              TextField(
-                controller: nameCtrl,
-                textCapitalization: TextCapitalization.words,
-                onChanged: (_) {
-                  if (nameError) setSheet(() => nameError = false);
-                },
-                decoration: InputDecoration(
-                  hintText: 'Enter full name',
-                  prefixIcon: const Icon(Icons.person_rounded,
-                      size: 18, color: AppColors.textMuted),
-                  errorText: nameError ? 'Name is required' : null,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text('Email Address', style: AppTextStyles.label),
-              const SizedBox(height: 6),
-              TextField(
-                controller: emailCtrl,
-                keyboardType: TextInputType.emailAddress,
-                onChanged: (_) {
-                  if (emailError) setSheet(() => emailError = false);
-                },
-                decoration: InputDecoration(
-                  hintText: 'Enter email address',
-                  prefixIcon: const Icon(Icons.email_rounded,
-                      size: 18, color: AppColors.textMuted),
-                  errorText: emailError ? 'Email is required' : null,
-                ),
-              ),
-              const SizedBox(height: 14),
-              Text('Role', style: AppTextStyles.label),
-              const SizedBox(height: 8),
-              Row(
-                children: ['Student', 'Instructor'].map((role) {
-                  final isSelected = selectedRole == role;
-                  final color =
-                      role == 'Instructor' ? AppColors.violet : AppColors.cyan;
-                  final bg = role == 'Instructor'
-                      ? AppColors.violetLight
-                      : AppColors.cyanLight;
-                  return Expanded(
-                    child: Padding(
-                      padding:
-                          EdgeInsets.only(right: role == 'Student' ? 8 : 0),
-                      child: GestureDetector(
-                        onTap: () => setSheet(() => selectedRole = role),
-                        child: AnimatedContainer(
-                          duration: const Duration(milliseconds: 150),
-                          padding:
-                              const EdgeInsets.symmetric(vertical: 12),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? color.withValues(alpha: 0.08)
-                                : AppColors.background,
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: isSelected ? color : AppColors.border,
-                              width: isSelected ? 1.5 : 1,
-                            ),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: bg,
-                                  borderRadius: BorderRadius.circular(6),
-                                ),
-                                child: Icon(
-                                  role == 'Instructor'
-                                      ? Icons.menu_book_rounded
-                                      : Icons.school_rounded,
-                                  size: 13,
-                                  color: color,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(role,
-                                  style: AppTextStyles.label.copyWith(
-                                    color: isSelected
-                                        ? color
-                                        : AppColors.textPrimary,
-                                  )),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 22),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: () => Navigator.pop(ctx),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                      ),
-                      child: const Text('Cancel'),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        final name = nameCtrl.text.trim();
-                        final email = emailCtrl.text.trim();
-                        setSheet(() {
-                          nameError = name.isEmpty;
-                          emailError = email.isEmpty;
-                        });
-                        if (name.isEmpty || email.isEmpty) return;
-                        setState(() {
-                          _allUsers.add(_User(
-                            name: name,
-                            email: email,
-                            role: selectedRole,
-                            status: 'Active',
-                            joined: 'Apr 9, 2026',
-                          ));
-                        });
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                const Icon(Icons.check_circle_rounded,
-                                    color: Colors.white, size: 16),
-                                const SizedBox(width: 8),
-                                Text('$name added successfully'),
-                              ],
-                            ),
-                            backgroundColor: AppColors.success,
-                            behavior: SnackBarBehavior.floating,
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                            margin: const EdgeInsets.all(16),
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                      },
-                      style: ElevatedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 13),
-                      ),
-                      child: const Text('Add User'),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
+      builder: (_) => AlertDialog(
+        title: const Text('Remove User'),
+        content: Text(
+          'Remove ${user.name} from the admin user list? This keeps audit history and marks the account as removed.',
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) {
+      return;
+    }
+
+    try {
+      await AdminService.instance.removeUser(user.id);
+      if (!mounted) {
+        return;
+      }
+      _showSnackBar('${user.name} removed');
+      _loadUsers();
+    } catch (error) {
+      _showSnackBar(error.toString(), isError: true);
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
       ),
     );
   }
@@ -276,29 +141,45 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
-    final filtered = _filtered;
 
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(isWide ? 28 : 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(filtered.length),
-          const SizedBox(height: 20),
-          _buildSearchAndFilter(),
-          const SizedBox(height: 16),
-          if (filtered.isEmpty)
-            _buildEmptyState()
-          else if (isWide)
-            _buildTable(filtered)
-          else
-            _buildCardList(filtered),
-        ],
-      ),
+    return FutureBuilder<List<AdminUser>>(
+      future: _usersFuture,
+      builder: (context, snapshot) {
+        final users = snapshot.data ?? const <AdminUser>[];
+        final isLoading = snapshot.connectionState != ConnectionState.done;
+
+        return SingleChildScrollView(
+          padding: EdgeInsets.all(isWide ? 28 : 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(users.length, isLoading),
+              const SizedBox(height: 20),
+              _buildSearchAndFilter(),
+              const SizedBox(height: 16),
+              if (snapshot.hasError)
+                _ErrorState(onRetry: _loadUsers)
+              else if (isLoading && users.isEmpty)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(32),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (users.isEmpty)
+                _buildEmptyState()
+              else if (isWide)
+                _buildTable(users)
+              else
+                _buildCardList(users),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader(int count) {
+  Widget _buildHeader(int count, bool isLoading) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -311,7 +192,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                   Text('Users', style: AppTextStyles.h1),
                   const SizedBox(width: 10),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primaryLight,
                       borderRadius: BorderRadius.circular(100),
@@ -319,25 +203,25 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                     child: Text(
                       '$count',
                       style: AppTextStyles.caption.copyWith(
-                          color: AppColors.primary, fontWeight: FontWeight.w700),
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 4),
-              Text('Manage all platform users, roles, and access',
-                  style: AppTextStyles.bodySmall),
+              Text(
+                'Manage real platform users, roles, and access',
+                style: AppTextStyles.bodySmall,
+              ),
             ],
           ),
         ),
-        ElevatedButton.icon(
-          onPressed: _showAddUserSheet,
-          icon: const Icon(Icons.person_add_rounded, size: 14),
-          label: const Text('Add User'),
-          style: ElevatedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          ),
+        IconButton.filledTonal(
+          onPressed: isLoading ? null : _loadUsers,
+          icon: const Icon(Icons.refresh_rounded, size: 18),
+          tooltip: 'Refresh users',
         ),
       ],
     );
@@ -355,74 +239,88 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
           ),
           child: TextField(
             controller: _searchController,
-            onChanged: (v) => setState(() => _searchQuery = v),
+            onChanged: _onSearchChanged,
             decoration: InputDecoration(
               hintText: 'Search by name or email...',
-              prefixIcon: const Icon(Icons.search_rounded,
-                  color: AppColors.textMuted, size: 18),
-              suffixIcon: _searchQuery.isNotEmpty
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                color: AppColors.textMuted,
+                size: 18,
+              ),
+              suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(Icons.clear_rounded,
-                          size: 16, color: AppColors.textMuted),
+                      icon: const Icon(
+                        Icons.clear_rounded,
+                        size: 16,
+                        color: AppColors.textMuted,
+                      ),
                       onPressed: () {
                         _searchController.clear();
-                        setState(() => _searchQuery = '');
+                        _loadUsers();
                       },
                     )
                   : null,
               border: InputBorder.none,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 13,
+              ),
             ),
           ),
         ),
         const SizedBox(height: 12),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: List.generate(_filters.length, (i) {
-              final isSelected = _filterIndex == i;
-              return Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: GestureDetector(
-                  onTap: () => setState(() => _filterIndex = i),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 150),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primary
-                          : AppColors.surface,
-                      borderRadius: BorderRadius.circular(100),
-                      border: Border.all(
-                        color: isSelected
-                            ? AppColors.primary
-                            : AppColors.border,
-                      ),
-                    ),
-                    child: Text(
-                      _filters[i],
-                      style: AppTextStyles.caption.copyWith(
-                        color: isSelected
-                            ? Colors.white
-                            : AppColors.textSecondary,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.w400,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _FilterChip(
+              label: 'All Roles',
+              selected: _roleFilter == null,
+              onTap: () {
+                _roleFilter = null;
+                _loadUsers();
+              },
+            ),
+            ...AppRole.values.map(
+              (role) => _FilterChip(
+                label: role.label,
+                selected: _roleFilter == role,
+                onTap: () {
+                  _roleFilter = role;
+                  _loadUsers();
+                },
+              ),
+            ),
+            const SizedBox(width: 8),
+            _FilterChip(
+              label: 'All Statuses',
+              selected: _statusFilter == null,
+              onTap: () {
+                _statusFilter = null;
+                _loadUsers();
+              },
+            ),
+            ...[
+              AdminAccountStatus.active,
+              AdminAccountStatus.inactive,
+              AdminAccountStatus.suspended,
+            ].map(
+              (status) => _FilterChip(
+                label: status.label,
+                selected: _statusFilter == status,
+                onTap: () {
+                  _statusFilter = status;
+                  _loadUsers();
+                },
+              ),
+            ),
+          ],
         ),
       ],
     );
   }
 
-  Widget _buildTable(List<_User> users) {
+  Widget _buildTable(List<AdminUser> users) {
     return Container(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -452,50 +350,22 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       child: Row(
         children: [
-          Expanded(
-            flex: 3,
-            child: Text('User',
-                style: AppTextStyles.caption
-                    .copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text('Role',
-                style: AppTextStyles.caption
-                    .copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
-          ),
-          Expanded(
-            child: Text('Status',
-                style: AppTextStyles.caption
-                    .copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
-          ),
-          Expanded(
-            flex: 2,
-            child: Text('Joined',
-                style: AppTextStyles.caption
-                    .copyWith(fontWeight: FontWeight.w700, color: AppColors.textSecondary)),
-          ),
-          SizedBox(
-            width: 110,
-            child: Text('Actions',
-                style: AppTextStyles.caption.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textSecondary)),
-          ),
+          _HeaderCell('User', flex: 3),
+          _HeaderCell('Role', flex: 2),
+          _HeaderCell('Status'),
+          _HeaderCell('Joined', flex: 2),
+          SizedBox(width: 120, child: _headerText('Actions')),
         ],
       ),
     );
   }
 
-  Widget _buildTableRow(_User user) {
-    final roleColor =
-        user.role == 'Instructor' ? AppColors.violet : AppColors.cyan;
-    final roleBg =
-        user.role == 'Instructor' ? AppColors.violetLight : AppColors.cyanLight;
+  Widget _buildTableRow(AdminUser user) {
+    final roleColor = _roleColor(user.role);
+    final roleBg = _roleBg(user.role);
     final statusColor = _statusColor(user.status);
     final statusBg = _statusBg(user.status);
-    final initials =
-        user.name.split(' ').map((w) => w[0]).take(2).join();
+    final isSelf = user.id == AuthService.instance.currentUser?.id;
 
     return InkWell(
       onTap: () => _openDetail(user),
@@ -510,23 +380,31 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                   CircleAvatar(
                     radius: 16,
                     backgroundColor: roleBg,
-                    child: Text(initials,
-                        style: AppTextStyles.caption
-                            .copyWith(color: roleColor, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      UserUtils.initials(user.name),
+                      style: AppTextStyles.caption.copyWith(
+                        color: roleColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user.name,
-                            style: AppTextStyles.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        Text(user.email,
-                            style: AppTextStyles.caption,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
+                        Text(
+                          user.name,
+                          style: AppTextStyles.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          user.email,
+                          style: AppTextStyles.caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ),
                   ),
@@ -536,29 +414,35 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
             Expanded(
               flex: 2,
               child: _Badge(
-                  label: user.role, color: roleColor, bg: roleBg),
+                label: user.roleLabel,
+                color: roleColor,
+                bg: roleBg,
+              ),
             ),
             Expanded(
               child: _Badge(
-                  label: user.status, color: statusColor, bg: statusBg),
+                label: user.statusLabel,
+                color: statusColor,
+                bg: statusBg,
+              ),
             ),
             Expanded(
               flex: 2,
-              child: Text(user.joined,
-                  style: AppTextStyles.caption,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis),
+              child: Text(
+                user.joinedLabel,
+                style: AppTextStyles.caption,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
             SizedBox(
-              width: 110,
+              width: 120,
               child: _RowActions(
                 user: user,
+                disableDangerousActions: isSelf,
                 onView: () => _openDetail(user),
-                onStatusToggle: () => setState(() {
-                  user.status =
-                      user.status == 'Active' ? 'Suspended' : 'Active';
-                }),
-                onDelete: () => _showDeleteDialog(user),
+                onStatusToggle: () => _toggleStatus(user),
+                onDelete: () => _removeUser(user),
               ),
             ),
           ],
@@ -567,7 +451,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     );
   }
 
-  Widget _buildCardList(List<_User> users) {
+  Widget _buildCardList(List<AdminUser> users) {
     return ListView.separated(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -577,15 +461,12 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     );
   }
 
-  Widget _buildUserCard(_User user) {
-    final roleColor =
-        user.role == 'Instructor' ? AppColors.violet : AppColors.cyan;
-    final roleBg =
-        user.role == 'Instructor' ? AppColors.violetLight : AppColors.cyanLight;
+  Widget _buildUserCard(AdminUser user) {
+    final roleColor = _roleColor(user.role);
+    final roleBg = _roleBg(user.role);
     final statusColor = _statusColor(user.status);
     final statusBg = _statusBg(user.status);
-    final initials =
-        user.name.split(' ').map((w) => w[0]).take(2).join();
+    final isSelf = user.id == AuthService.instance.currentUser?.id;
 
     return Material(
       color: AppColors.surface,
@@ -606,32 +487,48 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                   CircleAvatar(
                     radius: 22,
                     backgroundColor: roleBg,
-                    child: Text(initials,
-                        style: AppTextStyles.label.copyWith(
-                            color: roleColor, fontWeight: FontWeight.w700)),
+                    child: Text(
+                      UserUtils.initials(user.name),
+                      style: AppTextStyles.label.copyWith(
+                        color: roleColor,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user.name,
-                            style: AppTextStyles.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
-                        Text(user.email,
-                            style: AppTextStyles.caption,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis),
+                        Text(
+                          user.name,
+                          style: AppTextStyles.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          user.email,
+                          style: AppTextStyles.caption,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                       ],
                     ),
                   ),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      _Badge(label: user.role, color: roleColor, bg: roleBg),
+                      _Badge(
+                        label: user.roleLabel,
+                        color: roleColor,
+                        bg: roleBg,
+                      ),
                       const SizedBox(height: 4),
-                      _Badge(label: user.status, color: statusColor, bg: statusBg),
+                      _Badge(
+                        label: user.statusLabel,
+                        color: statusColor,
+                        bg: statusBg,
+                      ),
                     ],
                   ),
                 ],
@@ -639,35 +536,28 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
               const SizedBox(height: 12),
               const Divider(height: 1, color: AppColors.border),
               const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 8,
-                  runSpacing: 10,
-                  children: [
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.calendar_today_rounded,
-                            size: 12, color: AppColors.textMuted),
-                        const SizedBox(width: 4),
-                        Text('Joined ${user.joined}',
-                            style: AppTextStyles.caption),
-                      ],
+              Row(
+                children: [
+                  const Icon(
+                    Icons.calendar_today_rounded,
+                    size: 12,
+                    color: AppColors.textMuted,
+                  ),
+                  const SizedBox(width: 4),
+                  Expanded(
+                    child: Text(
+                      'Joined ${user.joinedLabel}',
+                      style: AppTextStyles.caption,
                     ),
-                    _CardActions(
-                      user: user,
-                      onView: () => _openDetail(user),
-                      onStatusToggle: () => setState(() {
-                        user.status =
-                            user.status == 'Active' ? 'Suspended' : 'Active';
-                      }),
-                      onDelete: () => _showDeleteDialog(user),
-                    ),
-                  ],
-                ),
+                  ),
+                  _RowActions(
+                    user: user,
+                    disableDangerousActions: isSelf,
+                    onView: () => _openDetail(user),
+                    onStatusToggle: () => _toggleStatus(user),
+                    onDelete: () => _removeUser(user),
+                  ),
+                ],
               ),
             ],
           ),
@@ -690,232 +580,172 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
-                  color: AppColors.background, shape: BoxShape.circle),
-              child: const Icon(Icons.people_outline_rounded,
-                  size: 32, color: AppColors.textMuted),
+                color: AppColors.background,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.people_outline_rounded,
+                size: 32,
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(height: 16),
             Text('No users found', style: AppTextStyles.h3),
             const SizedBox(height: 8),
-            Text('Try adjusting your search or filters.',
-                style: AppTextStyles.bodySmall),
+            Text(
+              'Try adjusting your search or filters.',
+              style: AppTextStyles.bodySmall,
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'Active':
-        return AppColors.success;
-      case 'Suspended':
-        return AppColors.error;
-      default:
-        return AppColors.textMuted;
-    }
+class _HeaderCell extends StatelessWidget {
+  const _HeaderCell(this.label, {this.flex = 1});
+
+  final String label;
+  final int flex;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(flex: flex, child: _headerText(label));
   }
+}
 
-  Color _statusBg(String status) {
-    switch (status) {
-      case 'Active':
-        return AppColors.successLight;
-      case 'Suspended':
-        return AppColors.errorLight;
-      default:
-        return AppColors.background;
-    }
-  }
+Widget _headerText(String label) {
+  return Text(
+    label,
+    style: AppTextStyles.caption.copyWith(
+      fontWeight: FontWeight.w700,
+      color: AppColors.textSecondary,
+    ),
+  );
+}
 
-  void _openDetail(_User user) {
-    final roleColor =
-        user.role == 'Instructor' ? AppColors.violet : AppColors.cyan;
-    final roleBg =
-        user.role == 'Instructor' ? AppColors.violetLight : AppColors.cyanLight;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => AdminUserDetailPage(
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          status: user.status,
-          joined: user.joined,
-          roleColor: roleColor,
-          roleBg: roleBg,
+class _FilterChip extends StatelessWidget {
+  const _FilterChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : AppColors.surface,
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(
+            color: selected ? AppColors.primary : AppColors.border,
+          ),
+        ),
+        child: Text(
+          label,
+          style: AppTextStyles.caption.copyWith(
+            color: selected ? Colors.white : AppColors.textSecondary,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+          ),
         ),
       ),
     );
   }
-
-  void _showDeleteDialog(_User user) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: const Text('Delete User'),
-        content: Text(
-            'Delete ${user.name}? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              setState(() => _allUsers.remove(user));
-              Navigator.pop(context);
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _User {
-  final String name;
-  final String email;
-  final String role;
-  String status;
-  final String joined;
-
-  _User({
-    required this.name,
-    required this.email,
-    required this.role,
-    required this.status,
-    required this.joined,
-  });
 }
 
 class _Badge extends StatelessWidget {
+  const _Badge({required this.label, required this.color, required this.bg});
+
   final String label;
   final Color color;
   final Color bg;
-
-  const _Badge({required this.label, required this.color, required this.bg});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(100)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(100),
+      ),
       child: Text(
         label,
-        style: AppTextStyles.caption
-            .copyWith(color: color, fontWeight: FontWeight.w600),
+        style: AppTextStyles.caption.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
 }
 
 class _RowActions extends StatelessWidget {
-  final _User user;
-  final VoidCallback onView;
-  final VoidCallback onStatusToggle;
-  final VoidCallback onDelete;
-
   const _RowActions({
     required this.user,
+    required this.disableDangerousActions,
     required this.onView,
     required this.onStatusToggle,
     required this.onDelete,
   });
 
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _IconBtn(
-            icon: Icons.visibility_rounded,
-            color: AppColors.primary,
-            tooltip: 'View',
-            onTap: onView),
-        _IconBtn(
-          icon: user.status == 'Active'
-              ? Icons.block_rounded
-              : Icons.check_circle_rounded,
-          color: user.status == 'Active' ? AppColors.amber : AppColors.success,
-          tooltip: user.status == 'Active' ? 'Suspend' : 'Activate',
-          onTap: onStatusToggle,
-        ),
-        _IconBtn(
-            icon: Icons.delete_rounded,
-            color: AppColors.error,
-            tooltip: 'Delete',
-            onTap: onDelete),
-      ],
-    );
-  }
-}
-
-class _CardActions extends StatelessWidget {
-  final _User user;
+  final AdminUser user;
+  final bool disableDangerousActions;
   final VoidCallback onView;
   final VoidCallback onStatusToggle;
   final VoidCallback onDelete;
 
-  const _CardActions({
-    required this.user,
-    required this.onView,
-    required this.onStatusToggle,
-    required this.onDelete,
-  });
-
   @override
   Widget build(BuildContext context) {
+    final isActive = user.status == AdminAccountStatus.active;
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _SmallBtn(
-            icon: Icons.visibility_rounded,
-            color: AppColors.primary,
-            bg: AppColors.primaryLight,
-            label: 'View',
-            onTap: onView),
-        const SizedBox(width: 6),
-        _SmallBtn(
-          icon: user.status == 'Active'
-              ? Icons.block_rounded
-              : Icons.check_circle_rounded,
-          color: user.status == 'Active' ? AppColors.amber : AppColors.success,
-          bg: user.status == 'Active'
-              ? AppColors.amberLight
-              : AppColors.successLight,
-          label: user.status == 'Active' ? 'Suspend' : 'Activate',
-          onTap: onStatusToggle,
+        _IconBtn(
+          icon: Icons.visibility_rounded,
+          color: AppColors.primary,
+          tooltip: 'View',
+          onTap: onView,
         ),
-        const SizedBox(width: 6),
-        _SmallBtn(
-            icon: Icons.delete_rounded,
-            color: AppColors.error,
-            bg: AppColors.errorLight,
-            label: 'Delete',
-            onTap: onDelete),
+        _IconBtn(
+          icon: isActive ? Icons.block_rounded : Icons.check_circle_rounded,
+          color: isActive ? AppColors.amber : AppColors.success,
+          tooltip: isActive ? 'Suspend' : 'Activate',
+          onTap: disableDangerousActions ? null : onStatusToggle,
+        ),
+        _IconBtn(
+          icon: Icons.delete_rounded,
+          color: AppColors.error,
+          tooltip: disableDangerousActions
+              ? 'Cannot remove yourself'
+              : 'Remove',
+          onTap: disableDangerousActions ? null : onDelete,
+        ),
       ],
     );
   }
 }
 
 class _IconBtn extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String tooltip;
-  final VoidCallback onTap;
-
   const _IconBtn({
     required this.icon,
     required this.color,
     required this.tooltip,
     required this.onTap,
   });
+
+  final IconData icon;
+  final Color color;
+  final String tooltip;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -928,7 +758,11 @@ class _IconBtn extends StatelessWidget {
           onTap: onTap,
           borderRadius: BorderRadius.circular(6),
           child: Center(
-            child: Icon(icon, size: 16, color: color),
+            child: Icon(
+              icon,
+              size: 16,
+              color: onTap == null ? AppColors.textMuted : color,
+            ),
           ),
         ),
       ),
@@ -936,43 +770,78 @@ class _IconBtn extends StatelessWidget {
   }
 }
 
-class _SmallBtn extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final Color bg;
-  final String label;
-  final VoidCallback onTap;
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.onRetry});
 
-  const _SmallBtn({
-    required this.icon,
-    required this.color,
-    required this.bg,
-    required this.label,
-    required this.onTap,
-  });
+  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: bg,
-      borderRadius: BorderRadius.circular(7),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(7),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 12, color: color),
-              const SizedBox(width: 4),
-              Text(label,
-                  style: AppTextStyles.caption
-                      .copyWith(color: color, fontWeight: FontWeight.w600)),
-            ],
-          ),
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.cloud_off_rounded,
+              size: 36,
+              color: AppColors.textMuted,
+            ),
+            const SizedBox(height: 12),
+            Text('Failed to load users', style: AppTextStyles.h3),
+            const SizedBox(height: 12),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
         ),
       ),
     );
+  }
+}
+
+Color _roleColor(AppRole role) {
+  switch (role) {
+    case AppRole.instructor:
+      return AppColors.violet;
+    case AppRole.admin:
+      return AppColors.rose;
+    case AppRole.student:
+      return AppColors.cyan;
+  }
+}
+
+Color _roleBg(AppRole role) {
+  switch (role) {
+    case AppRole.instructor:
+      return AppColors.violetLight;
+    case AppRole.admin:
+      return AppColors.roseLight;
+    case AppRole.student:
+      return AppColors.cyanLight;
+  }
+}
+
+Color _statusColor(AdminAccountStatus status) {
+  switch (status) {
+    case AdminAccountStatus.active:
+      return AppColors.success;
+    case AdminAccountStatus.suspended:
+      return AppColors.error;
+    case AdminAccountStatus.inactive:
+      return AppColors.textMuted;
+    case AdminAccountStatus.removed:
+      return AppColors.error;
+  }
+}
+
+Color _statusBg(AdminAccountStatus status) {
+  switch (status) {
+    case AdminAccountStatus.active:
+      return AppColors.successLight;
+    case AdminAccountStatus.suspended:
+      return AppColors.errorLight;
+    case AdminAccountStatus.inactive:
+      return AppColors.background;
+    case AdminAccountStatus.removed:
+      return AppColors.errorLight;
   }
 }

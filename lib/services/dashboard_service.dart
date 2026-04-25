@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/dashboard_models.dart';
+import 'admin_service.dart';
 
 class DashboardService {
   DashboardService._();
@@ -24,9 +25,6 @@ class DashboardService {
   }
 
   Future<AdminDashboardSummary> getAdminSummary() async {
-    final response = await _client.rpc('get_admin_dashboard_summary');
-    return AdminDashboardSummary.fromJson(
-      Map<String, dynamic>.from(response as Map),
-    );
+    return AdminService.instance.getDashboardSummary();
   }
 }
