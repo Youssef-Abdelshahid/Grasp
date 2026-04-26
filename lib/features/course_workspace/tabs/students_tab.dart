@@ -5,14 +5,13 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/user_utils.dart';
 import '../../../core/widgets/empty_state.dart';
-import '../../../models/enrollment_model.dart';
+import '../../../features/activity/activity_sheets.dart';
+import '../../../models/activity_models.dart';
+import '../../../services/activity_service.dart';
 import '../../../services/enrollment_service.dart';
 
 class StudentsTab extends StatefulWidget {
-  const StudentsTab({
-    super.key,
-    required this.courseId,
-  });
+  const StudentsTab({super.key, required this.courseId});
 
   final String courseId;
 
@@ -21,21 +20,29 @@ class StudentsTab extends StatefulWidget {
 }
 
 class _StudentsTabState extends State<StudentsTab> {
-  late Future<List<EnrollmentModel>> _studentsFuture;
+  final _searchController = TextEditingController();
+  late Future<List<CourseStudentActivity>> _studentsFuture;
 
   @override
   void initState() {
     super.initState();
-    _studentsFuture =
-        EnrollmentService.instance.getCourseEnrollments(widget.courseId);
+    _studentsFuture = ActivityService.instance.getCourseStudentsActivity(
+      widget.courseId,
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<EnrollmentModel>>(
+    return FutureBuilder<List<CourseStudentActivity>>(
       future: _studentsFuture,
       builder: (context, snapshot) {
-        final students = snapshot.data ?? [];
+        final students = _filter(snapshot.data ?? const []);
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -43,6 +50,15 @@ class _StudentsTabState extends State<StudentsTab> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildHeader(students.length),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _searchController,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search_rounded),
+                  hintText: 'Search students...',
+                ),
+              ),
               const SizedBox(height: 20),
               if (snapshot.connectionState != ConnectionState.done)
                 const Center(child: CircularProgressIndicator())
@@ -82,66 +98,131 @@ class _StudentsTabState extends State<StudentsTab> {
           label: const Text('Enroll'),
           style: OutlinedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            textStyle:
-                const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            textStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildStudentList(List<EnrollmentModel> students) {
+  List<CourseStudentActivity> _filter(List<CourseStudentActivity> students) {
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) return students;
+    return students
+        .where(
+          (student) =>
+              student.studentName.toLowerCase().contains(query) ||
+              student.studentEmail.toLowerCase().contains(query),
+        )
+        .toList();
+  }
+
+  Widget _buildStudentList(List<CourseStudentActivity> students) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: List.generate(students.length, (index) {
         final student = students[index];
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: AppColors.surface,
+          child: Material(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(12),
+            child: InkWell(
+              onTap: () => showStudentActivitySheet(
+                context: context,
+                courseId: widget.courseId,
+                studentId: student.studentId,
+              ),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 20,
-                  backgroundColor: AppColors.primaryLight,
-                  child: Text(
-                    UserUtils.initials(student.studentName),
-                    style: AppTextStyles.label.copyWith(
-                      color: AppColors.primary,
+              child: Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundColor: AppColors.primaryLight,
+                      child: Text(
+                        UserUtils.initials(student.studentName),
+                        style: AppTextStyles.label.copyWith(
+                          color: AppColors.primary,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        student.studentName,
-                        style: AppTextStyles.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            student.studentName,
+                            style: AppTextStyles.label,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            student.studentEmail,
+                            style: AppTextStyles.caption,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              Text(
+                                'Quizzes ${student.quizzesCompleted}/${student.totalQuizzes}',
+                                style: AppTextStyles.caption,
+                              ),
+                              Text(
+                                'Assignments ${student.assignmentsSubmitted}/${student.totalAssignments}',
+                                style: AppTextStyles.caption,
+                              ),
+                              Text(
+                                'Latest: ${student.latestLabel}',
+                                style: AppTextStyles.caption,
+                              ),
+                            ],
+                          ),
+                        ],
                       ),
-                      Text(
-                        student.studentEmail,
-                        style: AppTextStyles.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    ),
+                    if (student.overdueCount > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: AppColors.errorLight,
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        child: Text(
+                          '${student.overdueCount} overdue',
+                          style: AppTextStyles.caption.copyWith(
+                            color: AppColors.error,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
                       ),
-                    ],
-                  ),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'remove') _unenroll(student);
+                      },
+                      itemBuilder: (_) => const [
+                        PopupMenuItem(value: 'remove', child: Text('Remove')),
+                      ],
+                    ),
+                  ],
                 ),
-                TextButton.icon(
-                  onPressed: () => _unenroll(student),
-                  icon: const Icon(Icons.person_remove_alt_1_rounded, size: 14),
-                  label: const Text('Remove'),
-                ),
-              ],
+              ),
             ),
           ),
         );
@@ -194,7 +275,7 @@ class _StudentsTabState extends State<StudentsTab> {
     }
   }
 
-  Future<void> _unenroll(EnrollmentModel student) async {
+  Future<void> _unenroll(CourseStudentActivity student) async {
     await EnrollmentService.instance.unenrollStudent(
       courseId: widget.courseId,
       studentId: student.studentId,
@@ -204,14 +285,15 @@ class _StudentsTabState extends State<StudentsTab> {
 
   void _refresh() {
     setState(() {
-      _studentsFuture =
-          EnrollmentService.instance.getCourseEnrollments(widget.courseId);
+      _studentsFuture = ActivityService.instance.getCourseStudentsActivity(
+        widget.courseId,
+      );
     });
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

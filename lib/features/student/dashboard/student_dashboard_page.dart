@@ -153,8 +153,9 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                 const SizedBox(height: 6),
                 Text(
                   'You currently have $pendingTasks pending tasks across your courses.',
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
                 ),
                 const SizedBox(height: 14),
                 ElevatedButton(
@@ -174,8 +175,11 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.auto_stories_rounded,
-                color: Colors.white, size: 30),
+            child: const Icon(
+              Icons.auto_stories_rounded,
+              color: Colors.white,
+              size: 30,
+            ),
           ),
         ],
       ),
@@ -307,7 +311,8 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           const EmptyState(
             icon: Icons.campaign_rounded,
             title: 'No announcements yet',
-            subtitle: 'Announcements from your enrolled courses will show up here.',
+            subtitle:
+                'Announcements from your enrolled courses will show up here.',
           )
         else
           Container(
@@ -325,8 +330,10 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
               itemBuilder: (_, index) {
                 final item = announcements[index];
                 return ListTile(
-                  contentPadding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 6,
+                  ),
                   leading: Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
@@ -339,7 +346,9 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                       item.isPinned
                           ? Icons.push_pin_rounded
                           : Icons.campaign_rounded,
-                      color: item.isPinned ? AppColors.amber : AppColors.primary,
+                      color: item.isPinned
+                          ? AppColors.amber
+                          : AppColors.primary,
                       size: 16,
                     ),
                   ),
@@ -358,9 +367,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 }
 
 class _DashboardErrorState extends StatelessWidget {
-  const _DashboardErrorState({
-    required this.onRetry,
-  });
+  const _DashboardErrorState({required this.onRetry});
 
   final VoidCallback onRetry;
 
@@ -386,10 +393,7 @@ class _DashboardErrorState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),

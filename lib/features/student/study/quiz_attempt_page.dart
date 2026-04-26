@@ -9,13 +9,11 @@ import '../../../core/utils/file_utils.dart';
 import '../../../models/quiz_model.dart';
 import '../../../models/quiz_question_model.dart';
 import '../../../models/submission_model.dart';
+import '../../../services/quiz_service.dart';
 import '../../../services/submission_service.dart';
 
 class QuizAttemptPage extends StatefulWidget {
-  const QuizAttemptPage({
-    super.key,
-    required this.quiz,
-  });
+  const QuizAttemptPage({super.key, required this.quiz});
 
   final QuizModel quiz;
 
@@ -38,10 +36,13 @@ class _QuizAttemptPageState extends State<QuizAttemptPage> {
   @override
   void initState() {
     super.initState();
-    _questions =
-        widget.quiz.questionSchema.map(QuizQuestionModel.fromJson).toList();
-    _shortAnswerControllers =
-        List.generate(_questions.length, (_) => TextEditingController());
+    _questions = widget.quiz.questionSchema
+        .map(QuizQuestionModel.fromJson)
+        .toList();
+    _shortAnswerControllers = List.generate(
+      _questions.length,
+      (_) => TextEditingController(),
+    );
     _stopwatch = Stopwatch()..start();
     if (widget.quiz.durationMinutes != null) {
       _secondsLeft = widget.quiz.durationMinutes! * 60;
@@ -105,7 +106,10 @@ class _QuizAttemptPageState extends State<QuizAttemptPage> {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
-            Text('${_questions.length} questions', style: AppTextStyles.caption),
+            Text(
+              '${_questions.length} questions',
+              style: AppTextStyles.caption,
+            ),
           ],
         ),
         actions: [
@@ -170,12 +174,16 @@ class _QuizAttemptPageState extends State<QuizAttemptPage> {
                     index: _current,
                     question: question,
                     answer: answer,
+                    showMarks: widget.quiz.showQuestionMarks,
                     shortAnswerController: _shortAnswerControllers[_current],
                     onSelectOption: (value) {
                       setState(() => _answers[_current] = value);
                     },
                     onShortAnswerChanged: (value) {
                       _answers[_current] = value;
+                    },
+                    onMappingChanged: (value) {
+                      setState(() => _answers[_current] = value);
                     },
                   ),
                   const SizedBox(height: 24),
@@ -206,6 +214,9 @@ class _QuizAttemptPageState extends State<QuizAttemptPage> {
     if (value is String) {
       return value.trim().isNotEmpty;
     }
+    if (value is Map) {
+      return value.values.any((item) => item.toString().trim().isNotEmpty);
+    }
     return value != null;
   }
 
@@ -227,6 +238,8 @@ class _QuizAttemptPageState extends State<QuizAttemptPage> {
         return;
       }
       setState(() => _submission = submission);
+    } on SubmissionException catch (error) {
+      _showMessage(error.message);
     } on PostgrestException catch (error) {
       _showMessage(error.message);
     } finally {
@@ -241,7 +254,9 @@ class _QuizAttemptPageState extends State<QuizAttemptPage> {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Exit Quiz?'),
-        content: const Text('Your current progress will be lost if you leave now.'),
+        content: const Text(
+          'Your current progress will be lost if you leave now.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -264,9 +279,9 @@ class _QuizAttemptPageState extends State<QuizAttemptPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _timeString(int seconds) {
@@ -334,17 +349,21 @@ class _QuestionCard extends StatelessWidget {
     required this.index,
     required this.question,
     required this.answer,
+    required this.showMarks,
     required this.shortAnswerController,
     required this.onSelectOption,
     required this.onShortAnswerChanged,
+    required this.onMappingChanged,
   });
 
   final int index;
   final QuizQuestionModel question;
   final dynamic answer;
+  final bool showMarks;
   final TextEditingController shortAnswerController;
   final ValueChanged<int> onSelectOption;
   final ValueChanged<String> onShortAnswerChanged;
+  final ValueChanged<Map<String, String>> onMappingChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -369,11 +388,17 @@ class _QuestionCard extends StatelessWidget {
         Text(question.questionText, style: AppTextStyles.h3),
         const SizedBox(height: 8),
         Text(
-          '${question.type} • ${question.marks} mark${question.marks == 1 ? '' : 's'}',
+          showMarks
+              ? '${question.type} - ${_markText(question.marks)} mark${question.marks == 1 ? '' : 's'}'
+              : question.type,
           style: AppTextStyles.caption,
         ),
         const SizedBox(height: 20),
-        if (question.type == 'Short Answer')
+        if (question.imagePath.isNotEmpty) ...[
+          _QuestionImage(path: question.imagePath),
+          const SizedBox(height: 16),
+        ],
+        if (_isWritten(question.type))
           TextField(
             controller: shortAnswerController,
             maxLines: 5,
@@ -381,6 +406,12 @@ class _QuestionCard extends StatelessWidget {
             decoration: const InputDecoration(
               hintText: 'Write your answer here...',
             ),
+          )
+        else if (_isMappingType(question.type))
+          _MappingAnswerFields(
+            question: question,
+            value: _stringMap(answer),
+            onChanged: onMappingChanged,
           )
         else
           ...List.generate(question.options.length, (optionIndex) {
@@ -406,9 +437,13 @@ class _QuestionCard extends StatelessWidget {
                       height: 24,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: isChosen ? AppColors.primary : Colors.transparent,
+                        color: isChosen
+                            ? AppColors.primary
+                            : Colors.transparent,
                         border: Border.all(
-                          color: isChosen ? AppColors.primary : AppColors.border,
+                          color: isChosen
+                              ? AppColors.primary
+                              : AppColors.border,
                           width: 1.5,
                         ),
                       ),
@@ -435,8 +470,9 @@ class _QuestionCard extends StatelessWidget {
                           color: isChosen
                               ? AppColors.primary
                               : AppColors.textPrimary,
-                          fontWeight:
-                              isChosen ? FontWeight.w500 : FontWeight.w400,
+                          fontWeight: isChosen
+                              ? FontWeight.w500
+                              : FontWeight.w400,
                         ),
                       ),
                     ),
@@ -446,6 +482,178 @@ class _QuestionCard extends StatelessWidget {
             );
           }),
       ],
+    );
+  }
+}
+
+class _MappingAnswerFields extends StatelessWidget {
+  const _MappingAnswerFields({
+    required this.question,
+    required this.value,
+    required this.onChanged,
+    this.readOnly = false,
+    this.showCorrectness = false,
+  });
+
+  final QuizQuestionModel question;
+  final Map<String, String> value;
+  final ValueChanged<Map<String, String>> onChanged;
+  final bool readOnly;
+  final bool showCorrectness;
+
+  @override
+  Widget build(BuildContext context) {
+    final choices = question.targets.toSet().toList();
+    if (choices.isEmpty || question.items.isEmpty) {
+      return Text(
+        'This question is not fully configured.',
+        style: AppTextStyles.bodySmall,
+      );
+    }
+    return Column(
+      children: question.items.map((item) {
+        final selected = choices.contains(value[item]) ? value[item] : null;
+        final isCorrect = question.correctMapping[item] == selected;
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final narrow = constraints.maxWidth < 480;
+              final prompt = Container(
+                width: narrow ? double.infinity : 150,
+                constraints: const BoxConstraints(minHeight: 48),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 12,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.surface,
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Text(
+                  item,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              );
+              final dropdown = DropdownButtonFormField<String>(
+                initialValue: selected,
+                isExpanded: true,
+                decoration: const InputDecoration(
+                  contentPadding: EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                ),
+                items: choices
+                    .map(
+                      (choice) =>
+                          DropdownMenuItem(value: choice, child: Text(choice)),
+                    )
+                    .toList(),
+                onChanged: readOnly
+                    ? null
+                    : (choice) {
+                        final next = {...value};
+                        if (choice == null) {
+                          next.remove(item);
+                        } else {
+                          next[item] = choice;
+                        }
+                        onChanged(next);
+                      },
+              );
+              final statusIcon = showCorrectness
+                  ? Icon(
+                      isCorrect
+                          ? Icons.check_circle_outline_rounded
+                          : Icons.cancel_outlined,
+                      size: 18,
+                      color: isCorrect ? AppColors.success : AppColors.rose,
+                    )
+                  : null;
+              final correction =
+                  showCorrectness &&
+                      !isCorrect &&
+                      question.correctMapping[item] != null
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Correct: ${question.correctMapping[item]}',
+                        style: AppTextStyles.caption.copyWith(
+                          color: AppColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    )
+                  : null;
+
+              if (narrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    prompt,
+                    Row(
+                      children: [
+                        Expanded(child: dropdown),
+                        if (statusIcon != null) ...[
+                          const SizedBox(width: 8),
+                          statusIcon,
+                        ],
+                      ],
+                    ),
+                    ?correction,
+                  ],
+                );
+              }
+
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  prompt,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [dropdown, ?correction],
+                    ),
+                  ),
+                  if (statusIcon != null) ...[
+                    const SizedBox(width: 8),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 14),
+                      child: statusIcon,
+                    ),
+                  ],
+                ],
+              );
+            },
+          ),
+        );
+      }).toList(),
+    );
+  }
+}
+
+class _QuestionImage extends StatelessWidget {
+  const _QuestionImage({required this.path});
+
+  final String path;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String?>(
+      future: QuizService.instance.createQuestionImageUrl(path),
+      builder: (context, snapshot) {
+        final url = snapshot.data;
+        if (url == null || url.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        return ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.network(url, fit: BoxFit.cover),
+        );
+      },
     );
   }
 }
@@ -477,7 +685,8 @@ class _QuestionMap extends StatelessWidget {
           spacing: 8,
           runSpacing: 8,
           children: List.generate(total, (index) {
-            final isAnswered = answers[index] != null &&
+            final isAnswered =
+                answers[index] != null &&
                 ((answers[index] is! String) ||
                     (answers[index] as String).trim().isNotEmpty);
             final isCurrent = current == index;
@@ -490,15 +699,15 @@ class _QuestionMap extends StatelessWidget {
                   color: isCurrent
                       ? AppColors.primary
                       : isAnswered
-                          ? AppColors.primaryLight
-                          : AppColors.surface,
+                      ? AppColors.primaryLight
+                      : AppColors.surface,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isCurrent
                         ? AppColors.primary
                         : isAnswered
-                            ? AppColors.primary.withValues(alpha: 0.4)
-                            : AppColors.border,
+                        ? AppColors.primary.withValues(alpha: 0.4)
+                        : AppColors.border,
                   ),
                 ),
                 child: Center(
@@ -508,8 +717,8 @@ class _QuestionMap extends StatelessWidget {
                       color: isCurrent
                           ? Colors.white
                           : isAnswered
-                              ? AppColors.primary
-                              : AppColors.textSecondary,
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
@@ -602,9 +811,12 @@ class _ResultScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasScore = submission.score != null;
+    final hasScore = submission.status == 'graded' && submission.score != null;
     final scoreValue = submission.score ?? 0;
-    final passed = scoreValue >= 60;
+    final totalMarks = questions.fold<double>(
+      0,
+      (sum, question) => sum + question.marks,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -629,9 +841,7 @@ class _ResultScreen extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
                   colors: hasScore
-                      ? passed
-                          ? [AppColors.emerald, const Color(0xFF059669)]
-                          : [AppColors.amber, AppColors.rose]
+                      ? [AppColors.emerald, const Color(0xFF059669)]
                       : [AppColors.primary, AppColors.violet],
                 ),
               ),
@@ -639,7 +849,7 @@ class _ResultScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    hasScore ? '${scoreValue.toStringAsFixed(0)}%' : 'Sent',
+                    hasScore ? _markText(scoreValue) : 'Sent',
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
@@ -647,9 +857,7 @@ class _ResultScreen extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    hasScore
-                        ? (passed ? 'Passed' : 'Review')
-                        : 'Pending review',
+                    hasScore ? 'of ${_markText(totalMarks)}' : 'Pending review',
                     style: const TextStyle(fontSize: 12, color: Colors.white70),
                   ),
                 ],
@@ -657,7 +865,7 @@ class _ResultScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
             Text(
-              hasScore ? (passed ? 'Great job!' : 'Submitted successfully') : 'Submission received',
+              hasScore ? 'Submitted successfully' : 'Submission received',
               style: AppTextStyles.h2,
             ),
             const SizedBox(height: 8),
@@ -696,12 +904,16 @@ class _ResultScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 24),
-            if (hasScore)
+            if (hasScore && quiz.showCorrectAnswers)
               ...List.generate(questions.length, (index) {
                 final question = questions[index];
                 final answer = answers[index];
-                final isShortAnswer = question.type == 'Short Answer';
-                final isCorrect = isShortAnswer ? false : answer == question.correctOption;
+                final isShortAnswer = _isWritten(question.type);
+                final isCorrect = isShortAnswer
+                    ? false
+                    : _isMappingType(question.type)
+                    ? _mappingIsCorrect(question, answer)
+                    : answer == question.correctOption;
 
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
@@ -713,8 +925,8 @@ class _ResultScreen extends StatelessWidget {
                       color: isShortAnswer
                           ? AppColors.border
                           : isCorrect
-                              ? AppColors.success
-                              : AppColors.rose,
+                          ? AppColors.success
+                          : AppColors.rose,
                     ),
                   ),
                   child: Column(
@@ -728,10 +940,10 @@ class _ResultScreen extends StatelessWidget {
                       Text(
                         isShortAnswer
                             ? 'Submitted for manual review'
-                            : 'Your answer: ${answer != null ? question.options[answer as int] : 'Not answered'}',
+                            : 'Your answer: ${_studentAnswerText(question, answer)}',
                         style: AppTextStyles.caption,
                       ),
-                      if (!isShortAnswer)
+                      if (!isShortAnswer && !_isMappingType(question.type))
                         Text(
                           'Correct answer: ${question.options[question.correctOption]}',
                           style: AppTextStyles.caption.copyWith(
@@ -739,10 +951,28 @@ class _ResultScreen extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                      if (_isMappingType(question.type)) ...[
+                        const SizedBox(height: 8),
+                        _MappingAnswerFields(
+                          question: question,
+                          value: _stringMap(answer),
+                          readOnly: true,
+                          showCorrectness: true,
+                          onChanged: (_) {},
+                        ),
+                      ],
                     ],
                   ),
                 );
               }),
+            if (hasScore && !quiz.showCorrectAnswers) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Your quiz was submitted. Correct answers and explanations are not visible yet.',
+                style: AppTextStyles.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
             const SizedBox(height: 20),
             SizedBox(
               width: double.infinity,
@@ -760,10 +990,7 @@ class _ResultScreen extends StatelessWidget {
 }
 
 class _ResultDetail extends StatelessWidget {
-  const _ResultDetail({
-    required this.label,
-    required this.value,
-  });
+  const _ResultDetail({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -785,4 +1012,51 @@ class _ResultDetail extends StatelessWidget {
       ],
     );
   }
+}
+
+bool _isWritten(String type) =>
+    type.toLowerCase() == 'short answer' || type.toLowerCase() == 'essay';
+
+bool _isMappingType(String type) {
+  return type == 'Matching';
+}
+
+Map<String, String> _stringMap(dynamic value) {
+  if (value is Map) {
+    return value.map((key, val) => MapEntry(key.toString(), val.toString()));
+  }
+  return const {};
+}
+
+String _markText(num value) {
+  final number = value.toDouble();
+  if (number == number.roundToDouble()) {
+    return number.toInt().toString();
+  }
+  return number.toStringAsFixed(2).replaceFirst(RegExp(r'0$'), '');
+}
+
+bool _mappingIsCorrect(QuizQuestionModel question, dynamic answer) {
+  final submitted = _stringMap(answer);
+  if (question.correctMapping.isEmpty) return false;
+  return question.correctMapping.entries.every(
+    (entry) => submitted[entry.key] == entry.value,
+  );
+}
+
+String _studentAnswerText(QuizQuestionModel question, dynamic answer) {
+  if (_isMappingType(question.type)) {
+    return _mappingText(_stringMap(answer));
+  }
+  if (answer is int && answer >= 0 && answer < question.options.length) {
+    return question.options[answer];
+  }
+  return answer?.toString() ?? 'Not answered';
+}
+
+String _mappingText(Map<String, String> value) {
+  if (value.isEmpty) return 'Not answered';
+  return value.entries
+      .map((entry) => '${entry.key}: ${entry.value}')
+      .join(', ');
 }

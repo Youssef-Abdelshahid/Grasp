@@ -42,7 +42,8 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
       future: _future,
       builder: (context, snapshot) {
         final profile = snapshot.data;
-        if (snapshot.connectionState != ConnectionState.done && profile == null) {
+        if (snapshot.connectionState != ConnectionState.done &&
+            profile == null) {
           return const Center(child: CircularProgressIndicator());
         }
         if (profile != null && !_didPopulate) {
@@ -130,56 +131,80 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
     });
     if (!mounted) return;
     setState(() => _saving = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Settings saved.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Settings saved.')));
   }
 
   Widget _notificationsSection() => _SettingsSection(
-        title: 'Notification Preferences',
-        children: [
-          _toggle('Email Notifications', _emailNotifications,
-              (value) => setState(() => _emailNotifications = value)),
-          _toggle('Push Notifications', _pushNotifications,
-              (value) => setState(() => _pushNotifications = value)),
-          _toggle('Quiz Submission Alerts', _quizAlerts,
-              (value) => setState(() => _quizAlerts = value)),
-          _toggle('Assignment Submission Alerts', _assignmentAlerts,
-              (value) => setState(() => _assignmentAlerts = value)),
-          _toggle('Student Activity', _studentActivity,
-              (value) => setState(() => _studentActivity = value)),
-          _toggle('Announcement Alerts', _announcementAlerts,
-              (value) => setState(() => _announcementAlerts = value)),
-        ],
-      );
+    title: 'Notification Preferences',
+    children: [
+      _toggle(
+        'Email Notifications',
+        _emailNotifications,
+        (value) => setState(() => _emailNotifications = value),
+      ),
+      _toggle(
+        'Push Notifications',
+        _pushNotifications,
+        (value) => setState(() => _pushNotifications = value),
+      ),
+      _toggle(
+        'Quiz Submission Alerts',
+        _quizAlerts,
+        (value) => setState(() => _quizAlerts = value),
+      ),
+      _toggle(
+        'Assignment Submission Alerts',
+        _assignmentAlerts,
+        (value) => setState(() => _assignmentAlerts = value),
+      ),
+      _toggle(
+        'Student Activity',
+        _studentActivity,
+        (value) => setState(() => _studentActivity = value),
+      ),
+      _toggle(
+        'Announcement Alerts',
+        _announcementAlerts,
+        (value) => setState(() => _announcementAlerts = value),
+      ),
+    ],
+  );
 
   Widget _workflowSection() => _SettingsSection(
-        title: 'Workflow Preferences',
-        children: [
-          _toggle('Deadline Reminders', _deadlineReminders,
-              (value) => setState(() => _deadlineReminders = value)),
-        ],
-      );
+    title: 'Workflow Preferences',
+    children: [
+      _toggle(
+        'Deadline Reminders',
+        _deadlineReminders,
+        (value) => setState(() => _deadlineReminders = value),
+      ),
+    ],
+  );
 
   Widget _appearanceSection() => _SettingsSection(
-        title: 'Appearance',
-        children: [
-          _toggle('Compact View', _compactView,
-              (value) => setState(() => _compactView = value)),
-        ],
-      );
+    title: 'Appearance',
+    children: [
+      _toggle(
+        'Compact View',
+        _compactView,
+        (value) => setState(() => _compactView = value),
+      ),
+    ],
+  );
 
   Widget _accountSection() => _SettingsSection(
-        title: 'Account',
-        children: [
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.logout_rounded, color: AppColors.error),
-            title: const Text('Sign Out'),
-            onTap: () async => AuthService.instance.logout(),
-          ),
-        ],
-      );
+    title: 'Account',
+    children: [
+      ListTile(
+        contentPadding: EdgeInsets.zero,
+        leading: const Icon(Icons.logout_rounded, color: AppColors.error),
+        title: const Text('Sign Out'),
+        onTap: () async => AuthService.instance.logout(),
+      ),
+    ],
+  );
 
   Widget _toggle(String label, bool value, ValueChanged<bool> onChanged) {
     return SwitchListTile(
@@ -192,10 +217,7 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
 }
 
 class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({
-    required this.title,
-    required this.children,
-  });
+  const _SettingsSection({required this.title, required this.children});
 
   final String title;
   final List<Widget> children;

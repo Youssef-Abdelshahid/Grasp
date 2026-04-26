@@ -1,6 +1,9 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as p;
 
 import '../models/quiz_model.dart';
+import 'material_service.dart';
 
 class QuizService {
   QuizService._();
@@ -44,6 +47,9 @@ class QuizService {
     required int? durationMinutes,
     required bool isPublished,
     required List<Map<String, dynamic>> questionSchema,
+    required bool showCorrectAnswers,
+    required bool allowRetakes,
+    required bool showQuestionMarks,
   }) async {
     final userId = _client.auth.currentUser!.id;
     final response = await _client
@@ -60,6 +66,9 @@ class QuizService {
           'published_at': isPublished
               ? DateTime.now().toUtc().toIso8601String()
               : null,
+          'show_correct_answers': showCorrectAnswers,
+          'allow_retakes': allowRetakes,
+          'show_question_marks': showQuestionMarks,
           'question_schema': questionSchema,
           'created_by': userId,
         })
@@ -79,6 +88,9 @@ class QuizService {
     required int? durationMinutes,
     required bool isPublished,
     required List<Map<String, dynamic>> questionSchema,
+    required bool showCorrectAnswers,
+    required bool allowRetakes,
+    required bool showQuestionMarks,
   }) async {
     try {
       final response = await _client
@@ -94,6 +106,9 @@ class QuizService {
             'published_at': isPublished
                 ? DateTime.now().toUtc().toIso8601String()
                 : null,
+            'show_correct_answers': showCorrectAnswers,
+            'allow_retakes': allowRetakes,
+            'show_question_marks': showQuestionMarks,
             'question_schema': questionSchema,
             'updated_at': DateTime.now().toUtc().toIso8601String(),
           })
@@ -122,6 +137,9 @@ class QuizService {
         'p_duration_minutes': durationMinutes,
         'p_is_published': isPublished,
         'p_question_schema': questionSchema,
+        'p_show_correct_answers': showCorrectAnswers,
+        'p_allow_retakes': allowRetakes,
+        'p_show_question_marks': showQuestionMarks,
       },
     );
 
@@ -151,4 +169,61 @@ class QuizService {
   Future<void> deleteQuiz(String quizId) async {
     await _client.from('quizzes').delete().eq('id', quizId);
   }
+
+  Future<Map<String, dynamic>> uploadQuestionImage({
+    required String courseId,
+    required PlatformFile file,
+  }) async {
+    final bytes = file.bytes;
+    if (bytes == null) {
+      throw const QuizException('Unable to read the selected image.');
+    }
+    final objectPath =
+        '$courseId/quiz-images/${DateTime.now().millisecondsSinceEpoch}_${p.basename(file.name)}';
+    await _client.storage
+        .from(MaterialService.bucketName)
+        .uploadBinary(
+          objectPath,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: file.extension == null
+                ? 'application/octet-stream'
+                : _guessImageMime(file.extension!),
+            upsert: false,
+          ),
+        );
+    return {'image_path': objectPath, 'image_name': file.name};
+  }
+
+  Future<String?> createQuestionImageUrl(String path) {
+    if (path.isEmpty) return Future.value();
+    return _client.storage
+        .from(MaterialService.bucketName)
+        .createSignedUrl(path, 3600);
+  }
+
+  String _guessImageMime(String extension) {
+    switch (extension.toLowerCase()) {
+      case 'png':
+        return 'image/png';
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      default:
+        return 'application/octet-stream';
+    }
+  }
+}
+
+class QuizException implements Exception {
+  const QuizException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }

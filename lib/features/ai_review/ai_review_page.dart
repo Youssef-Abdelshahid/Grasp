@@ -13,7 +13,13 @@ class AiReviewPage extends StatefulWidget {
 class _AiReviewPageState extends State<AiReviewPage> {
   int _selectedFilter = 0;
 
-  static const _filters = ['All', 'Summaries', 'Flashcards', 'Quizzes', 'Assignments'];
+  static const _filters = [
+    'All',
+    'Summaries',
+    'Flashcards',
+    'Quizzes',
+    'Assignments',
+  ];
 
   static final _items = [
     _AiItem(
@@ -120,10 +126,12 @@ class _AiReviewPageState extends State<AiReviewPage> {
           if (_filtered.isEmpty)
             _buildEmptyState()
           else
-            ..._filtered.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: _AiItemCard(item: item),
-                )),
+            ..._filtered.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _AiItemCard(item: item),
+              ),
+            ),
         ],
       ),
     );
@@ -153,7 +161,10 @@ class _AiReviewPageState extends State<AiReviewPage> {
           label: const Text('Generate New'),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            textStyle: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
       ],
@@ -212,8 +223,10 @@ class _AiReviewPageState extends State<AiReviewPage> {
               onTap: () => setState(() => _selectedFilter = i),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected ? AppColors.primary : AppColors.surface,
                   borderRadius: BorderRadius.circular(100),
@@ -224,10 +237,8 @@ class _AiReviewPageState extends State<AiReviewPage> {
                 child: Text(
                   _filters[i],
                   style: AppTextStyles.caption.copyWith(
-                    color:
-                        isSelected ? Colors.white : AppColors.textSecondary,
-                    fontWeight:
-                        isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: isSelected ? Colors.white : AppColors.textSecondary,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                   ),
                 ),
               ),
@@ -252,9 +263,14 @@ class _AiReviewPageState extends State<AiReviewPage> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: const BoxDecoration(
-                  color: AppColors.background, shape: BoxShape.circle),
-              child: const Icon(Icons.auto_awesome_rounded,
-                  size: 32, color: AppColors.textMuted),
+                color: AppColors.background,
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.auto_awesome_rounded,
+                size: 32,
+                color: AppColors.textMuted,
+              ),
             ),
             const SizedBox(height: 16),
             Text('No generated content', style: AppTextStyles.h3),
@@ -327,15 +343,20 @@ class _StatChip extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                    color: bg, borderRadius: BorderRadius.circular(6)),
+                  color: bg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
                 child: Icon(icon, color: color, size: 14),
               ),
               const Spacer(),
-              Text(value,
-                  style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                      color: color)),
+              Text(
+                value,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: color,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -420,32 +441,39 @@ class _AiItemCardState extends State<_AiItemCard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.title,
-                        style: AppTextStyles.label,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      item.title,
+                      style: AppTextStyles.label,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 4),
-                    Text(item.material,
-                        style: AppTextStyles.caption,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis),
+                    Text(
+                      item.material,
+                      style: AppTextStyles.caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                     const SizedBox(height: 6),
                     Wrap(
                       spacing: 6,
                       runSpacing: 4,
                       children: [
                         _Badge(
-                            label: item.type,
-                            color: item.color,
-                            bg: item.bg),
+                          label: item.type,
+                          color: item.color,
+                          bg: item.bg,
+                        ),
                         _Badge(
-                            label: item.course,
-                            color: AppColors.textSecondary,
-                            bg: AppColors.background),
+                          label: item.course,
+                          color: AppColors.textSecondary,
+                          bg: AppColors.background,
+                        ),
                         _Badge(
-                            label: _status,
-                            color: _statusColor,
-                            bg: _statusBg),
+                          label: _status,
+                          color: _statusColor,
+                          bg: _statusBg,
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -473,25 +501,28 @@ class _AiItemCardState extends State<_AiItemCard> {
           mainAxisSize: MainAxisSize.min,
           children: [
             _ActionBtn(
-                icon: Icons.preview_rounded,
-                label: 'Preview',
-                color: AppColors.primary,
-                bg: AppColors.primaryLight,
-                onTap: () {}),
+              icon: Icons.preview_rounded,
+              label: 'Preview',
+              color: AppColors.primary,
+              bg: AppColors.primaryLight,
+              onTap: () {},
+            ),
             const SizedBox(width: 8),
             _ActionBtn(
-                icon: Icons.edit_rounded,
-                label: 'Edit',
-                color: AppColors.textSecondary,
-                bg: AppColors.background,
-                onTap: () {}),
+              icon: Icons.edit_rounded,
+              label: 'Edit',
+              color: AppColors.textSecondary,
+              bg: AppColors.background,
+              onTap: () {},
+            ),
             const SizedBox(width: 8),
             _ActionBtn(
-                icon: Icons.refresh_rounded,
-                label: 'Regenerate',
-                color: AppColors.violet,
-                bg: AppColors.violetLight,
-                onTap: () {}),
+              icon: Icons.refresh_rounded,
+              label: 'Regenerate',
+              color: AppColors.violet,
+              bg: AppColors.violetLight,
+              onTap: () {},
+            ),
           ],
         );
 
@@ -535,11 +566,7 @@ class _AiItemCardState extends State<_AiItemCard> {
         if (isNarrow) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              utilRow,
-              const SizedBox(height: 8),
-              decisionRow,
-            ],
+            children: [utilRow, const SizedBox(height: 8), decisionRow],
           );
         }
 
@@ -560,19 +587,22 @@ class _Badge extends StatelessWidget {
   final Color color;
   final Color bg;
 
-  const _Badge(
-      {required this.label, required this.color, required this.bg});
+  const _Badge({required this.label, required this.color, required this.bg});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration:
-          BoxDecoration(color: bg, borderRadius: BorderRadius.circular(100)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(100),
+      ),
       child: Text(
         label,
-        style: AppTextStyles.caption
-            .copyWith(color: color, fontWeight: FontWeight.w600),
+        style: AppTextStyles.caption.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -604,16 +634,17 @@ class _ActionBtn extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Padding(
-          padding:
-              EdgeInsets.symmetric(horizontal: fill ? 8 : 10, vertical: 7),
+          padding: EdgeInsets.symmetric(horizontal: fill ? 8 : 10, vertical: 7),
           child: Row(
             mainAxisSize: fill ? MainAxisSize.max : MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(icon, size: 13, color: color),
               const SizedBox(width: 5),
-              Text(label,
-                  style: AppTextStyles.buttonSmall.copyWith(color: color)),
+              Text(
+                label,
+                style: AppTextStyles.buttonSmall.copyWith(color: color),
+              ),
             ],
           ),
         ),

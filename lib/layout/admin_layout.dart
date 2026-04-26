@@ -49,8 +49,8 @@ class _AdminLayoutState extends State<AdminLayout> {
     AdminUsersPage(),
     AdminCoursesPage(),
     AdminMaterialsPage(),
-    AdminAssessmentsPage.quizzes(),
-    AdminAssessmentsPage.assignments(),
+    AdminAssessmentsPage.quizzes(key: ValueKey('admin-quizzes-page')),
+    AdminAssessmentsPage.assignments(key: ValueKey('admin-assignments-page')),
     AdminAnnouncementsPage(),
     AdminPermissionsPage(),
     AdminAiControlsPage(),
@@ -62,6 +62,14 @@ class _AdminLayoutState extends State<AdminLayout> {
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex;
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminLayout oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.initialIndex != widget.initialIndex) {
+      _selectedIndex = widget.initialIndex;
+    }
   }
 
   void _openNotifications() {

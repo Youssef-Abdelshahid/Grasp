@@ -24,9 +24,10 @@ class MaterialService {
         .order('created_at', ascending: false);
 
     return (response as List<dynamic>)
-        .map((item) => MaterialModel.fromJson(
-              Map<String, dynamic>.from(item as Map),
-            ))
+        .map(
+          (item) =>
+              MaterialModel.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
         .toList();
   }
 
@@ -53,11 +54,15 @@ class MaterialService {
     final objectPath =
         '$courseId/${DateTime.now().millisecondsSinceEpoch}_${p.basename(fileName)}';
 
-    await _client.storage.from(bucketName).uploadBinary(
+    await _client.storage
+        .from(bucketName)
+        .uploadBinary(
           objectPath,
           bytes,
           fileOptions: FileOptions(
-            contentType: file.extension == null ? null : _guessMime(file.extension!),
+            contentType: file.extension == null
+                ? null
+                : _guessMime(file.extension!),
             upsert: false,
           ),
         );

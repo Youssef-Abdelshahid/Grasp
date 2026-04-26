@@ -30,7 +30,10 @@ class AppTheme {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColors.surface,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppColors.border),
@@ -43,7 +46,10 @@ class AppTheme {
           borderRadius: BorderRadius.circular(10),
           borderSide: const BorderSide(color: AppColors.primary, width: 2),
         ),
-        labelStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
+        labelStyle: const TextStyle(
+          color: AppColors.textSecondary,
+          fontSize: 14,
+        ),
         hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -51,7 +57,9 @@ class AppTheme {
           backgroundColor: AppColors.primary,
           foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           elevation: 0,
           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
@@ -61,7 +69,9 @@ class AppTheme {
           foregroundColor: AppColors.primary,
           side: const BorderSide(color: AppColors.primary),
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
           textStyle: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
         ),
       ),
@@ -92,7 +102,10 @@ class AppTheme {
         unselectedLabelColor: AppColors.textSecondary,
         indicatorColor: AppColors.primary,
         labelStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+        unselectedLabelStyle: TextStyle(
+          fontSize: 14,
+          fontWeight: FontWeight.w500,
+        ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColors.background,

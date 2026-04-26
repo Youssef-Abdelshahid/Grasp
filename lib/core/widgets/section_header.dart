@@ -20,10 +20,7 @@ class SectionHeader extends StatelessWidget {
       children: [
         Text(title, style: AppTextStyles.h3),
         if (actionLabel != null && onAction != null)
-          TextButton(
-            onPressed: onAction,
-            child: Text(actionLabel!),
-          ),
+          TextButton(onPressed: onAction, child: Text(actionLabel!)),
       ],
     );
   }

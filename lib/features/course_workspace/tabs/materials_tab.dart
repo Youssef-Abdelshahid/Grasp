@@ -11,10 +11,7 @@ import '../../../services/material_service.dart';
 import '../pages/material_details_page.dart';
 
 class MaterialsTab extends StatefulWidget {
-  const MaterialsTab({
-    super.key,
-    required this.courseId,
-  });
+  const MaterialsTab({super.key, required this.courseId});
 
   final String courseId;
 
@@ -29,7 +26,9 @@ class _MaterialsTabState extends State<MaterialsTab> {
   @override
   void initState() {
     super.initState();
-    _materialsFuture = MaterialService.instance.getCourseMaterials(widget.courseId);
+    _materialsFuture = MaterialService.instance.getCourseMaterials(
+      widget.courseId,
+    );
   }
 
   @override
@@ -54,7 +53,9 @@ class _MaterialsTabState extends State<MaterialsTab> {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primaryLight,
                       borderRadius: BorderRadius.circular(100),
@@ -167,7 +168,8 @@ class _MaterialsTabState extends State<MaterialsTab> {
   }
 
   Future<void> _deleteMaterial(MaterialModel material) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Delete Material'),
@@ -199,8 +201,9 @@ class _MaterialsTabState extends State<MaterialsTab> {
     String initialDescription = '',
   }) {
     final titleController = TextEditingController(text: initialTitle);
-    final descriptionController =
-        TextEditingController(text: initialDescription);
+    final descriptionController = TextEditingController(
+      text: initialDescription,
+    );
 
     return showDialog<_MaterialFormResult>(
       context: context,
@@ -246,15 +249,16 @@ class _MaterialsTabState extends State<MaterialsTab> {
 
   void _refresh() {
     setState(() {
-      _materialsFuture =
-          MaterialService.instance.getCourseMaterials(widget.courseId);
+      _materialsFuture = MaterialService.instance.getCourseMaterials(
+        widget.courseId,
+      );
     });
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -356,10 +360,7 @@ class _MaterialCard extends StatelessWidget {
 }
 
 class _UploadArea extends StatefulWidget {
-  const _UploadArea({
-    required this.onTap,
-    required this.isUploading,
-  });
+  const _UploadArea({required this.onTap, required this.isUploading});
 
   final VoidCallback onTap;
   final bool isUploading;
@@ -373,8 +374,9 @@ class _UploadAreaState extends State<_UploadArea> {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor =
-        _isHovered ? AppColors.primary : AppColors.primary.withValues(alpha: 0.4);
+    final borderColor = _isHovered
+        ? AppColors.primary
+        : AppColors.primary.withValues(alpha: 0.4);
     final bgColor = _isHovered
         ? AppColors.primaryLight.withValues(alpha: 0.6)
         : AppColors.primaryLight.withValues(alpha: 0.2);
@@ -392,10 +394,7 @@ class _UploadAreaState extends State<_UploadArea> {
           decoration: BoxDecoration(
             color: bgColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: borderColor,
-              width: 2,
-            ),
+            border: Border.all(color: borderColor, width: 2),
           ),
           child: Column(
             children: [
@@ -420,7 +419,9 @@ class _UploadAreaState extends State<_UploadArea> {
               const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: widget.isUploading ? null : widget.onTap,
-                child: Text(widget.isUploading ? 'Uploading...' : 'Select File'),
+                child: Text(
+                  widget.isUploading ? 'Uploading...' : 'Select File',
+                ),
               ),
             ],
           ),
@@ -431,10 +432,7 @@ class _UploadAreaState extends State<_UploadArea> {
 }
 
 class _MaterialFormResult {
-  const _MaterialFormResult({
-    required this.title,
-    required this.description,
-  });
+  const _MaterialFormResult({required this.title, required this.description});
 
   final String title;
   final String description;

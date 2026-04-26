@@ -8,10 +8,7 @@ import '../../../models/material_model.dart';
 import '../../../services/material_service.dart';
 
 class MaterialDetailsPage extends StatefulWidget {
-  const MaterialDetailsPage({
-    super.key,
-    required this.material,
-  });
+  const MaterialDetailsPage({super.key, required this.material});
 
   final MaterialModel material;
 
@@ -85,15 +82,18 @@ class _MaterialDetailsPageState extends State<MaterialDetailsPage> {
                           spacing: 8,
                           runSpacing: 4,
                           children: [
-                            Text(widget.material.fileType,
-                                style: AppTextStyles.caption),
+                            Text(
+                              widget.material.fileType,
+                              style: AppTextStyles.caption,
+                            ),
                             Text(
                               FileUtils.formatDate(widget.material.createdAt),
                               style: AppTextStyles.caption,
                             ),
                             Text(
                               FileUtils.formatBytes(
-                                  widget.material.fileSizeBytes),
+                                widget.material.fileSizeBytes,
+                              ),
                               style: AppTextStyles.caption,
                             ),
                           ],
@@ -160,13 +160,18 @@ class _MaterialDetailsPageState extends State<MaterialDetailsPage> {
   Future<void> _openFile() async {
     setState(() => _isOpening = true);
     try {
-      final url = await MaterialService.instance.createSignedUrl(widget.material);
+      final url = await MaterialService.instance.createSignedUrl(
+        widget.material,
+      );
       if (url == null) {
         _showMessage('No file URL found for this material.');
         return;
       }
       final uri = Uri.parse(url);
-      final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
+      final launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
       if (!launched) {
         _showMessage('Unable to open the file.');
       }
@@ -180,8 +185,8 @@ class _MaterialDetailsPageState extends State<MaterialDetailsPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }

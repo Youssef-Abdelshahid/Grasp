@@ -16,7 +16,8 @@ class InstructorDashboardPage extends StatefulWidget {
   const InstructorDashboardPage({super.key});
 
   @override
-  State<InstructorDashboardPage> createState() => _InstructorDashboardPageState();
+  State<InstructorDashboardPage> createState() =>
+      _InstructorDashboardPageState();
 }
 
 class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
@@ -45,7 +46,8 @@ class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
           return _DashboardErrorState(
             onRetry: () {
               setState(() {
-                _summaryFuture = DashboardService.instance.getInstructorSummary();
+                _summaryFuture = DashboardService.instance
+                    .getInstructorSummary();
               });
             },
           );
@@ -102,8 +104,8 @@ class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
                 actionLabel: 'Refresh',
                 onAction: () {
                   setState(() {
-                    _summaryFuture =
-                        DashboardService.instance.getInstructorSummary();
+                    _summaryFuture = DashboardService.instance
+                        .getInstructorSummary();
                   });
                 },
               ),
@@ -151,8 +153,9 @@ class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
                 const SizedBox(height: 6),
                 Text(
                   'You currently have $pendingAiDrafts pending AI drafts awaiting review.',
-                  style: AppTextStyles.bodySmall
-                      .copyWith(color: Colors.white.withValues(alpha: 0.85)),
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: Colors.white.withValues(alpha: 0.85),
+                  ),
                 ),
               ],
             ),
@@ -163,8 +166,11 @@ class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(Icons.school_rounded,
-                color: Colors.white, size: 30),
+            child: const Icon(
+              Icons.school_rounded,
+              color: Colors.white,
+              size: 30,
+            ),
           ),
         ],
       ),
@@ -210,9 +216,9 @@ class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
         color: AppColors.primary,
         bg: AppColors.primaryLight,
         onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CreateCoursePage()),
-            ),
+          context,
+          MaterialPageRoute(builder: (_) => const CreateCoursePage()),
+        ),
       ),
       (
         icon: Icons.quiz_rounded,
@@ -220,9 +226,9 @@ class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
         color: AppColors.violet,
         bg: AppColors.violetLight,
         onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CoursesPage()),
-            ),
+          context,
+          MaterialPageRoute(builder: (_) => const CoursesPage()),
+        ),
       ),
       (
         icon: Icons.assignment_rounded,
@@ -230,9 +236,9 @@ class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
         color: AppColors.emerald,
         bg: AppColors.emeraldLight,
         onTap: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const CoursesPage()),
-            ),
+          context,
+          MaterialPageRoute(builder: (_) => const CoursesPage()),
+        ),
       ),
     ];
 
@@ -282,8 +288,10 @@ class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
         itemBuilder: (_, index) {
           final item = activity[index];
           return ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 14,
+              vertical: 6,
+            ),
             title: Text(item.title, style: AppTextStyles.label),
             subtitle: Text(item.subtitle, style: AppTextStyles.caption),
             trailing: Text(item.timestampLabel, style: AppTextStyles.caption),
@@ -351,9 +359,7 @@ class _QuickActionCard extends StatelessWidget {
 }
 
 class _DashboardErrorState extends StatelessWidget {
-  const _DashboardErrorState({
-    required this.onRetry,
-  });
+  const _DashboardErrorState({required this.onRetry});
 
   final VoidCallback onRetry;
 
@@ -379,10 +385,7 @@ class _DashboardErrorState extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),
       ),

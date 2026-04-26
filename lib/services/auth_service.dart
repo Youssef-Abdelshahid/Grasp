@@ -47,8 +47,9 @@ class AuthService extends ChangeNotifier {
 
     _supabaseInitialized = true;
     _session = Supabase.instance.client.auth.currentSession;
-    _authSubscription =
-        Supabase.instance.client.auth.onAuthStateChange.listen((event) async {
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
+      event,
+    ) async {
       _session = event.session;
       if (_session == null) {
         _currentUser = null;
@@ -81,10 +82,7 @@ class AuthService extends ChangeNotifier {
       final response = await Supabase.instance.client.auth.signUp(
         email: email.trim(),
         password: password,
-        data: {
-          'full_name': fullName.trim(),
-          'role': role.value,
-        },
+        data: {'full_name': fullName.trim(), 'role': role.value},
       );
 
       _session = response.session;
@@ -101,10 +99,7 @@ class AuthService extends ChangeNotifier {
     }
   }
 
-  Future<void> login({
-    required String email,
-    required String password,
-  }) async {
+  Future<void> login({required String email, required String password}) async {
     _lastError = null;
     notifyListeners();
 

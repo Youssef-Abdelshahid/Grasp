@@ -17,9 +17,10 @@ class EnrollmentService {
         .order('enrolled_at', ascending: false);
 
     return (response as List<dynamic>)
-        .map((item) => EnrollmentModel.fromJson(
-              Map<String, dynamic>.from(item as Map),
-            ))
+        .map(
+          (item) =>
+              EnrollmentModel.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
         .toList();
   }
 

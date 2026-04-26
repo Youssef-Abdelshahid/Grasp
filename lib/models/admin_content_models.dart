@@ -140,7 +140,11 @@ class AdminAssessmentItem {
     this.durationMinutes,
     this.schemaCount = 0,
     this.schema = const [],
+    this.showCorrectAnswers = false,
+    this.allowRetakes = false,
+    this.showQuestionMarks = true,
     this.attachmentRequirements = '',
+    this.attachments = const [],
     this.rubric = const [],
     required this.createdByName,
     this.createdAt,
@@ -161,7 +165,11 @@ class AdminAssessmentItem {
   final int? durationMinutes;
   final int schemaCount;
   final List<Map<String, dynamic>> schema;
+  final bool showCorrectAnswers;
+  final bool allowRetakes;
+  final bool showQuestionMarks;
   final String attachmentRequirements;
+  final List<Map<String, dynamic>> attachments;
   final List<Map<String, dynamic>> rubric;
   final String createdByName;
   final DateTime? createdAt;
@@ -187,6 +195,9 @@ class AdminAssessmentItem {
       durationMinutes: (json['duration_minutes'] as num?)?.toInt(),
       schemaCount: (json['question_count'] as num? ?? 0).toInt(),
       schema: _jsonList(json['question_schema']),
+      showCorrectAnswers: json['show_correct_answers'] as bool? ?? false,
+      allowRetakes: json['allow_retakes'] as bool? ?? false,
+      showQuestionMarks: json['show_question_marks'] as bool? ?? true,
       createdByName: json['created_by_name'] as String? ?? '',
       createdAt: _parse(json['created_at']),
       publishedAt: _parse(json['published_at']),
@@ -208,6 +219,7 @@ class AdminAssessmentItem {
       dueAt: _parse(json['due_at']),
       schemaCount: (json['rubric_count'] as num? ?? 0).toInt(),
       attachmentRequirements: json['attachment_requirements'] as String? ?? '',
+      attachments: _jsonList(json['attachments']),
       rubric: _jsonList(json['rubric']),
       createdByName: json['created_by_name'] as String? ?? '',
       createdAt: _parse(json['created_at']),
@@ -277,7 +289,7 @@ String _date(DateTime? value) {
   if (value == null) {
     return 'Unknown';
   }
-  return DateFormat('MMM d, yyyy').format(value);
+  return DateFormat('MMM d, yyyy h:mm a').format(value);
 }
 
 String _label(String value) {

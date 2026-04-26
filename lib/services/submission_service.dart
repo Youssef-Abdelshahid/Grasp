@@ -26,11 +26,16 @@ class SubmissionService {
         .order('submitted_at', ascending: false);
 
     return (response as List<dynamic>)
-        .map((item) => SubmissionModel.fromJson(Map<String, dynamic>.from(item as Map)))
+        .map(
+          (item) =>
+              SubmissionModel.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
         .toList();
   }
 
-  Future<List<SubmissionModel>> getAssignmentSubmissions(String assignmentId) async {
+  Future<List<SubmissionModel>> getAssignmentSubmissions(
+    String assignmentId,
+  ) async {
     final response = await _client
         .from('submissions')
         .select()
@@ -38,12 +43,16 @@ class SubmissionService {
         .order('submitted_at', ascending: false);
 
     return (response as List<dynamic>)
-        .map((item) => SubmissionModel.fromJson(Map<String, dynamic>.from(item as Map)))
+        .map(
+          (item) =>
+              SubmissionModel.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
         .toList();
   }
 
   Future<Map<String, SubmissionModel>> getLatestQuizAttemptsForCourse(
-      String courseId) async {
+    String courseId,
+  ) async {
     final quizzes = await _client
         .from('quizzes')
         .select('id')
@@ -63,8 +72,9 @@ class SubmissionService {
 
     final result = <String, SubmissionModel>{};
     for (final row in submissions as List<dynamic>) {
-      final submission =
-          SubmissionModel.fromJson(Map<String, dynamic>.from(row as Map));
+      final submission = SubmissionModel.fromJson(
+        Map<String, dynamic>.from(row as Map),
+      );
       final quizId = submission.quizId;
       if (quizId != null && !result.containsKey(quizId)) {
         result[quizId] = submission;
@@ -74,7 +84,8 @@ class SubmissionService {
   }
 
   Future<Map<String, SubmissionModel>> getLatestAssignmentSubmissionsForCourse(
-      String courseId) async {
+    String courseId,
+  ) async {
     final assignments = await _client
         .from('assignments')
         .select('id')
@@ -94,8 +105,9 @@ class SubmissionService {
 
     final result = <String, SubmissionModel>{};
     for (final row in submissions as List<dynamic>) {
-      final submission =
-          SubmissionModel.fromJson(Map<String, dynamic>.from(row as Map));
+      final submission = SubmissionModel.fromJson(
+        Map<String, dynamic>.from(row as Map),
+      );
       final assignmentId = submission.assignmentId;
       if (assignmentId != null && !result.containsKey(assignmentId)) {
         result[assignmentId] = submission;
@@ -109,6 +121,19 @@ class SubmissionService {
     required Map<int, dynamic> answers,
     required int elapsedSeconds,
   }) async {
+    if (!quiz.allowRetakes) {
+      final existing = await _client
+          .from('submissions')
+          .select('id')
+          .eq('quiz_id', quiz.id)
+          .eq('student_id', _client.auth.currentUser!.id)
+          .limit(1);
+      if ((existing as List).isNotEmpty) {
+        throw const SubmissionException(
+          'You have already submitted this quiz.',
+        );
+      }
+    }
     final userId = _client.auth.currentUser!.id;
     final attempts = await _client
         .from('submissions')
@@ -119,49 +144,86 @@ class SubmissionService {
     final questionModels = quiz.questionSchema
         .map(QuizQuestionModel.fromJson)
         .toList();
-    final totalMarks = questionModels.fold<int>(
+    final totalMarks = questionModels.fold<double>(
       0,
       (sum, item) => sum + item.marks,
     );
 
-    var autoScore = 0;
+    var autoScore = 0.0;
     var hasManualReview = false;
     final answersPayload = <Map<String, dynamic>>[];
 
     for (var index = 0; index < questionModels.length; index++) {
       final question = questionModels[index];
       final answer = answers[index];
-      var isCorrect = false;
+      bool? isCorrect = false;
+      var awardedMarks = 0.0;
+      var correctCount = 0;
+      var totalCount = 0;
 
-      if (question.type == 'Short Answer') {
+      final questionType = _normalizedType(question.type);
+      if (_isWritten(questionType)) {
         hasManualReview = true;
+        isCorrect = null;
       } else if (answer is int && answer == question.correctOption) {
         isCorrect = true;
-        autoScore += question.marks;
+        awardedMarks = question.marks;
+        autoScore += awardedMarks;
+      } else if (_isPartialType(questionType)) {
+        final submitted = _stringMap(answer);
+        final expected = question.correctMapping;
+        totalCount = expected.length;
+        correctCount = expected.entries
+            .where((entry) => submitted[entry.key] == entry.value)
+            .length;
+        awardedMarks = totalCount == 0
+            ? 0
+            : (correctCount * (question.marks / totalCount));
+        awardedMarks = awardedMarks.clamp(0, question.marks).toDouble();
+        autoScore += awardedMarks;
+        isCorrect = totalCount > 0 && correctCount == totalCount;
       }
 
       answersPayload.add({
         'question_index': index,
         'question_text': question.questionText,
-        'type': question.type,
+        'type': questionType,
         'answer': answer,
         'correct_option': question.correctOption,
-        'is_correct': question.type == 'Short Answer' ? null : isCorrect,
+        'correct_mapping': question.correctMapping,
+        'is_correct': isCorrect,
         'marks': question.marks,
+        'auto_awarded_marks': awardedMarks,
+        'correct_count': correctCount,
+        'total_count': totalCount,
       });
     }
 
-    final score = totalMarks == 0 ? 0 : (autoScore / totalMarks) * quiz.maxPoints;
+    final questionGrades = <Map<String, dynamic>>[];
+    for (final answer in answersPayload) {
+      final isCorrect = answer['is_correct'];
+      final marks = (answer['marks'] as num?)?.toDouble() ?? 0;
+      questionGrades.add({
+        'question_index': answer['question_index'],
+        'marks':
+            (answer['auto_awarded_marks'] as num?)?.toDouble() ??
+            (isCorrect == true ? marks : 0),
+        'feedback': '',
+      });
+    }
+
     final response = await _client
         .from('submissions')
         .insert({
           'student_id': userId,
           'quiz_id': quiz.id,
           'attempt_number': attemptNumber,
-          'score': hasManualReview ? null : score,
+          'score': autoScore,
           'status': hasManualReview ? 'submitted' : 'graded',
-          'graded_at':
-              hasManualReview ? null : DateTime.now().toUtc().toIso8601String(),
+          'graded_at': hasManualReview
+              ? null
+              : DateTime.now().toUtc().toIso8601String(),
+          'grading_details': {'question_grades': questionGrades},
           'content': {
             'answers': answersPayload,
             'elapsed_seconds': elapsedSeconds,
@@ -198,7 +260,9 @@ class SubmissionService {
       fileSizeBytes = file.size;
       storagePath =
           '$userId/${assignment.id}/${DateTime.now().millisecondsSinceEpoch}_${p.basename(file.name)}';
-      await _client.storage.from(assignmentBucketName).uploadBinary(
+      await _client.storage
+          .from(assignmentBucketName)
+          .uploadBinary(
             storagePath,
             bytes,
             fileOptions: FileOptions(
@@ -233,7 +297,9 @@ class SubmissionService {
     if (path == null || path.isEmpty) {
       return null;
     }
-    return _client.storage.from(assignmentBucketName).createSignedUrl(path, 3600);
+    return _client.storage
+        .from(assignmentBucketName)
+        .createSignedUrl(path, 3600);
   }
 
   Future<Uint8List> _readFileBytes(PlatformFile file) async {
@@ -269,6 +335,36 @@ class SubmissionService {
       default:
         return 'application/octet-stream';
     }
+  }
+
+  bool _isWritten(String type) => _normalizedType(type) == 'Short Answer';
+
+  bool _isPartialType(String type) {
+    final normalized = _normalizedType(type);
+    return normalized == 'Matching';
+  }
+
+  String _normalizedType(String type) {
+    final normalized = type.trim().toLowerCase();
+    if (normalized == 'essay' || normalized == 'short answer') {
+      return 'Short Answer';
+    }
+    if (normalized == 'matching' ||
+        normalized == 'drag and drop' ||
+        normalized == 'classification') {
+      return 'Matching';
+    }
+    if (normalized == 'true / false' || normalized == 'true/false') {
+      return 'True / False';
+    }
+    return normalized == 'mcq' ? 'MCQ' : type;
+  }
+
+  Map<String, String> _stringMap(dynamic value) {
+    if (value is Map) {
+      return value.map((key, val) => MapEntry(key.toString(), val.toString()));
+    }
+    return const {};
   }
 }
 

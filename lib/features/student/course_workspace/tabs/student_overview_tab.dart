@@ -12,10 +12,7 @@ import '../../../../services/announcement_service.dart';
 import '../../../../services/material_service.dart';
 
 class StudentOverviewTab extends StatefulWidget {
-  const StudentOverviewTab({
-    super.key,
-    required this.course,
-  });
+  const StudentOverviewTab({super.key, required this.course});
 
   final CourseModel course;
 
@@ -30,10 +27,12 @@ class _StudentOverviewTabState extends State<StudentOverviewTab> {
   @override
   void initState() {
     super.initState();
-    _materialsFuture =
-        MaterialService.instance.getCourseMaterials(widget.course.id);
-    _announcementsFuture =
-        AnnouncementService.instance.getCourseAnnouncements(widget.course.id);
+    _materialsFuture = MaterialService.instance.getCourseMaterials(
+      widget.course.id,
+    );
+    _announcementsFuture = AnnouncementService.instance.getCourseAnnouncements(
+      widget.course.id,
+    );
   }
 
   @override
@@ -66,8 +65,11 @@ class _StudentOverviewTabState extends State<StudentOverviewTab> {
         children: [
           Row(
             children: [
-              const Icon(Icons.info_outline_rounded,
-                  color: AppColors.primary, size: 18),
+              const Icon(
+                Icons.info_outline_rounded,
+                color: AppColors.primary,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Text('About This Course', style: AppTextStyles.h3),
             ],
@@ -133,11 +135,14 @@ class _StudentOverviewTabState extends State<StudentOverviewTab> {
                       const Divider(height: 1, color: AppColors.border),
                   itemBuilder: (_, index) {
                     final material = materials[index];
-                    final color =
-                        FileUtils.colorForExtension(material.fileType);
+                    final color = FileUtils.colorForExtension(
+                      material.fileType,
+                    );
                     return ListTile(
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -185,7 +190,8 @@ class _StudentOverviewTabState extends State<StudentOverviewTab> {
               const EmptyState(
                 icon: Icons.campaign_rounded,
                 title: 'No announcements yet',
-                subtitle: 'New announcements from your instructor will appear here.',
+                subtitle:
+                    'New announcements from your instructor will appear here.',
               )
             else
               Container(

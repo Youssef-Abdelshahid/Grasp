@@ -36,7 +36,9 @@ class _InstructorCalendarPageState extends State<InstructorCalendarPage> {
       builder: (context, snapshot) {
         final events = snapshot.data ?? [];
         final selectedEvents = _eventsForDay(_selectedDay, events);
-        final upcoming = events.where((item) => !item.date.isBefore(DateTime.now())).toList();
+        final upcoming = events
+            .where((item) => !item.date.isBefore(DateTime.now()))
+            .toList();
 
         return SingleChildScrollView(
           padding: padding,
@@ -64,7 +66,8 @@ class _InstructorCalendarPageState extends State<InstructorCalendarPage> {
                         events: events,
                         onPreviousMonth: _goToPreviousMonth,
                         onNextMonth: _goToNextMonth,
-                        onSelectDay: (day) => setState(() => _selectedDay = day),
+                        onSelectDay: (day) =>
+                            setState(() => _selectedDay = day),
                       ),
                     ),
                     const SizedBox(width: 20),
@@ -87,10 +90,7 @@ class _InstructorCalendarPageState extends State<InstructorCalendarPage> {
                   onSelectDay: (day) => setState(() => _selectedDay = day),
                 ),
                 const SizedBox(height: 20),
-                _EventSidebar(
-                  title: 'Selected Day',
-                  events: selectedEvents,
-                ),
+                _EventSidebar(title: 'Selected Day', events: selectedEvents),
               ],
               const SizedBox(height: 24),
               _UpcomingEventsCard(events: upcoming),
@@ -151,7 +151,11 @@ class _CalendarCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final firstOfMonth = DateTime(focusedMonth.year, focusedMonth.month, 1);
-    final daysInMonth = DateTime(focusedMonth.year, focusedMonth.month + 1, 0).day;
+    final daysInMonth = DateTime(
+      focusedMonth.year,
+      focusedMonth.month + 1,
+      0,
+    ).day;
     final startOffset = firstOfMonth.weekday - 1;
 
     return Container(
@@ -166,10 +170,7 @@ class _CalendarCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Text(
-                _monthLabel(focusedMonth),
-                style: AppTextStyles.h3,
-              ),
+              Text(_monthLabel(focusedMonth), style: AppTextStyles.h3),
               const Spacer(),
               IconButton(
                 icon: const Icon(Icons.chevron_left_rounded),
@@ -192,10 +193,7 @@ class _CalendarCard extends StatelessWidget {
                 .map(
                   (day) => Expanded(
                     child: Center(
-                      child: Text(
-                        day,
-                        style: AppTextStyles.caption,
-                      ),
+                      child: Text(day, style: AppTextStyles.caption),
                     ),
                   ),
                 )
@@ -225,7 +223,8 @@ class _CalendarCard extends StatelessWidget {
                     item.date.day == date.day;
               }).toList();
 
-              final isSelected = selectedDay != null &&
+              final isSelected =
+                  selectedDay != null &&
                   selectedDay!.year == date.year &&
                   selectedDay!.month == date.month &&
                   selectedDay!.day == date.day;
@@ -238,8 +237,8 @@ class _CalendarCard extends StatelessWidget {
                     color: isSelected
                         ? AppColors.primary
                         : isToday
-                            ? AppColors.primaryLight
-                            : Colors.transparent,
+                        ? AppColors.primaryLight
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                     border: isToday && !isSelected
                         ? Border.all(
@@ -256,10 +255,11 @@ class _CalendarCard extends StatelessWidget {
                           color: isSelected
                               ? Colors.white
                               : isToday
-                                  ? AppColors.primary
-                                  : AppColors.textPrimary,
-                          fontWeight:
-                              isSelected || isToday ? FontWeight.w700 : FontWeight.w400,
+                              ? AppColors.primary
+                              : AppColors.textPrimary,
+                          fontWeight: isSelected || isToday
+                              ? FontWeight.w700
+                              : FontWeight.w400,
                         ),
                       ),
                       if (dayEvents.isNotEmpty)
@@ -309,10 +309,7 @@ class _CalendarCard extends StatelessWidget {
 }
 
 class _EventSidebar extends StatelessWidget {
-  const _EventSidebar({
-    required this.title,
-    required this.events,
-  });
+  const _EventSidebar({required this.title, required this.events});
 
   final String title;
   final List<CalendarEventModel> events;
@@ -379,8 +376,10 @@ class _EventSidebar extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: event.color.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(100),
@@ -403,9 +402,7 @@ class _EventSidebar extends StatelessWidget {
 }
 
 class _UpcomingEventsCard extends StatelessWidget {
-  const _UpcomingEventsCard({
-    required this.events,
-  });
+  const _UpcomingEventsCard({required this.events});
 
   final List<CalendarEventModel> events;
 

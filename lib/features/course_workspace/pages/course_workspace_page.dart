@@ -155,21 +155,26 @@ class _CourseWorkspacePageState extends State<CourseWorkspacePage>
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           course.code,
-                          style: AppTextStyles.buttonSmall
-                              .copyWith(color: Colors.white),
+                          style: AppTextStyles.buttonSmall.copyWith(
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6),
@@ -231,10 +236,7 @@ class _CourseWorkspacePageState extends State<CourseWorkspacePage>
         indicatorWeight: 2,
         labelColor: Colors.white,
         unselectedLabelColor: Colors.white60,
-        labelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
+        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         unselectedLabelStyle: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w400,
@@ -260,19 +262,20 @@ class _CourseWorkspacePageState extends State<CourseWorkspacePage>
   Future<void> _editCourse(CourseModel course) async {
     final result = await Navigator.push<CourseModel>(
       context,
-      MaterialPageRoute(
-        builder: (_) => CreateCoursePage(course: course),
-      ),
+      MaterialPageRoute(builder: (_) => CreateCoursePage(course: course)),
     );
     if (result != null) {
       setState(() {
-        _courseFuture = CourseService.instance.getCourseDetails(widget.courseId);
+        _courseFuture = CourseService.instance.getCourseDetails(
+          widget.courseId,
+        );
       });
     }
   }
 
   Future<void> _archiveCourse(CourseModel course) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Archive Course'),
@@ -304,10 +307,7 @@ class _CourseWorkspacePageState extends State<CourseWorkspacePage>
 }
 
 class _HeaderMeta extends StatelessWidget {
-  const _HeaderMeta({
-    required this.icon,
-    required this.label,
-  });
+  const _HeaderMeta({required this.icon, required this.label});
 
   final IconData icon;
   final String label;

@@ -9,6 +9,7 @@ import '../../../models/assignment_model.dart';
 import '../../../models/admin_content_models.dart';
 import '../../../models/quiz_model.dart';
 import '../../../services/admin_content_service.dart';
+import '../../activity/activity_sheets.dart';
 import '../../course_workspace/pages/assignment_builder_page.dart';
 import '../../course_workspace/pages/quiz_builder_page.dart';
 
@@ -40,6 +41,17 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void didUpdateWidget(covariant AdminAssessmentsPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.type != widget.type) {
+      _debounce?.cancel();
+      _status = null;
+      _searchController.clear();
+      _load();
+    }
   }
 
   @override
@@ -272,6 +284,13 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
                       ? 'Not set'
                       : '${item.durationMinutes} minutes',
                 ),
+              if (_isQuiz)
+                _Row(
+                  'Correct Answers',
+                  item.showCorrectAnswers ? 'Visible to students' : 'Hidden',
+                ),
+              if (_isQuiz)
+                _Row('Retakes', item.allowRetakes ? 'Allowed' : 'Not allowed'),
               if (!_isQuiz)
                 _Row(
                   'Attachment Rules',
@@ -287,6 +306,7 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
                     ? 'No instructions'
                     : item.instructions,
               ),
+              AssessmentActivityPanel(assessmentId: item.id, isQuiz: _isQuiz),
             ],
           ),
         ),
@@ -395,6 +415,9 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
       createdAt: item.createdAt ?? DateTime.now(),
       updatedAt: item.createdAt ?? DateTime.now(),
       publishedAt: item.publishedAt,
+      showCorrectAnswers: item.showCorrectAnswers,
+      allowRetakes: item.allowRetakes,
+      showQuestionMarks: item.showQuestionMarks,
     );
   }
 
@@ -409,6 +432,7 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
       maxPoints: item.maxPoints,
       isPublished: item.isPublished,
       rubric: item.rubric,
+      attachments: item.attachments,
       createdBy: '',
       createdAt: item.createdAt ?? DateTime.now(),
       updatedAt: item.createdAt ?? DateTime.now(),

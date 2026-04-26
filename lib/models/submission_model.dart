@@ -13,6 +13,12 @@ class SubmissionModel {
     this.fileSizeBytes,
     this.storagePath,
     this.gradedAt,
+    this.feedback = '',
+    this.gradingDetails = const {},
+    this.gradeVisible = false,
+    this.feedbackVisible = false,
+    this.attemptVisible = false,
+    this.showCorrectAnswers = false,
   });
 
   final String id;
@@ -28,6 +34,12 @@ class SubmissionModel {
   final int? fileSizeBytes;
   final String? storagePath;
   final DateTime? gradedAt;
+  final String feedback;
+  final Map<String, dynamic> gradingDetails;
+  final bool gradeVisible;
+  final bool feedbackVisible;
+  final bool attemptVisible;
+  final bool showCorrectAnswers;
 
   factory SubmissionModel.fromJson(Map<String, dynamic> json) {
     return SubmissionModel(
@@ -46,6 +58,14 @@ class SubmissionModel {
       gradedAt: json['graded_at'] == null
           ? null
           : DateTime.parse(json['graded_at'] as String),
+      feedback: json['feedback'] as String? ?? '',
+      gradingDetails: Map<String, dynamic>.from(
+        json['grading_details'] as Map? ?? const {},
+      ),
+      gradeVisible: json['grade_visible'] as bool? ?? false,
+      feedbackVisible: json['feedback_visible'] as bool? ?? false,
+      attemptVisible: json['attempt_visible'] as bool? ?? false,
+      showCorrectAnswers: json['show_correct_answers'] as bool? ?? false,
     );
   }
 }

@@ -12,6 +12,7 @@ class AssignmentModel {
     required this.createdBy,
     required this.createdAt,
     required this.updatedAt,
+    this.attachments = const [],
     this.publishedAt,
   });
 
@@ -27,6 +28,7 @@ class AssignmentModel {
   final String createdBy;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final List<Map<String, dynamic>> attachments;
   final DateTime? publishedAt;
 
   int get rubricCount => rubric.length;
@@ -38,8 +40,7 @@ class AssignmentModel {
       courseId: json['course_id'] as String,
       title: json['title'] as String,
       instructions: json['instructions'] as String? ?? '',
-      attachmentRequirements:
-          json['attachment_requirements'] as String? ?? '',
+      attachmentRequirements: json['attachment_requirements'] as String? ?? '',
       dueAt: json['due_at'] == null
           ? null
           : DateTime.parse(json['due_at'] as String),
@@ -54,6 +55,10 @@ class AssignmentModel {
       updatedAt: DateTime.parse(
         (json['updated_at'] ?? json['created_at']) as String,
       ),
+      attachments: (json['attachments'] as List<dynamic>? ?? const [])
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(),
       publishedAt: json['published_at'] == null
           ? null
           : DateTime.parse(json['published_at'] as String),

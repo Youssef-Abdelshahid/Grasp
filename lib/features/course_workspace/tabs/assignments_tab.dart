@@ -7,13 +7,11 @@ import '../../../core/utils/file_utils.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/assignment_model.dart';
 import '../../../services/assignment_service.dart';
+import '../../activity/activity_sheets.dart';
 import '../pages/assignment_builder_page.dart';
 
 class AssignmentsTab extends StatefulWidget {
-  const AssignmentsTab({
-    super.key,
-    required this.courseId,
-  });
+  const AssignmentsTab({super.key, required this.courseId});
 
   final String courseId;
 
@@ -27,8 +25,9 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
   @override
   void initState() {
     super.initState();
-    _assignmentsFuture =
-        AssignmentService.instance.getCourseAssignments(widget.courseId);
+    _assignmentsFuture = AssignmentService.instance.getCourseAssignments(
+      widget.courseId,
+    );
   }
 
   @override
@@ -144,7 +143,8 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
   }
 
   Future<void> _deleteAssignment(AssignmentModel assignment) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Delete Assignment'),
@@ -176,8 +176,9 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
   }
 
   Future<void> _showAssignmentDetails(AssignmentModel assignment) async {
-    final details =
-        await AssignmentService.instance.getAssignmentDetails(assignment.id);
+    final details = await AssignmentService.instance.getAssignmentDetails(
+      assignment.id,
+    );
     if (!mounted) {
       return;
     }
@@ -203,10 +204,7 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
                       ? 'No deadline'
                       : FileUtils.formatDate(details.dueAt!.toLocal()),
                 ),
-                _DetailLine(
-                  label: 'Points',
-                  value: '${details.maxPoints}',
-                ),
+                _DetailLine(label: 'Points', value: '${details.maxPoints}'),
                 _DetailLine(
                   label: 'Rubric Rows',
                   value: '${details.rubricCount}',
@@ -226,6 +224,10 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
                     style: AppTextStyles.bodySmall,
                   ),
                 ],
+                AssessmentActivityPanel(
+                  assessmentId: details.id,
+                  isQuiz: false,
+                ),
               ],
             ),
           ),
@@ -249,15 +251,16 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
 
   void _refresh() {
     setState(() {
-      _assignmentsFuture =
-          AssignmentService.instance.getCourseAssignments(widget.courseId);
+      _assignmentsFuture = AssignmentService.instance.getCourseAssignments(
+        widget.courseId,
+      );
     });
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -278,8 +281,9 @@ class _AssignmentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chipColor =
-        assignment.isPublished ? AppColors.success : AppColors.warning;
+    final chipColor = assignment.isPublished
+        ? AppColors.success
+        : AppColors.warning;
     final chipBackground = assignment.isPublished
         ? AppColors.successLight
         : AppColors.warningLight;
@@ -346,8 +350,7 @@ class _AssignmentCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: chipBackground,
                   borderRadius: BorderRadius.circular(100),
@@ -375,20 +378,14 @@ class _AssignmentCard extends StatelessWidget {
                   }
                 },
                 itemBuilder: (_) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Text('Edit'),
-                  ),
+                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
                   PopupMenuItem(
                     value: 'toggle',
                     child: Text(
                       assignment.isPublished ? 'Unpublish' : 'Publish',
                     ),
                   ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete'),
-                  ),
+                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
                 ],
               ),
             ],
@@ -400,10 +397,7 @@ class _AssignmentCard extends StatelessWidget {
 }
 
 class _DetailLine extends StatelessWidget {
-  const _DetailLine({
-    required this.label,
-    required this.value,
-  });
+  const _DetailLine({required this.label, required this.value});
 
   final String label;
   final String value;

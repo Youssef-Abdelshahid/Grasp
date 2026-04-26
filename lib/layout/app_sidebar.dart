@@ -69,9 +69,7 @@ class AppSidebar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppColors.sidebarHover),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.sidebarHover)),
       ),
       child: Row(
         children: [
@@ -81,7 +79,11 @@ class AppSidebar extends StatelessWidget {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.school_rounded, color: Colors.white, size: 18),
+            child: const Icon(
+              Icons.school_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 10),
           Text(
@@ -219,20 +221,14 @@ class _NavItem extends StatelessWidget {
                 Icon(
                   icon,
                   size: 18,
-                  color: isSelected
-                      ? Colors.white
-                      : AppColors.sidebarTextMuted,
+                  color: isSelected ? Colors.white : AppColors.sidebarTextMuted,
                 ),
                 const SizedBox(width: 10),
                 Text(
                   label,
                   style: AppTextStyles.body.copyWith(
-                    color: isSelected
-                        ? Colors.white
-                        : AppColors.sidebarText,
-                    fontWeight: isSelected
-                        ? FontWeight.w600
-                        : FontWeight.w400,
+                    color: isSelected ? Colors.white : AppColors.sidebarText,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                     fontSize: 14,
                   ),
                 ),

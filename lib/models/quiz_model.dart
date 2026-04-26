@@ -13,6 +13,9 @@ class QuizModel {
     required this.createdBy,
     required this.createdAt,
     required this.updatedAt,
+    this.showCorrectAnswers = false,
+    this.allowRetakes = false,
+    this.showQuestionMarks = true,
     this.publishedAt,
   });
 
@@ -29,6 +32,9 @@ class QuizModel {
   final String createdBy;
   final DateTime createdAt;
   final DateTime updatedAt;
+  final bool showCorrectAnswers;
+  final bool allowRetakes;
+  final bool showQuestionMarks;
   final DateTime? publishedAt;
 
   int get questionCount => questionSchema.length;
@@ -56,6 +62,9 @@ class QuizModel {
       updatedAt: DateTime.parse(
         (json['updated_at'] ?? json['created_at']) as String,
       ),
+      showCorrectAnswers: json['show_correct_answers'] as bool? ?? false,
+      allowRetakes: json['allow_retakes'] as bool? ?? false,
+      showQuestionMarks: json['show_question_marks'] as bool? ?? true,
       publishedAt: json['published_at'] == null
           ? null
           : DateTime.parse(json['published_at'] as String),

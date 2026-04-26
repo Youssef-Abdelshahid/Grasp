@@ -38,7 +38,8 @@ class CourseModel {
       code: json['code'] as String,
       studentsCount: (json['students_count'] as num? ?? 0).toInt(),
       lecturesCount: (json['lectures_count'] as num? ?? 0).toInt(),
-      instructor: json['instructor_name'] as String? ??
+      instructor:
+          json['instructor_name'] as String? ??
           json['instructor'] as String? ??
           '',
       instructorId: json['instructor_id'] as String? ?? '',

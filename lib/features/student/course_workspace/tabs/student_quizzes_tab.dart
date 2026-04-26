@@ -8,13 +8,11 @@ import '../../../../models/quiz_model.dart';
 import '../../../../models/submission_model.dart';
 import '../../../../services/quiz_service.dart';
 import '../../../../services/submission_service.dart';
+import '../../../activity/activity_sheets.dart';
 import '../../study/quiz_attempt_page.dart';
 
 class StudentQuizzesTab extends StatefulWidget {
-  const StudentQuizzesTab({
-    super.key,
-    required this.courseId,
-  });
+  const StudentQuizzesTab({super.key, required this.courseId});
 
   final String courseId;
 
@@ -68,7 +66,8 @@ class _StudentQuizzesTabState extends State<StudentQuizzesTab> {
                     child: _QuizCard(
                       quiz: quiz,
                       submission: data.latestSubmissions[quiz.id],
-                      onStart: () => _startQuiz(quiz),
+                      onStart: () =>
+                          _startQuiz(quiz, data.latestSubmissions[quiz.id]),
                       onViewAttempt: () => _showAttemptDetails(
                         quiz,
                         data.latestSubmissions[quiz.id],
@@ -84,18 +83,22 @@ class _StudentQuizzesTabState extends State<StudentQuizzesTab> {
   }
 
   Future<_StudentQuizData> _load() async {
-    final quizzes = await QuizService.instance.getCourseQuizzes(widget.courseId);
-    final submissions =
-        await SubmissionService.instance.getLatestQuizAttemptsForCourse(widget.courseId);
+    final quizzes = await QuizService.instance.getCourseQuizzes(
+      widget.courseId,
+    );
+    final submissions = await SubmissionService.instance
+        .getLatestQuizAttemptsForCourse(widget.courseId);
     return _StudentQuizData(quizzes, submissions);
   }
 
-  Future<void> _startQuiz(QuizModel quiz) async {
+  Future<void> _startQuiz(QuizModel quiz, SubmissionModel? submission) async {
+    if (submission != null && !quiz.allowRetakes) {
+      _showMessage('You have already submitted this quiz.');
+      return;
+    }
     final result = await Navigator.push<SubmissionModel>(
       context,
-      MaterialPageRoute(
-        builder: (_) => QuizAttemptPage(quiz: quiz),
-      ),
+      MaterialPageRoute(builder: (_) => QuizAttemptPage(quiz: quiz)),
     );
     if (!mounted || result == null) {
       return;
@@ -110,42 +113,9 @@ class _StudentQuizzesTabState extends State<StudentQuizzesTab> {
     if (submission == null) {
       return;
     }
-
-    showDialog<void>(
+    await showStudentSubmissionResultSheet(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text(quiz.title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _DetailLine(label: 'Attempt', value: '#${submission.attemptNumber}'),
-            _DetailLine(
-              label: 'Submitted',
-              value: FileUtils.formatDateTime(submission.submittedAt),
-            ),
-            _DetailLine(label: 'Status', value: submission.status),
-            if (submission.score != null)
-              _DetailLine(
-                label: 'Score',
-                value: '${submission.score!.toStringAsFixed(0)}%',
-              ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _startQuiz(quiz);
-            },
-            child: const Text('Retake'),
-          ),
-        ],
-      ),
+      submissionId: submission.id,
     );
   }
 
@@ -154,6 +124,12 @@ class _StudentQuizzesTabState extends State<StudentQuizzesTab> {
     setState(() {
       _future = future;
     });
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -174,8 +150,9 @@ class _QuizCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasSubmission = submission != null;
     final statusColor = hasSubmission ? AppColors.success : AppColors.amber;
-    final statusBg =
-        hasSubmission ? AppColors.successLight : AppColors.amberLight;
+    final statusBg = hasSubmission
+        ? AppColors.successLight
+        : AppColors.amberLight;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -224,8 +201,7 @@ class _QuizCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: statusBg,
                   borderRadius: BorderRadius.circular(100),
@@ -246,10 +222,14 @@ class _QuizCard extends StatelessWidget {
           if (hasSubmission)
             Row(
               children: [
-                if (submission!.score != null)
+                if (submission!.score != null &&
+                    submission!.gradeVisible &&
+                    submission!.attemptVisible)
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 5,
+                    ),
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
                         colors: [AppColors.emerald, Color(0xFF059669)],
@@ -269,9 +249,11 @@ class _QuizCard extends StatelessWidget {
                   child: const Text('View Attempt'),
                 ),
                 ElevatedButton.icon(
-                  onPressed: onStart,
+                  onPressed: quiz.allowRetakes ? onStart : null,
                   icon: const Icon(Icons.refresh_rounded, size: 16),
-                  label: const Text('Retake'),
+                  label: Text(
+                    quiz.allowRetakes ? 'Retake' : 'Already submitted',
+                  ),
                 ),
               ],
             )
@@ -289,35 +271,6 @@ class _QuizCard extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _DetailLine extends StatelessWidget {
-  const _DetailLine({
-    required this.label,
-    required this.value,
-  });
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: RichText(
-        text: TextSpan(
-          style: AppTextStyles.bodySmall,
-          children: [
-            TextSpan(
-              text: '$label: ',
-              style: AppTextStyles.label.copyWith(fontSize: 13),
-            ),
-            TextSpan(text: value),
-          ],
-        ),
       ),
     );
   }

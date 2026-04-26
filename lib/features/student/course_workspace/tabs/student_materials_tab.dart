@@ -9,10 +9,7 @@ import '../../../../services/material_service.dart';
 import '../../study/material_study_page.dart';
 
 class StudentMaterialsTab extends StatefulWidget {
-  const StudentMaterialsTab({
-    super.key,
-    required this.courseId,
-  });
+  const StudentMaterialsTab({super.key, required this.courseId});
 
   final String courseId;
 
@@ -26,7 +23,9 @@ class _StudentMaterialsTabState extends State<StudentMaterialsTab> {
   @override
   void initState() {
     super.initState();
-    _materialsFuture = MaterialService.instance.getCourseMaterials(widget.courseId);
+    _materialsFuture = MaterialService.instance.getCourseMaterials(
+      widget.courseId,
+    );
   }
 
   @override
@@ -46,7 +45,9 @@ class _StudentMaterialsTabState extends State<StudentMaterialsTab> {
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 3),
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primaryLight,
                       borderRadius: BorderRadius.circular(100),
@@ -87,9 +88,7 @@ class _StudentMaterialsTabState extends State<StudentMaterialsTab> {
 }
 
 class _StudentMaterialCard extends StatelessWidget {
-  const _StudentMaterialCard({
-    required this.material,
-  });
+  const _StudentMaterialCard({required this.material});
 
   final MaterialModel material;
 

@@ -51,8 +51,10 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 if (unreadCount > 0) ...[
                   const SizedBox(width: 8),
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(100),
@@ -92,22 +94,20 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 child: snapshot.connectionState != ConnectionState.done
                     ? const Center(child: CircularProgressIndicator())
                     : filtered.isEmpty
-                        ? _buildEmptyState()
-                        : RefreshIndicator(
-                            onRefresh: _refresh,
-                            child: ListView.separated(
-                              padding: const EdgeInsets.symmetric(vertical: 8),
-                              itemCount: filtered.length,
-                              separatorBuilder: (_, _) => const Divider(
-                                height: 1,
-                                color: AppColors.border,
-                              ),
-                              itemBuilder: (_, index) => _NotificationTile(
-                                notification: filtered[index],
-                                onTap: () => _handleTap(filtered[index]),
-                              ),
-                            ),
+                    ? _buildEmptyState()
+                    : RefreshIndicator(
+                        onRefresh: _refresh,
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, _) =>
+                              const Divider(height: 1, color: AppColors.border),
+                          itemBuilder: (_, index) => _NotificationTile(
+                            notification: filtered[index],
+                            onTap: () => _handleTap(filtered[index]),
                           ),
+                        ),
+                      ),
               ),
             ],
           ),
@@ -132,10 +132,14 @@ class _NotificationsPageState extends State<NotificationsPage> {
                 onTap: () => setState(() => _selectedFilter = index),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 150),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
-                    color: isSelected ? AppColors.primary : AppColors.background,
+                    color: isSelected
+                        ? AppColors.primary
+                        : AppColors.background,
                     borderRadius: BorderRadius.circular(100),
                     border: Border.all(
                       color: isSelected ? AppColors.primary : AppColors.border,
@@ -158,7 +162,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 6, vertical: 1),
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
                           decoration: BoxDecoration(
                             color: isSelected
                                 ? Colors.white.withValues(alpha: 0.3)
@@ -213,7 +219,8 @@ class _NotificationsPageState extends State<NotificationsPage> {
   }
 
   List<NotificationModel> _filterNotifications(
-      List<NotificationModel> notifications) {
+    List<NotificationModel> notifications,
+  ) {
     switch (_selectedFilter) {
       case 1:
         return notifications.where((item) => !item.isRead).toList();
@@ -255,10 +262,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
 }
 
 class _NotificationTile extends StatelessWidget {
-  const _NotificationTile({
-    required this.notification,
-    required this.onTap,
-  });
+  const _NotificationTile({required this.notification, required this.onTap});
 
   final NotificationModel notification;
   final VoidCallback onTap;

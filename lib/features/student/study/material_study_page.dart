@@ -8,10 +8,7 @@ import '../../../models/material_model.dart';
 import '../../../services/material_service.dart';
 
 class MaterialStudyPage extends StatefulWidget {
-  const MaterialStudyPage({
-    super.key,
-    required this.material,
-  });
+  const MaterialStudyPage({super.key, required this.material});
 
   final MaterialModel material;
 
@@ -162,7 +159,9 @@ class _MaterialStudyPageState extends State<MaterialStudyPage> {
   Future<void> _openFile() async {
     setState(() => _isOpening = true);
     try {
-      final url = await MaterialService.instance.createSignedUrl(widget.material);
+      final url = await MaterialService.instance.createSignedUrl(
+        widget.material,
+      );
       if (url == null) {
         _showMessage('No file URL found for this material.');
         return;
@@ -183,17 +182,14 @@ class _MaterialStudyPageState extends State<MaterialStudyPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
 class _InfoCard extends StatelessWidget {
-  const _InfoCard({
-    required this.title,
-    required this.child,
-  });
+  const _InfoCard({required this.title, required this.child});
 
   final String title;
   final Widget child;
@@ -221,10 +217,7 @@ class _InfoCard extends StatelessWidget {
 }
 
 class _InfoLine extends StatelessWidget {
-  const _InfoLine({
-    required this.label,
-    required this.value,
-  });
+  const _InfoLine({required this.label, required this.value});
 
   final String label;
   final String value;

@@ -18,10 +18,6 @@ class AssignmentRubricItemModel {
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'criterion': criterion,
-      'description': description,
-      'marks': marks,
-    };
+    return {'criterion': criterion, 'description': description, 'marks': marks};
   }
 }

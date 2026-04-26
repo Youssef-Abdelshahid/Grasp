@@ -7,11 +7,14 @@ import '../../../core/auth/app_role.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../models/activity_models.dart';
 import '../../../models/admin_content_models.dart';
 import '../../../models/admin_models.dart';
+import '../../../services/activity_service.dart';
 import '../../../services/admin_content_service.dart';
 import '../../../services/admin_service.dart';
 import '../../../services/material_service.dart';
+import '../../activity/activity_sheets.dart';
 import '../../course_workspace/pages/assignment_builder_page.dart';
 import '../../course_workspace/pages/quiz_builder_page.dart';
 
@@ -693,6 +696,7 @@ class _CourseMembersSheet extends StatefulWidget {
 
 class _CourseMembersSheetState extends State<_CourseMembersSheet> {
   late Future<AdminCourseMembers> _future;
+  late Future<List<CourseStudentActivity>> _activityFuture;
   List<AdminUser> _instructors = const [];
   List<AdminUser> _students = const [];
 
@@ -704,6 +708,9 @@ class _CourseMembersSheetState extends State<_CourseMembersSheet> {
 
   void _load() {
     _future = AdminContentService.instance.getCourseMembers(widget.course.id);
+    _activityFuture = ActivityService.instance.getCourseStudentsActivity(
+      widget.course.id,
+    );
     AdminService.instance.listUsers(role: AppRole.instructor).then((users) {
       if (mounted) setState(() => _instructors = users);
     });
@@ -777,20 +784,57 @@ class _CourseMembersSheetState extends State<_CourseMembersSheet> {
                       style: AppTextStyles.bodySmall,
                     )
                   else
-                    ...members!.students.map(
-                      (student) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(student.name),
-                        subtitle: Text(student.email),
-                        trailing: IconButton(
-                          tooltip: 'Remove student',
-                          onPressed: () => _removeStudent(student),
-                          icon: const Icon(
-                            Icons.remove_circle_outline_rounded,
-                            color: AppColors.error,
-                          ),
-                        ),
-                      ),
+                    FutureBuilder<List<CourseStudentActivity>>(
+                      future: _activityFuture,
+                      builder: (context, activitySnapshot) {
+                        final byStudentId = {
+                          for (final item
+                              in activitySnapshot.data ??
+                                  const <CourseStudentActivity>[])
+                            item.studentId: item,
+                        };
+                        return Column(
+                          children: members!.students.map((student) {
+                            final activity = byStudentId[student.id];
+                            return ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text(student.name),
+                              subtitle: Text(
+                                activity == null
+                                    ? student.email
+                                    : '${student.email} - Q ${activity.quizzesCompleted}/${activity.totalQuizzes} - A ${activity.assignmentsSubmitted}/${activity.totalAssignments} - ${activity.overdueCount} overdue',
+                              ),
+                              onTap: () => showStudentActivitySheet(
+                                context: context,
+                                courseId: widget.course.id,
+                                studentId: student.id,
+                              ),
+                              trailing: Wrap(
+                                spacing: 4,
+                                children: [
+                                  IconButton(
+                                    tooltip: 'Activity',
+                                    onPressed: () => showStudentActivitySheet(
+                                      context: context,
+                                      courseId: widget.course.id,
+                                      studentId: student.id,
+                                    ),
+                                    icon: const Icon(Icons.insights_rounded),
+                                  ),
+                                  IconButton(
+                                    tooltip: 'Remove student',
+                                    onPressed: () => _removeStudent(student),
+                                    icon: const Icon(
+                                      Icons.remove_circle_outline_rounded,
+                                      color: AppColors.error,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        );
+                      },
                     ),
                 ],
               ],

@@ -9,7 +9,9 @@ import '../../../core/utils/file_utils.dart';
 import '../../../models/assignment_model.dart';
 import '../../../models/assignment_rubric_item_model.dart';
 import '../../../models/submission_model.dart';
+import '../../../services/assignment_service.dart';
 import '../../../services/submission_service.dart';
+import '../../activity/activity_sheets.dart';
 
 class AssignmentSubmissionPage extends StatefulWidget {
   const AssignmentSubmissionPage({
@@ -22,7 +24,8 @@ class AssignmentSubmissionPage extends StatefulWidget {
   final SubmissionModel? latestSubmission;
 
   @override
-  State<AssignmentSubmissionPage> createState() => _AssignmentSubmissionPageState();
+  State<AssignmentSubmissionPage> createState() =>
+      _AssignmentSubmissionPageState();
 }
 
 class _AssignmentSubmissionPageState extends State<AssignmentSubmissionPage> {
@@ -82,11 +85,19 @@ class _AssignmentSubmissionPageState extends State<AssignmentSubmissionPage> {
             const SizedBox(height: 20),
             _InstructionsCard(assignment: widget.assignment),
             const SizedBox(height: 20),
+            _AssignmentAttachmentsCard(
+              attachments: widget.assignment.attachments,
+            ),
+            if (widget.assignment.attachments.isNotEmpty)
+              const SizedBox(height: 20),
             _RubricCard(rubric: widget.assignment.rubric),
             const SizedBox(height: 20),
             _ExistingSubmissionCard(
               submission: _submission,
-              onOpenFile: _submission?.storagePath == null ? null : _openSubmittedFile,
+              onOpenFile: _submission?.storagePath == null
+                  ? null
+                  : _openSubmittedFile,
+              onViewResult: _submission == null ? null : _viewResult,
             ),
             if (_submission != null) const SizedBox(height: 20),
             _UploadCard(
@@ -111,7 +122,9 @@ class _AssignmentSubmissionPageState extends State<AssignmentSubmissionPage> {
                         ),
                       )
                     : const Icon(Icons.send_rounded, size: 16),
-                label: Text(_isSubmitting ? 'Submitting...' : 'Submit Assignment'),
+                label: Text(
+                  _isSubmitting ? 'Submitting...' : 'Submit Assignment',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.emerald,
                   foregroundColor: Colors.white,
@@ -170,7 +183,9 @@ class _AssignmentSubmissionPageState extends State<AssignmentSubmissionPage> {
       return;
     }
 
-    final url = await SubmissionService.instance.createSubmissionFileUrl(submission);
+    final url = await SubmissionService.instance.createSubmissionFileUrl(
+      submission,
+    );
     if (url == null) {
       _showMessage('No submitted file found.');
       return;
@@ -185,18 +200,24 @@ class _AssignmentSubmissionPageState extends State<AssignmentSubmissionPage> {
     }
   }
 
-  void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
+  Future<void> _viewResult() async {
+    final submission = _submission;
+    if (submission == null) return;
+    await showStudentSubmissionResultSheet(
+      context: context,
+      submissionId: submission.id,
     );
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
 class _HeaderCard extends StatelessWidget {
-  const _HeaderCard({
-    required this.assignment,
-    required this.submission,
-  });
+  const _HeaderCard({required this.assignment, required this.submission});
 
   final AssignmentModel assignment;
   final SubmissionModel? submission;
@@ -243,9 +264,7 @@ class _HeaderCard extends StatelessWidget {
                   assignment.dueAt == null
                       ? 'No deadline'
                       : 'Due: ${FileUtils.formatDateTime(assignment.dueAt!)}',
-                  style: AppTextStyles.caption.copyWith(
-                    color: Colors.white70,
-                  ),
+                  style: AppTextStyles.caption.copyWith(color: Colors.white70),
                 ),
                 if (submission != null)
                   Text(
@@ -264,9 +283,7 @@ class _HeaderCard extends StatelessWidget {
 }
 
 class _InstructionsCard extends StatelessWidget {
-  const _InstructionsCard({
-    required this.assignment,
-  });
+  const _InstructionsCard({required this.assignment});
 
   final AssignmentModel assignment;
 
@@ -287,9 +304,7 @@ class _InstructionsCard extends StatelessWidget {
 }
 
 class _RubricCard extends StatelessWidget {
-  const _RubricCard({
-    required this.rubric,
-  });
+  const _RubricCard({required this.rubric});
 
   final List<Map<String, dynamic>> rubric;
 
@@ -335,7 +350,10 @@ class _RubricCard extends StatelessWidget {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(item.criterion, style: AppTextStyles.label),
+                                Text(
+                                  item.criterion,
+                                  style: AppTextStyles.label,
+                                ),
                                 const SizedBox(height: 2),
                                 Text(
                                   item.description,
@@ -354,14 +372,80 @@ class _RubricCard extends StatelessWidget {
   }
 }
 
+class _AssignmentAttachmentsCard extends StatelessWidget {
+  const _AssignmentAttachmentsCard({required this.attachments});
+
+  final List<Map<String, dynamic>> attachments;
+
+  @override
+  Widget build(BuildContext context) {
+    if (attachments.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return _SectionCard(
+      title: 'Assignment Files',
+      icon: Icons.attach_file_rounded,
+      iconColor: AppColors.primary,
+      child: Column(
+        children: attachments.map((attachment) {
+          return ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: const Icon(Icons.insert_drive_file_rounded),
+            title: Text(
+              attachment['name']?.toString() ?? 'Attachment',
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: attachment['size'] is num
+                ? Text(
+                    FileUtils.formatBytes((attachment['size'] as num).toInt()),
+                  )
+                : null,
+            trailing: TextButton(
+              onPressed: () => _openAttachment(context, attachment),
+              child: const Text('Open'),
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Future<void> _openAttachment(
+    BuildContext context,
+    Map<String, dynamic> attachment,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final url = await AssignmentService.instance.createAttachmentUrl(
+      attachment,
+    );
+    if (url == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('No attachment available.')),
+      );
+      return;
+    }
+    final launched = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Unable to open attachment.')),
+      );
+    }
+  }
+}
+
 class _ExistingSubmissionCard extends StatelessWidget {
   const _ExistingSubmissionCard({
     required this.submission,
     required this.onOpenFile,
+    required this.onViewResult,
   });
 
   final SubmissionModel? submission;
   final VoidCallback? onOpenFile;
+  final VoidCallback? onViewResult;
 
   @override
   Widget build(BuildContext context) {
@@ -381,10 +465,7 @@ class _ExistingSubmissionCard extends StatelessWidget {
             style: AppTextStyles.bodySmall,
           ),
           const SizedBox(height: 8),
-          Text(
-            'Status: ${submission!.status}',
-            style: AppTextStyles.bodySmall,
-          ),
+          Text('Status: ${submission!.status}', style: AppTextStyles.bodySmall),
           if (submission!.fileName != null) ...[
             const SizedBox(height: 8),
             Row(
@@ -396,13 +477,16 @@ class _ExistingSubmissionCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                TextButton(
-                  onPressed: onOpenFile,
-                  child: const Text('Open'),
-                ),
+                TextButton(onPressed: onOpenFile, child: const Text('Open')),
               ],
             ),
           ],
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: onViewResult,
+            icon: const Icon(Icons.grade_rounded, size: 16),
+            label: const Text('View Result'),
+          ),
         ],
       ),
     );
@@ -471,9 +555,7 @@ class _UploadCard extends StatelessWidget {
 }
 
 class _WrittenResponseCard extends StatelessWidget {
-  const _WrittenResponseCard({
-    required this.controller,
-  });
+  const _WrittenResponseCard({required this.controller});
 
   final TextEditingController controller;
 

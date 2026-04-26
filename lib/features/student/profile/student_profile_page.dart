@@ -143,9 +143,8 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                               onToggleCurrent: () => setState(
                                 () => _obscureCurrent = !_obscureCurrent,
                               ),
-                              onToggleNew: () => setState(
-                                () => _obscureNew = !_obscureNew,
-                              ),
+                              onToggleNew: () =>
+                                  setState(() => _obscureNew = !_obscureNew),
                               onToggleConfirm: () => setState(
                                 () => _obscureConfirm = !_obscureConfirm,
                               ),
@@ -182,15 +181,12 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                         obscureNew: _obscureNew,
                         obscureConfirm: _obscureConfirm,
                         isSaving: _savingPassword,
-                        onToggleCurrent: () => setState(
-                          () => _obscureCurrent = !_obscureCurrent,
-                        ),
-                        onToggleNew: () => setState(
-                          () => _obscureNew = !_obscureNew,
-                        ),
-                        onToggleConfirm: () => setState(
-                          () => _obscureConfirm = !_obscureConfirm,
-                        ),
+                        onToggleCurrent: () =>
+                            setState(() => _obscureCurrent = !_obscureCurrent),
+                        onToggleNew: () =>
+                            setState(() => _obscureNew = !_obscureNew),
+                        onToggleConfirm: () =>
+                            setState(() => _obscureConfirm = !_obscureConfirm),
                         onSave: _savePassword,
                       ),
                       const SizedBox(height: 20),
@@ -259,7 +255,9 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
 
     setState(() => _savingPassword = true);
     try {
-      await ProfileService.instance.updatePassword(_newPassController.text.trim());
+      await ProfileService.instance.updatePassword(
+        _newPassController.text.trim(),
+      );
       _currentPassController.clear();
       _newPassController.clear();
       _confirmPassController.clear();
@@ -303,10 +301,12 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
 
   void _showMessage(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: isError ? AppColors.error : AppColors.success),
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+      ),
     );
   }
-
 }
 
 class _StudentProfileData {
@@ -337,10 +337,10 @@ class _StudentProfileHeader extends StatelessWidget {
     final initials = profile.name.isEmpty
         ? 'ST'
         : profile.name
-            .split(' ')
-            .take(2)
-            .map((part) => part.isEmpty ? '' : part[0].toUpperCase())
-            .join();
+              .split(' ')
+              .take(2)
+              .map((part) => part.isEmpty ? '' : part[0].toUpperCase())
+              .join();
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -360,8 +360,9 @@ class _StudentProfileHeader extends StatelessWidget {
               CircleAvatar(
                 radius: 42,
                 backgroundColor: Colors.white.withValues(alpha: 0.18),
-                backgroundImage:
-                    profile.avatarUrl == null ? null : NetworkImage(profile.avatarUrl!),
+                backgroundImage: profile.avatarUrl == null
+                    ? null
+                    : NetworkImage(profile.avatarUrl!),
                 child: profile.avatarUrl == null
                     ? Text(
                         initials,
@@ -383,7 +384,10 @@ class _StudentProfileHeader extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Text(profile.name, style: AppTextStyles.h2.copyWith(color: Colors.white)),
+          Text(
+            profile.name,
+            style: AppTextStyles.h2.copyWith(color: Colors.white),
+          ),
           const SizedBox(height: 4),
           Text(
             profile.email,
@@ -407,7 +411,10 @@ class _StudentProfileHeader extends StatelessWidget {
           const SizedBox(height: 20),
           Row(
             children: [
-              _HeaderStat(label: 'Courses', value: '${summary.enrolledCourses}'),
+              _HeaderStat(
+                label: 'Courses',
+                value: '${summary.enrolledCourses}',
+              ),
               _HeaderStat(label: 'Tasks', value: '${summary.pendingTasks}'),
               _HeaderStat(
                 label: 'Avg Score',
@@ -422,10 +429,7 @@ class _StudentProfileHeader extends StatelessWidget {
 }
 
 class _HeaderStat extends StatelessWidget {
-  const _HeaderStat({
-    required this.label,
-    required this.value,
-  });
+  const _HeaderStat({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -603,9 +607,7 @@ class _PasswordCard extends StatelessWidget {
 }
 
 class _ActivityCard extends StatelessWidget {
-  const _ActivityCard({
-    required this.notifications,
-  });
+  const _ActivityCard({required this.notifications});
 
   final List<NotificationModel> notifications;
 

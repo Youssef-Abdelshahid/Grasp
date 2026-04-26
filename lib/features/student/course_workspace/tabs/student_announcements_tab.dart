@@ -8,15 +8,13 @@ import '../../../../models/announcement_model.dart';
 import '../../../../services/announcement_service.dart';
 
 class StudentAnnouncementsTab extends StatefulWidget {
-  const StudentAnnouncementsTab({
-    super.key,
-    required this.courseId,
-  });
+  const StudentAnnouncementsTab({super.key, required this.courseId});
 
   final String courseId;
 
   @override
-  State<StudentAnnouncementsTab> createState() => _StudentAnnouncementsTabState();
+  State<StudentAnnouncementsTab> createState() =>
+      _StudentAnnouncementsTabState();
 }
 
 class _StudentAnnouncementsTabState extends State<StudentAnnouncementsTab> {
@@ -25,8 +23,9 @@ class _StudentAnnouncementsTabState extends State<StudentAnnouncementsTab> {
   @override
   void initState() {
     super.initState();
-    _announcementsFuture =
-        AnnouncementService.instance.getCourseAnnouncements(widget.courseId);
+    _announcementsFuture = AnnouncementService.instance.getCourseAnnouncements(
+      widget.courseId,
+    );
   }
 
   @override
@@ -77,9 +76,7 @@ class _StudentAnnouncementsTabState extends State<StudentAnnouncementsTab> {
 }
 
 class _AnnouncementCard extends StatelessWidget {
-  const _AnnouncementCard({
-    required this.announcement,
-  });
+  const _AnnouncementCard({required this.announcement});
 
   final AnnouncementModel announcement;
 

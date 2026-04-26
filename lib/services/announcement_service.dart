@@ -9,7 +9,9 @@ class AnnouncementService {
 
   SupabaseClient get _client => Supabase.instance.client;
 
-  Future<List<AnnouncementModel>> getCourseAnnouncements(String courseId) async {
+  Future<List<AnnouncementModel>> getCourseAnnouncements(
+    String courseId,
+  ) async {
     final response = await _client
         .from('announcements')
         .select('*, profiles!announcements_created_by_fkey(full_name)')
@@ -18,9 +20,11 @@ class AnnouncementService {
         .order('created_at', ascending: false);
 
     return (response as List<dynamic>)
-        .map((item) => AnnouncementModel.fromJson(
-              Map<String, dynamic>.from(item as Map),
-            ))
+        .map(
+          (item) => AnnouncementModel.fromJson(
+            Map<String, dynamic>.from(item as Map),
+          ),
+        )
         .toList();
   }
 

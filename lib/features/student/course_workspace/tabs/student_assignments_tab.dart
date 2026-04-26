@@ -11,10 +11,7 @@ import '../../../../services/submission_service.dart';
 import '../../study/assignment_submission_page.dart';
 
 class StudentAssignmentsTab extends StatefulWidget {
-  const StudentAssignmentsTab({
-    super.key,
-    required this.courseId,
-  });
+  const StudentAssignmentsTab({super.key, required this.courseId});
 
   final String courseId;
 
@@ -83,8 +80,9 @@ class _StudentAssignmentsTabState extends State<StudentAssignmentsTab> {
   }
 
   Future<_StudentAssignmentData> _load() async {
-    final assignments =
-        await AssignmentService.instance.getCourseAssignments(widget.courseId);
+    final assignments = await AssignmentService.instance.getCourseAssignments(
+      widget.courseId,
+    );
     final submissions = await SubmissionService.instance
         .getLatestAssignmentSubmissionsForCourse(widget.courseId);
     return _StudentAssignmentData(assignments, submissions);
@@ -132,8 +130,9 @@ class _AssignmentCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isSubmitted = submission != null;
     final chipColor = isSubmitted ? AppColors.success : AppColors.amber;
-    final chipBackground =
-        isSubmitted ? AppColors.successLight : AppColors.amberLight;
+    final chipBackground = isSubmitted
+        ? AppColors.successLight
+        : AppColors.amberLight;
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -182,8 +181,7 @@ class _AssignmentCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: chipBackground,
                   borderRadius: BorderRadius.circular(100),

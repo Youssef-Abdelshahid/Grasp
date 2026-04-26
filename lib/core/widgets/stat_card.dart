@@ -44,7 +44,9 @@ class _StatCardState extends State<StatCard> {
                 color: AppColors.surface,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: _isHovered ? widget.color.withValues(alpha: 0.4) : AppColors.border,
+                  color: _isHovered
+                      ? widget.color.withValues(alpha: 0.4)
+                      : AppColors.border,
                   width: 1.5,
                 ),
                 boxShadow: [
@@ -74,7 +76,9 @@ class _StatCardState extends State<StatCard> {
                         shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: widget.color.withValues(alpha: _isHovered ? 0.3 : 0.05),
+                            color: widget.color.withValues(
+                              alpha: _isHovered ? 0.3 : 0.05,
+                            ),
                             blurRadius: 40,
                             spreadRadius: 20,
                           ),
@@ -97,15 +101,19 @@ class _StatCardState extends State<StatCard> {
                               duration: const Duration(milliseconds: 300),
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: _isHovered ? widget.color : widget.bgColor,
+                                color: _isHovered
+                                    ? widget.color
+                                    : widget.bgColor,
                                 borderRadius: BorderRadius.circular(14),
                                 boxShadow: _isHovered
                                     ? [
                                         BoxShadow(
-                                          color: widget.color.withValues(alpha: 0.4),
+                                          color: widget.color.withValues(
+                                            alpha: 0.4,
+                                          ),
                                           blurRadius: 12,
                                           offset: const Offset(0, 4),
-                                        )
+                                        ),
                                       ]
                                     : [],
                               ),
@@ -117,15 +125,24 @@ class _StatCardState extends State<StatCard> {
                             ),
                             if (showBadge)
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 10,
+                                  vertical: 6,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.successLight.withValues(alpha: 0.8),
+                                  color: AppColors.successLight.withValues(
+                                    alpha: 0.8,
+                                  ),
                                   borderRadius: BorderRadius.circular(20),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.trending_up_rounded, color: AppColors.success, size: 14),
+                                    const Icon(
+                                      Icons.trending_up_rounded,
+                                      color: AppColors.success,
+                                      size: 14,
+                                    ),
                                     const SizedBox(width: 4),
                                     Text(
                                       '+12%',
@@ -147,7 +164,9 @@ class _StatCardState extends State<StatCard> {
                             AnimatedDefaultTextStyle(
                               duration: const Duration(milliseconds: 300),
                               style: AppTextStyles.h1.copyWith(
-                                color: _isHovered ? widget.color : AppColors.textPrimary,
+                                color: _isHovered
+                                    ? widget.color
+                                    : AppColors.textPrimary,
                                 fontWeight: FontWeight.w800,
                               ),
                               child: Text(widget.value),

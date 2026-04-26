@@ -45,7 +45,11 @@ class _NavBar extends StatelessWidget {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.school_rounded, color: Colors.white, size: 16),
+            child: const Icon(
+              Icons.school_rounded,
+              color: Colors.white,
+              size: 16,
+            ),
           ),
           const SizedBox(width: 8),
           Text(
@@ -54,8 +58,7 @@ class _NavBar extends StatelessWidget {
           ),
           const Spacer(),
           TextButton(
-            onPressed: () =>
-                Navigator.pushNamed(parentContext, AppRouter.auth),
+            onPressed: () => Navigator.pushNamed(parentContext, AppRouter.auth),
             style: TextButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             ),
@@ -63,11 +66,13 @@ class _NavBar extends StatelessWidget {
           ),
           const SizedBox(width: 6),
           ElevatedButton(
-            onPressed: () =>
-                Navigator.pushNamed(parentContext, AppRouter.auth),
+            onPressed: () => Navigator.pushNamed(parentContext, AppRouter.auth),
             style: ElevatedButton.styleFrom(
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+              textStyle: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
             child: const Text('Get Started'),
           ),
@@ -111,8 +116,11 @@ class _Hero extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.auto_awesome_rounded,
-                    color: AppColors.primary, size: 14),
+                const Icon(
+                  Icons.auto_awesome_rounded,
+                  color: AppColors.primary,
+                  size: 14,
+                ),
                 const SizedBox(width: 6),
                 Flexible(
                   child: Text(
@@ -130,17 +138,17 @@ class _Hero extends StatelessWidget {
           const SizedBox(height: 20),
           Text(
             'Learn Smarter,\nNot Harder',
-            style: (isWide
-                    ? AppTextStyles.displayLarge
-                    : AppTextStyles.displayMedium)
-                .copyWith(color: AppColors.textPrimary),
+            style:
+                (isWide
+                        ? AppTextStyles.displayLarge
+                        : AppTextStyles.displayMedium)
+                    .copyWith(color: AppColors.textPrimary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 14),
           Text(
             'An AI-powered platform that helps instructors create engaging content and students master their courses effortlessly.',
-            style: AppTextStyles.body
-                .copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 28),
@@ -154,7 +162,9 @@ class _Hero extends StatelessWidget {
                     Navigator.pushNamed(parentContext, AppRouter.auth),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 22, vertical: 14),
+                    horizontal: 22,
+                    vertical: 14,
+                  ),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
@@ -170,7 +180,9 @@ class _Hero extends StatelessWidget {
                     Navigator.pushNamed(parentContext, AppRouter.auth),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: 22, vertical: 14),
+                    horizontal: 22,
+                    vertical: 14,
+                  ),
                 ),
                 child: const Text('Sign In'),
               ),
@@ -299,8 +311,9 @@ class _Features extends StatelessWidget {
             ),
             child: Text(
               'FEATURES',
-              style: AppTextStyles.overline
-                  .copyWith(color: AppColors.secondary),
+              style: AppTextStyles.overline.copyWith(
+                color: AppColors.secondary,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -312,61 +325,64 @@ class _Features extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Powerful AI tools for instructors and students',
-            style: AppTextStyles.body
-                .copyWith(color: AppColors.textSecondary),
+            style: AppTextStyles.body.copyWith(color: AppColors.textSecondary),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          LayoutBuilder(builder: (context, constraints) {
-            final cols = constraints.maxWidth >= 560 ? 4 : 2;
-            return GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: cols,
-                mainAxisSpacing: 14,
-                crossAxisSpacing: 14,
-                mainAxisExtent: 185,
-              ),
-              itemCount: _items.length,
-              itemBuilder: (context, i) {
-                final item = _items[i];
-                return Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: AppColors.surface,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(10),
-                        decoration: BoxDecoration(
-                          color: item.bg,
-                          borderRadius: BorderRadius.circular(10),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = constraints.maxWidth >= 560 ? 4 : 2;
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: cols,
+                  mainAxisSpacing: 14,
+                  crossAxisSpacing: 14,
+                  mainAxisExtent: 185,
+                ),
+                itemCount: _items.length,
+                itemBuilder: (context, i) {
+                  final item = _items[i];
+                  return Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: item.bg,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Icon(item.icon, color: item.color, size: 20),
                         ),
-                        child: Icon(item.icon, color: item.color, size: 20),
-                      ),
-                      const SizedBox(height: 14),
-                      Text(item.title,
+                        const SizedBox(height: 14),
+                        Text(
+                          item.title,
                           style: AppTextStyles.h3,
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis),
-                      const SizedBox(height: 6),
-                      Text(
-                        item.desc,
-                        style: AppTextStyles.bodySmall,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                );
-              },
-            );
-          }),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          item.desc,
+                          style: AppTextStyles.bodySmall,
+                          maxLines: 3,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
         ],
       ),
     );
@@ -382,8 +398,9 @@ class _Footer extends StatelessWidget {
       child: Center(
         child: Text(
           '© 2025 ${AppConstants.appName}. AI-powered education for everyone.',
-          style: AppTextStyles.caption
-              .copyWith(color: AppColors.sidebarTextMuted),
+          style: AppTextStyles.caption.copyWith(
+            color: AppColors.sidebarTextMuted,
+          ),
           textAlign: TextAlign.center,
         ),
       ),

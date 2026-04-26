@@ -104,8 +104,10 @@ class _CoursesPageState extends State<CoursesPage> {
             : ElevatedButton(
                 onPressed: () => _openCreate(context),
                 style: ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   textStyle: const TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -201,7 +203,8 @@ class _CoursesPageState extends State<CoursesPage> {
   }
 
   Future<void> _archiveCourse(CourseModel course) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Archive Course'),
@@ -241,9 +244,9 @@ class _CoursesPageState extends State<CoursesPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -287,21 +290,26 @@ class _CourseCard extends StatelessWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: accentColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           course.code,
-                          style: AppTextStyles.buttonSmall
-                              .copyWith(color: accentColor),
+                          style: AppTextStyles.buttonSmall.copyWith(
+                            color: accentColor,
+                          ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: course.isVisible
                               ? AppColors.emeraldLight
@@ -336,7 +344,10 @@ class _CourseCard extends StatelessWidget {
                         itemBuilder: (_) => const [
                           PopupMenuItem(value: 'open', child: Text('Open')),
                           PopupMenuItem(value: 'edit', child: Text('Edit')),
-                          PopupMenuItem(value: 'archive', child: Text('Archive')),
+                          PopupMenuItem(
+                            value: 'archive',
+                            child: Text('Archive'),
+                          ),
                         ],
                       ),
                     ],
@@ -359,7 +370,9 @@ class _CourseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    course.semester.isEmpty ? 'Semester not set' : course.semester,
+                    course.semester.isEmpty
+                        ? 'Semester not set'
+                        : course.semester,
                     style: AppTextStyles.caption,
                   ),
                 ],
@@ -393,7 +406,9 @@ class _CourseCard extends StatelessWidget {
                         onPressed: onOpen,
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           minimumSize: Size.zero,
                         ),
                         child: const Row(
@@ -442,9 +457,7 @@ class _InfoChip extends StatelessWidget {
 }
 
 class _ErrorState extends StatelessWidget {
-  const _ErrorState({
-    required this.onRetry,
-  });
+  const _ErrorState({required this.onRetry});
 
   final VoidCallback onRetry;
 

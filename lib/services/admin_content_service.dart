@@ -177,15 +177,133 @@ class AdminContentService {
     String? courseId,
     String? status,
   }) async {
-    final response = await _client.rpc(
-      'list_admin_quizzes',
-      params: {
-        'p_search': search,
-        'p_course_id': _nullableUuid(courseId),
-        'p_status': status,
-      },
-    );
+    final params = <String, dynamic>{'p_search': search, 'p_status': status};
+    final courseUuid = _nullableUuid(courseId);
+    if (courseUuid != null) {
+      params['p_course_id'] = courseUuid;
+    }
+
+    dynamic response;
+    try {
+      response = await _client.rpc('list_admin_quizzes', params: params);
+    } on PostgrestException catch (error) {
+      try {
+        if (!_isRpcSignatureError(error)) rethrow;
+        response = await _client.rpc(
+          'list_admin_quizzes',
+          params: {
+            'p_search': search,
+            'p_course_id': courseUuid,
+            'p_status': status,
+            'p_instructor_id': null,
+          },
+        );
+      } on PostgrestException {
+        return _listQuizzesFromTables(
+          search: search,
+          courseId: courseId,
+          status: status,
+        );
+      }
+    }
     return _mapList(response, AdminAssessmentItem.quiz);
+  }
+
+  bool _isRpcSignatureError(PostgrestException error) {
+    final message = error.message.toLowerCase();
+    return message.contains('function') ||
+        message.contains('schema cache') ||
+        message.contains('could not choose') ||
+        message.contains('ambiguous');
+  }
+
+  Future<List<AdminAssessmentItem>> _listQuizzesFromTables({
+    required String search,
+    required String? courseId,
+    required String? status,
+  }) async {
+    final quizRows = await _client.from('quizzes').select();
+    final courseRows = await _client
+        .from('courses')
+        .select('id,title,code,instructor_id');
+
+    final coursesById = {
+      for (final row in courseRows as List<dynamic>)
+        (row as Map)['id'] as String: Map<String, dynamic>.from(row),
+    };
+    final profileIds = <String>{
+      for (final course in coursesById.values)
+        if ((course['instructor_id'] as String?)?.isNotEmpty ?? false)
+          course['instructor_id'] as String,
+      for (final row in quizRows as List<dynamic>)
+        if (((row as Map)['created_by'] as String?)?.isNotEmpty ?? false)
+          row['created_by'] as String,
+    }.toList();
+
+    final profilesById = <String, Map<String, dynamic>>{};
+    if (profileIds.isNotEmpty) {
+      final profileRows = await _client
+          .from('profiles')
+          .select('id,full_name')
+          .inFilter('id', profileIds);
+      for (final row in profileRows as List<dynamic>) {
+        final profile = Map<String, dynamic>.from(row as Map);
+        profilesById[profile['id'] as String] = profile;
+      }
+    }
+
+    final normalizedSearch = search.trim().toLowerCase();
+    final normalizedStatus = status?.trim().toLowerCase();
+    final selectedCourseId = _nullableUuid(courseId);
+    final items = <AdminAssessmentItem>[];
+
+    for (final row in quizRows) {
+      final quiz = Map<String, dynamic>.from(row as Map);
+      final quizCourseId = quiz['course_id'] as String? ?? '';
+      if (selectedCourseId != null && quizCourseId != selectedCourseId) {
+        continue;
+      }
+      final course = coursesById[quizCourseId] ?? const <String, dynamic>{};
+      final courseTitle = course['title'] as String? ?? '';
+      final courseCode = course['code'] as String? ?? '';
+      final quizTitle = quiz['title'] as String? ?? '';
+      final isPublished = quiz['is_published'] as bool? ?? false;
+
+      if (normalizedStatus == 'published' && !isPublished) continue;
+      if (normalizedStatus == 'draft' && isPublished) continue;
+      if (normalizedSearch.isNotEmpty &&
+          !quizTitle.toLowerCase().contains(normalizedSearch) &&
+          !courseTitle.toLowerCase().contains(normalizedSearch) &&
+          !courseCode.toLowerCase().contains(normalizedSearch)) {
+        continue;
+      }
+
+      final instructorId = course['instructor_id'] as String?;
+      final creatorId = quiz['created_by'] as String?;
+      items.add(
+        AdminAssessmentItem.quiz({
+          ...quiz,
+          'course_title': courseTitle,
+          'course_code': courseCode,
+          'instructor_name':
+              profilesById[instructorId]?['full_name'] ?? 'Unknown instructor',
+          'created_by_name':
+              profilesById[creatorId]?['full_name'] ?? 'Unknown creator',
+          'question_count':
+              (quiz['question_schema'] as List<dynamic>? ?? const []).length,
+          'show_question_marks': quiz['show_question_marks'] as bool? ?? true,
+        }),
+      );
+    }
+
+    items.sort((a, b) {
+      final aDate =
+          a.dueAt ?? a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      final bDate =
+          b.dueAt ?? b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
+      return aDate.compareTo(bDate);
+    });
+    return items;
   }
 
   Future<void> updateQuiz({

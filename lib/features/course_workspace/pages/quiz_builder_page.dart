@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -9,11 +10,7 @@ import '../../../models/quiz_question_model.dart';
 import '../../../services/quiz_service.dart';
 
 class QuizBuilderPage extends StatefulWidget {
-  const QuizBuilderPage({
-    super.key,
-    required this.courseId,
-    this.quiz,
-  });
+  const QuizBuilderPage({super.key, required this.courseId, this.quiz});
 
   final String courseId;
   final QuizModel? quiz;
@@ -27,12 +24,14 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
   final _titleCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
   final _instructionsCtrl = TextEditingController();
-  final _maxPointsCtrl = TextEditingController(text: '100');
   final _durationCtrl = TextEditingController();
 
   late final List<_QuestionDraft> _questions;
   DateTime? _dueAt;
   bool _isSaving = false;
+  bool _showCorrectAnswers = false;
+  bool _allowRetakes = false;
+  bool _showQuestionMarks = true;
 
   bool get _isEditing => widget.quiz != null;
 
@@ -43,9 +42,9 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
     _questions = quiz == null
         ? [_QuestionDraft()]
         : quiz.questionSchema
-            .map(QuizQuestionModel.fromJson)
-            .map(_QuestionDraft.fromModel)
-            .toList();
+              .map(QuizQuestionModel.fromJson)
+              .map(_QuestionDraft.fromModel)
+              .toList();
 
     if (_questions.isEmpty) {
       _questions.add(_QuestionDraft());
@@ -55,9 +54,11 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
       _titleCtrl.text = quiz.title;
       _descriptionCtrl.text = quiz.description;
       _instructionsCtrl.text = quiz.instructions;
-      _maxPointsCtrl.text = quiz.maxPoints.toString();
       _durationCtrl.text = quiz.durationMinutes?.toString() ?? '';
       _dueAt = quiz.dueAt?.toLocal();
+      _showCorrectAnswers = quiz.showCorrectAnswers;
+      _allowRetakes = quiz.allowRetakes;
+      _showQuestionMarks = quiz.showQuestionMarks;
     }
   }
 
@@ -66,7 +67,6 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
     _titleCtrl.dispose();
     _descriptionCtrl.dispose();
     _instructionsCtrl.dispose();
-    _maxPointsCtrl.dispose();
     _durationCtrl.dispose();
     for (final question in _questions) {
       question.dispose();
@@ -174,8 +174,9 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
             decoration: const InputDecoration(
               hintText: 'e.g. Quiz 1: Introduction Concepts',
             ),
-            validator: (value) =>
-                value == null || value.trim().isEmpty ? 'Title is required' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Title is required'
+                : null,
           ),
           const SizedBox(height: 16),
           _label('Short Description'),
@@ -184,7 +185,8 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
             controller: _descriptionCtrl,
             maxLines: 2,
             decoration: const InputDecoration(
-              hintText: 'A short summary students will see in the course workspace',
+              hintText:
+                  'A short summary students will see in the course workspace',
             ),
           ),
           const SizedBox(height: 16),
@@ -194,7 +196,8 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
             controller: _instructionsCtrl,
             maxLines: 4,
             decoration: const InputDecoration(
-              hintText: 'Explain timing, attempts, or what students should prepare',
+              hintText:
+                  'Explain timing, attempts, or what students should prepare',
             ),
           ),
           const SizedBox(height: 16),
@@ -203,13 +206,15 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
               final isNarrow = constraints.maxWidth < 520;
               final dueField = _DateField(
                 label: 'Due Date',
-                value: _dueAt == null ? 'No due date' : FileUtils.formatDate(_dueAt!),
+                value: _dueAt == null
+                    ? 'No due date'
+                    : FileUtils.formatDateTime(_dueAt!),
                 onTap: _pickDueDate,
                 onClear: _dueAt == null
                     ? null
                     : () => setState(() {
-                          _dueAt = null;
-                        }),
+                        _dueAt = null;
+                      }),
               );
               final durationField = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -234,19 +239,16 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
               final marksField = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _label('Max Points *'),
+                  _label('Total Marks'),
                   const SizedBox(height: 6),
-                  TextFormField(
-                    controller: _maxPointsCtrl,
-                    keyboardType: TextInputType.number,
-                    decoration: const InputDecoration(hintText: '100'),
-                    validator: (value) {
-                      final parsed = int.tryParse(value?.trim() ?? '');
-                      if (parsed == null || parsed <= 0) {
-                        return 'Enter valid points';
-                      }
-                      return null;
-                    },
+                  InputDecorator(
+                    decoration: const InputDecoration(
+                      prefixIcon: Icon(Icons.functions_rounded, size: 18),
+                    ),
+                    child: Text(
+                      _markText(_totalMarks),
+                      style: AppTextStyles.body,
+                    ),
                   ),
                 ],
               );
@@ -275,6 +277,27 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
               );
             },
           ),
+          const SizedBox(height: 12),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text(
+              'Show correct/incorrect answers to students after submission',
+            ),
+            value: _showCorrectAnswers,
+            onChanged: (value) => setState(() => _showCorrectAnswers = value),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Allow quiz retakes'),
+            value: _allowRetakes,
+            onChanged: (value) => setState(() => _allowRetakes = value),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Show question marks while taking quiz'),
+            value: _showQuestionMarks,
+            onChanged: (value) => setState(() => _showQuestionMarks = value),
+          ),
         ],
       ),
     );
@@ -296,8 +319,7 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
               Text('Questions', style: AppTextStyles.h3),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
                   borderRadius: BorderRadius.circular(100),
@@ -325,6 +347,7 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
               child: _QuestionCard(
                 number: index + 1,
                 draft: _questions[index],
+                courseId: widget.courseId,
                 canDelete: _questions.length > 1,
                 onChanged: () => setState(() {}),
                 onDelete: () => _removeQuestion(index),
@@ -353,14 +376,26 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
     if (selected == null) {
       return;
     }
+    if (!mounted) {
+      return;
+    }
+    final selectedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(
+        _dueAt ?? DateTime(now.year, now.month, now.day, 23, 59),
+      ),
+    );
+    if (selectedTime == null) {
+      return;
+    }
 
     setState(() {
       _dueAt = DateTime(
         selected.year,
         selected.month,
         selected.day,
-        23,
-        59,
+        selectedTime.hour,
+        selectedTime.minute,
       );
     });
   }
@@ -388,7 +423,10 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
 
     setState(() => _isSaving = true);
     try {
-      final questionSchema = _questions.map((item) => item.toModel().toJson()).toList();
+      final questionSchema = _questions
+          .map((item) => item.toModel().toJson())
+          .toList();
+      final maxPoints = _totalMarks.ceil();
       final quiz = _isEditing
           ? await QuizService.instance.updateQuiz(
               quizId: widget.quiz!.id,
@@ -396,10 +434,13 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
               description: _descriptionCtrl.text,
               instructions: _instructionsCtrl.text,
               dueAt: _dueAt,
-              maxPoints: int.parse(_maxPointsCtrl.text.trim()),
+              maxPoints: maxPoints,
               durationMinutes: _parseNullableInt(_durationCtrl.text),
               isPublished: publish,
               questionSchema: questionSchema,
+              showCorrectAnswers: _showCorrectAnswers,
+              allowRetakes: _allowRetakes,
+              showQuestionMarks: _showQuestionMarks,
             )
           : await QuizService.instance.createQuiz(
               courseId: widget.courseId,
@@ -407,10 +448,13 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
               description: _descriptionCtrl.text,
               instructions: _instructionsCtrl.text,
               dueAt: _dueAt,
-              maxPoints: int.parse(_maxPointsCtrl.text.trim()),
+              maxPoints: maxPoints,
               durationMinutes: _parseNullableInt(_durationCtrl.text),
               isPublished: publish,
               questionSchema: questionSchema,
+              showCorrectAnswers: _showCorrectAnswers,
+              allowRetakes: _allowRetakes,
+              showQuestionMarks: _showQuestionMarks,
             );
 
       if (!mounted) {
@@ -440,6 +484,10 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
           question.optionCtrls.any((item) => item.text.trim().isEmpty)) {
         return 'Question ${index + 1} needs all answer options filled in.';
       }
+      if (question.isMappedType &&
+          question.mappingRows.any((row) => !row.isValid)) {
+        return 'Question ${index + 1} needs every row filled in.';
+      }
     }
 
     return null;
@@ -453,10 +501,14 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
     return int.tryParse(trimmed);
   }
 
+  double get _totalMarks {
+    return _questions.fold<double>(0, (sum, question) => sum + question.marks);
+  }
+
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _label(String text) => Text(text, style: AppTextStyles.label);
@@ -464,47 +516,79 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
 
 class _QuestionDraft {
   _QuestionDraft()
-      : textCtrl = TextEditingController(),
-        marksCtrl = TextEditingController(text: '1'),
-        explanationCtrl = TextEditingController(),
-        sampleAnswerCtrl = TextEditingController(),
-        optionCtrls = List.generate(4, (_) => TextEditingController());
+    : textCtrl = TextEditingController(),
+      marksCtrl = TextEditingController(text: '1'),
+      explanationCtrl = TextEditingController(),
+      sampleAnswerCtrl = TextEditingController(),
+      optionCtrls = List.generate(4, (_) => TextEditingController()),
+      mappingRows = List.generate(4, (_) => _MappingRowDraft()),
+      categoryCtrls = const [];
 
   _QuestionDraft.fromModel(QuizQuestionModel model)
-      : type = model.type,
-        correctOption = model.correctOption,
-        textCtrl = TextEditingController(text: model.questionText),
-        marksCtrl = TextEditingController(text: model.marks.toString()),
-        explanationCtrl = TextEditingController(text: model.explanation),
-        sampleAnswerCtrl = TextEditingController(text: model.sampleAnswer),
-        optionCtrls = List.generate(
-          4,
-          (index) => TextEditingController(
-            text: index < model.options.length ? model.options[index] : '',
-          ),
-        );
+    : type = model.type,
+      correctOption = model.correctOption,
+      imagePath = model.imagePath,
+      imageName = model.imageName,
+      textCtrl = TextEditingController(text: model.questionText),
+      marksCtrl = TextEditingController(text: _markText(model.marks)),
+      explanationCtrl = TextEditingController(text: model.explanation),
+      sampleAnswerCtrl = TextEditingController(text: model.sampleAnswer),
+      optionCtrls = List.generate(
+        4,
+        (index) => TextEditingController(
+          text: index < model.options.length ? model.options[index] : '',
+        ),
+      ),
+      mappingRows = _rowsFromModel(model),
+      categoryCtrls = const [];
 
   String type = 'MCQ';
   int correctOption = 0;
+  String imagePath = '';
+  String imageName = '';
   final TextEditingController textCtrl;
   final List<TextEditingController> optionCtrls;
+  final List<_MappingRowDraft> mappingRows;
+  final List<TextEditingController> categoryCtrls;
   final TextEditingController marksCtrl;
   final TextEditingController explanationCtrl;
   final TextEditingController sampleAnswerCtrl;
 
+  bool get isMappedType => type == 'Matching';
+
+  double get marks => double.tryParse(marksCtrl.text.trim()) ?? 0;
+
   QuizQuestionModel toModel() {
+    final rows = mappingRows
+        .where((row) => row.leftCtrl.text.trim().isNotEmpty)
+        .toList();
     return QuizQuestionModel(
       type: type,
       questionText: textCtrl.text.trim(),
       options: type == 'MCQ'
           ? optionCtrls.map((item) => item.text.trim()).toList()
           : type == 'True / False'
-              ? const ['True', 'False']
-              : const [],
+          ? const ['True', 'False']
+          : const [],
       correctOption: correctOption,
-      marks: int.tryParse(marksCtrl.text.trim()) ?? 1,
+      marks: double.tryParse(marksCtrl.text.trim()) ?? 1,
       explanation: explanationCtrl.text.trim(),
       sampleAnswer: sampleAnswerCtrl.text.trim(),
+      imagePath: imagePath,
+      imageName: imageName,
+      items: isMappedType
+          ? rows.map((row) => row.leftCtrl.text.trim()).toList()
+          : const [],
+      targets: type == 'Matching'
+          ? rows.map((row) => row.rightCtrl.text.trim()).toSet().toList()
+          : const [],
+      categories: const [],
+      correctMapping: isMappedType
+          ? {
+              for (final row in rows)
+                row.leftCtrl.text.trim(): row.rightCtrl.text.trim(),
+            }
+          : const {},
     );
   }
 
@@ -513,9 +597,38 @@ class _QuestionDraft {
     for (final optionCtrl in optionCtrls) {
       optionCtrl.dispose();
     }
+    for (final row in mappingRows) {
+      row.dispose();
+    }
     marksCtrl.dispose();
     explanationCtrl.dispose();
     sampleAnswerCtrl.dispose();
+  }
+
+  static List<_MappingRowDraft> _rowsFromModel(QuizQuestionModel model) {
+    if (model.correctMapping.isEmpty) {
+      return List.generate(4, (_) => _MappingRowDraft());
+    }
+    return model.correctMapping.entries
+        .map((entry) => _MappingRowDraft(left: entry.key, right: entry.value))
+        .toList();
+  }
+}
+
+class _MappingRowDraft {
+  _MappingRowDraft({String left = '', String right = ''})
+    : leftCtrl = TextEditingController(text: left),
+      rightCtrl = TextEditingController(text: right);
+
+  final TextEditingController leftCtrl;
+  final TextEditingController rightCtrl;
+
+  bool get isValid =>
+      leftCtrl.text.trim().isNotEmpty && rightCtrl.text.trim().isNotEmpty;
+
+  void dispose() {
+    leftCtrl.dispose();
+    rightCtrl.dispose();
   }
 }
 
@@ -523,6 +636,7 @@ class _QuestionCard extends StatefulWidget {
   const _QuestionCard({
     required this.number,
     required this.draft,
+    required this.courseId,
     required this.canDelete,
     required this.onChanged,
     required this.onDelete,
@@ -530,6 +644,7 @@ class _QuestionCard extends StatefulWidget {
 
   final int number;
   final _QuestionDraft draft;
+  final String courseId;
   final bool canDelete;
   final VoidCallback onChanged;
   final VoidCallback onDelete;
@@ -539,7 +654,7 @@ class _QuestionCard extends StatefulWidget {
 }
 
 class _QuestionCardState extends State<_QuestionCard> {
-  static const _types = ['MCQ', 'True / False', 'Short Answer'];
+  static const _types = ['MCQ', 'True / False', 'Short Answer', 'Matching'];
 
   @override
   Widget build(BuildContext context) {
@@ -557,8 +672,10 @@ class _QuestionCardState extends State<_QuestionCard> {
             child: Row(
               children: [
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.primaryLight,
                     borderRadius: BorderRadius.circular(6),
@@ -602,6 +719,12 @@ class _QuestionCardState extends State<_QuestionCard> {
                     hintText: 'Enter your question here...',
                   ),
                 ),
+                const SizedBox(height: 10),
+                _QuestionImagePicker(
+                  draft: widget.draft,
+                  courseId: widget.courseId,
+                  onChanged: () => setState(widget.onChanged),
+                ),
                 const SizedBox(height: 14),
                 Text('Question Type', style: AppTextStyles.label),
                 const SizedBox(height: 8),
@@ -624,18 +747,24 @@ class _QuestionCardState extends State<_QuestionCard> {
                       },
                       selectedColor: AppColors.primaryLight,
                       labelStyle: AppTextStyles.caption.copyWith(
-                        color:
-                            selected ? AppColors.primary : AppColors.textSecondary,
-                        fontWeight:
-                            selected ? FontWeight.w600 : FontWeight.w400,
+                        color: selected
+                            ? AppColors.primary
+                            : AppColors.textSecondary,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w400,
                       ),
                     );
                   }).toList(),
                 ),
                 const SizedBox(height: 14),
                 if (widget.draft.type == 'MCQ') _buildMcqOptions(),
-                if (widget.draft.type == 'True / False') _buildTrueFalseOptions(),
-                if (widget.draft.type == 'Short Answer') _buildShortAnswerField(),
+                if (widget.draft.type == 'True / False')
+                  _buildTrueFalseOptions(),
+                if (widget.draft.type == 'Short Answer')
+                  _buildShortAnswerField(),
+                if (widget.draft.type == 'Matching')
+                  _buildMappingRows('Left prompt', 'Correct match'),
                 const SizedBox(height: 14),
                 LayoutBuilder(
                   builder: (_, constraints) {
@@ -647,8 +776,11 @@ class _QuestionCardState extends State<_QuestionCard> {
                         const SizedBox(height: 6),
                         TextField(
                           controller: widget.draft.marksCtrl,
-                          keyboardType: TextInputType.number,
+                          keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true,
+                          ),
                           decoration: const InputDecoration(hintText: '1'),
+                          onChanged: (_) => widget.onChanged(),
                         ),
                       ],
                     );
@@ -763,16 +895,10 @@ class _QuestionCardState extends State<_QuestionCard> {
           const SizedBox(height: 8),
           Row(
             children: [
-              Radio<int>(
-                value: 0,
-                visualDensity: VisualDensity.compact,
-              ),
+              Radio<int>(value: 0, visualDensity: VisualDensity.compact),
               const Text('True'),
               const SizedBox(width: 20),
-              Radio<int>(
-                value: 1,
-                visualDensity: VisualDensity.compact,
-              ),
+              Radio<int>(value: 1, visualDensity: VisualDensity.compact),
               const Text('False'),
             ],
           ),
@@ -796,6 +922,159 @@ class _QuestionCardState extends State<_QuestionCard> {
         ),
       ],
     );
+  }
+
+  Widget _buildMappingRows(String leftLabel, String rightLabel) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Correct Mapping', style: AppTextStyles.label),
+        const SizedBox(height: 8),
+        ...widget.draft.mappingRows.asMap().entries.map((entry) {
+          final index = entry.key;
+          final row = entry.value;
+          return Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: row.leftCtrl,
+                    decoration: InputDecoration(
+                      labelText: '$leftLabel ${index + 1}',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: row.rightCtrl,
+                    decoration: InputDecoration(labelText: rightLabel),
+                  ),
+                ),
+                if (widget.draft.mappingRows.length > 1)
+                  IconButton(
+                    onPressed: () {
+                      setState(() {
+                        final removed = widget.draft.mappingRows.removeAt(
+                          index,
+                        );
+                        removed.dispose();
+                        widget.onChanged();
+                      });
+                    },
+                    icon: const Icon(Icons.close_rounded, size: 18),
+                  ),
+              ],
+            ),
+          );
+        }),
+        OutlinedButton.icon(
+          onPressed: () {
+            setState(() {
+              widget.draft.mappingRows.add(_MappingRowDraft());
+              widget.onChanged();
+            });
+          },
+          icon: const Icon(Icons.add_rounded, size: 16),
+          label: const Text('Add Row'),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuestionImagePicker extends StatefulWidget {
+  const _QuestionImagePicker({
+    required this.draft,
+    required this.courseId,
+    required this.onChanged,
+  });
+
+  final _QuestionDraft draft;
+  final String courseId;
+  final VoidCallback onChanged;
+
+  @override
+  State<_QuestionImagePicker> createState() => _QuestionImagePickerState();
+}
+
+class _QuestionImagePickerState extends State<_QuestionImagePicker> {
+  bool _uploading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final hasImage = widget.draft.imagePath.isNotEmpty;
+    return Row(
+      children: [
+        Icon(
+          hasImage ? Icons.image_rounded : Icons.add_photo_alternate_outlined,
+          size: 18,
+          color: AppColors.textSecondary,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            hasImage ? widget.draft.imageName : 'No question image',
+            style: AppTextStyles.caption,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        TextButton(
+          onPressed: _uploading ? null : _pickImage,
+          child: Text(
+            _uploading
+                ? 'Uploading...'
+                : hasImage
+                ? 'Replace'
+                : 'Add Image',
+          ),
+        ),
+        if (hasImage)
+          IconButton(
+            onPressed: _uploading
+                ? null
+                : () {
+                    setState(() {
+                      widget.draft.imagePath = '';
+                      widget.draft.imageName = '';
+                    });
+                    widget.onChanged();
+                  },
+            icon: const Icon(Icons.close_rounded, size: 18),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _pickImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) {
+      return;
+    }
+    setState(() => _uploading = true);
+    try {
+      final uploaded = await QuizService.instance.uploadQuestionImage(
+        courseId: widget.courseId,
+        file: result.files.single,
+      );
+      if (!mounted) return;
+      setState(() {
+        widget.draft.imagePath = uploaded['image_path'] as String? ?? '';
+        widget.draft.imageName = uploaded['image_name'] as String? ?? '';
+      });
+      widget.onChanged();
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
   }
 }
 
@@ -838,4 +1117,12 @@ class _DateField extends StatelessWidget {
       ],
     );
   }
+}
+
+String _markText(num value) {
+  final number = value.toDouble();
+  if (number == number.roundToDouble()) {
+    return number.toInt().toString();
+  }
+  return number.toStringAsFixed(2).replaceFirst(RegExp(r'0$'), '');
 }

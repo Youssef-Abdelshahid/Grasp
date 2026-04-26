@@ -12,10 +12,7 @@ import '../../../services/announcement_service.dart';
 import '../../../services/material_service.dart';
 
 class OverviewTab extends StatefulWidget {
-  const OverviewTab({
-    super.key,
-    required this.course,
-  });
+  const OverviewTab({super.key, required this.course});
 
   final CourseModel course;
 
@@ -30,10 +27,12 @@ class _OverviewTabState extends State<OverviewTab> {
   @override
   void initState() {
     super.initState();
-    _materialsFuture =
-        MaterialService.instance.getCourseMaterials(widget.course.id);
-    _announcementsFuture =
-        AnnouncementService.instance.getCourseAnnouncements(widget.course.id);
+    _materialsFuture = MaterialService.instance.getCourseMaterials(
+      widget.course.id,
+    );
+    _announcementsFuture = AnnouncementService.instance.getCourseAnnouncements(
+      widget.course.id,
+    );
   }
 
   @override
@@ -66,8 +65,11 @@ class _OverviewTabState extends State<OverviewTab> {
         children: [
           Row(
             children: [
-              const Icon(Icons.info_outline_rounded,
-                  color: AppColors.primary, size: 18),
+              const Icon(
+                Icons.info_outline_rounded,
+                color: AppColors.primary,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Text('Course Description', style: AppTextStyles.h3),
             ],
@@ -92,10 +94,7 @@ class _OverviewTabState extends State<OverviewTab> {
                 label: '${widget.course.lecturesCount} Materials',
                 icon: Icons.book_rounded,
               ),
-              _Tag(
-                label: widget.course.instructor,
-                icon: Icons.person_rounded,
-              ),
+              _Tag(label: widget.course.instructor, icon: Icons.person_rounded),
               if (widget.course.semester.isNotEmpty)
                 _Tag(
                   label: widget.course.semester,
@@ -128,7 +127,8 @@ class _OverviewTabState extends State<OverviewTab> {
               const EmptyState(
                 icon: Icons.campaign_rounded,
                 title: 'No announcements yet',
-                subtitle: 'Announcements you create for this course will appear here.',
+                subtitle:
+                    'Announcements you create for this course will appear here.',
               )
             else
               ...announcements.take(3).map((item) {
@@ -138,7 +138,9 @@ class _OverviewTabState extends State<OverviewTab> {
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: isPinned ? AppColors.amberLight : AppColors.surface,
+                      color: isPinned
+                          ? AppColors.amberLight
+                          : AppColors.surface,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
                         color: isPinned
@@ -153,8 +155,9 @@ class _OverviewTabState extends State<OverviewTab> {
                           isPinned
                               ? Icons.push_pin_rounded
                               : Icons.campaign_rounded,
-                          color:
-                              isPinned ? AppColors.amber : AppColors.textSecondary,
+                          color: isPinned
+                              ? AppColors.amber
+                              : AppColors.textSecondary,
                           size: 18,
                         ),
                         const SizedBox(width: 10),
@@ -191,7 +194,10 @@ class _OverviewTabState extends State<OverviewTab> {
                           },
                           itemBuilder: (_) => const [
                             PopupMenuItem(value: 'edit', child: Text('Edit')),
-                            PopupMenuItem(value: 'delete', child: Text('Delete')),
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text('Delete'),
+                            ),
                           ],
                         ),
                       ],
@@ -218,8 +224,8 @@ class _OverviewTabState extends State<OverviewTab> {
               actionLabel: 'Refresh',
               onAction: () {
                 setState(() {
-                  _materialsFuture =
-                      MaterialService.instance.getCourseMaterials(widget.course.id);
+                  _materialsFuture = MaterialService.instance
+                      .getCourseMaterials(widget.course.id);
                 });
               },
             ),
@@ -248,11 +254,14 @@ class _OverviewTabState extends State<OverviewTab> {
                       const Divider(height: 1, color: AppColors.border),
                   itemBuilder: (_, index) {
                     final material = materials[index];
-                    final color =
-                        FileUtils.colorForExtension(material.fileType);
+                    final color = FileUtils.colorForExtension(
+                      material.fileType,
+                    );
                     return ListTile(
                       contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 4),
+                        horizontal: 16,
+                        vertical: 4,
+                      ),
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -324,7 +333,8 @@ class _OverviewTabState extends State<OverviewTab> {
   }
 
   Future<void> _deleteAnnouncement(AnnouncementModel announcement) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Delete Announcement'),
@@ -417,17 +427,14 @@ class _OverviewTabState extends State<OverviewTab> {
 
   void _refreshAnnouncements() {
     setState(() {
-      _announcementsFuture =
-          AnnouncementService.instance.getCourseAnnouncements(widget.course.id);
+      _announcementsFuture = AnnouncementService.instance
+          .getCourseAnnouncements(widget.course.id);
     });
   }
 }
 
 class _Tag extends StatelessWidget {
-  const _Tag({
-    required this.label,
-    required this.icon,
-  });
+  const _Tag({required this.label, required this.icon});
 
   final String label;
   final IconData icon;

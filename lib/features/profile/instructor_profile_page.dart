@@ -148,9 +148,8 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
                               onToggleCurrent: () => setState(
                                 () => _obscureCurrent = !_obscureCurrent,
                               ),
-                              onToggleNew: () => setState(
-                                () => _obscureNew = !_obscureNew,
-                              ),
+                              onToggleNew: () =>
+                                  setState(() => _obscureNew = !_obscureNew),
                               onToggleConfirm: () => setState(
                                 () => _obscureConfirm = !_obscureConfirm,
                               ),
@@ -187,15 +186,12 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
                         obscureNew: _obscureNew,
                         obscureConfirm: _obscureConfirm,
                         isSaving: _savingPassword,
-                        onToggleCurrent: () => setState(
-                          () => _obscureCurrent = !_obscureCurrent,
-                        ),
-                        onToggleNew: () => setState(
-                          () => _obscureNew = !_obscureNew,
-                        ),
-                        onToggleConfirm: () => setState(
-                          () => _obscureConfirm = !_obscureConfirm,
-                        ),
+                        onToggleCurrent: () =>
+                            setState(() => _obscureCurrent = !_obscureCurrent),
+                        onToggleNew: () =>
+                            setState(() => _obscureNew = !_obscureNew),
+                        onToggleConfirm: () =>
+                            setState(() => _obscureConfirm = !_obscureConfirm),
                         onSave: _savePassword,
                       ),
                       const SizedBox(height: 20),
@@ -255,7 +251,9 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
 
     setState(() => _savingPassword = true);
     try {
-      await ProfileService.instance.updatePassword(_newPassController.text.trim());
+      await ProfileService.instance.updatePassword(
+        _newPassController.text.trim(),
+      );
       _currentPassController.clear();
       _newPassController.clear();
       _confirmPassController.clear();
@@ -333,10 +331,10 @@ class _InstructorHeader extends StatelessWidget {
     final initials = profile.name.isEmpty
         ? 'IN'
         : profile.name
-            .split(' ')
-            .take(2)
-            .map((part) => part.isEmpty ? '' : part[0].toUpperCase())
-            .join();
+              .split(' ')
+              .take(2)
+              .map((part) => part.isEmpty ? '' : part[0].toUpperCase())
+              .join();
 
     return Container(
       padding: const EdgeInsets.all(24),
@@ -356,8 +354,9 @@ class _InstructorHeader extends StatelessWidget {
               CircleAvatar(
                 radius: 42,
                 backgroundColor: Colors.white.withValues(alpha: 0.18),
-                backgroundImage:
-                    profile.avatarUrl == null ? null : NetworkImage(profile.avatarUrl!),
+                backgroundImage: profile.avatarUrl == null
+                    ? null
+                    : NetworkImage(profile.avatarUrl!),
                 child: profile.avatarUrl == null
                     ? Text(
                         initials,
@@ -379,9 +378,15 @@ class _InstructorHeader extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          Text(profile.name, style: AppTextStyles.h2.copyWith(color: Colors.white)),
+          Text(
+            profile.name,
+            style: AppTextStyles.h2.copyWith(color: Colors.white),
+          ),
           const SizedBox(height: 4),
-          Text(profile.email, style: AppTextStyles.caption.copyWith(color: Colors.white70)),
+          Text(
+            profile.email,
+            style: AppTextStyles.caption.copyWith(color: Colors.white70),
+          ),
           if (profile.department.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
@@ -422,10 +427,7 @@ class _InstructorHeader extends StatelessWidget {
 }
 
 class _HeaderStat extends StatelessWidget {
-  const _HeaderStat({
-    required this.label,
-    required this.value,
-  });
+  const _HeaderStat({required this.label, required this.value});
 
   final String label;
   final String value;
@@ -603,9 +605,7 @@ class _InstructorPasswordForm extends StatelessWidget {
 }
 
 class _RecentActivity extends StatelessWidget {
-  const _RecentActivity({
-    required this.notifications,
-  });
+  const _RecentActivity({required this.notifications});
 
   final List<NotificationModel> notifications;
 

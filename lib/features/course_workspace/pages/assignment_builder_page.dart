@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -30,8 +31,10 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
   final _marksCtrl = TextEditingController(text: '100');
 
   late final List<_RubricDraft> _rubric;
+  late final List<Map<String, dynamic>> _attachments;
   DateTime? _dueAt;
   bool _isSaving = false;
+  bool _isUploadingAttachment = false;
 
   bool get _isEditing => widget.assignment != null;
 
@@ -40,15 +43,16 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
     super.initState();
     final assignment = widget.assignment;
     _rubric = assignment == null
-        ? [_RubricDraft()]
+        ? <_RubricDraft>[]
         : assignment.rubric
-            .map(AssignmentRubricItemModel.fromJson)
-            .map(_RubricDraft.fromModel)
-            .toList();
-
-    if (_rubric.isEmpty) {
-      _rubric.add(_RubricDraft());
-    }
+              .map(AssignmentRubricItemModel.fromJson)
+              .map(_RubricDraft.fromModel)
+              .toList();
+    _attachments =
+        assignment?.attachments
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList() ??
+        <Map<String, dynamic>>[];
 
     if (assignment != null) {
       _titleCtrl.text = assignment.title;
@@ -171,8 +175,9 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
             decoration: const InputDecoration(
               hintText: 'e.g. Assignment 2: Implementation Phase',
             ),
-            validator: (value) =>
-                value == null || value.trim().isEmpty ? 'Title is required' : null,
+            validator: (value) => value == null || value.trim().isEmpty
+                ? 'Title is required'
+                : null,
           ),
           const SizedBox(height: 16),
           _label('Instructions'),
@@ -191,7 +196,8 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
             controller: _attachmentRequirementsCtrl,
             maxLines: 3,
             decoration: const InputDecoration(
-              hintText: 'Optional notes about files, format, or upload expectations',
+              hintText:
+                  'Optional notes about files, format, or upload expectations',
             ),
           ),
           const SizedBox(height: 16),
@@ -200,13 +206,15 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
               final isNarrow = constraints.maxWidth < 420;
               final dateField = _DateField(
                 label: 'Deadline',
-                value: _dueAt == null ? 'No deadline' : FileUtils.formatDate(_dueAt!),
+                value: _dueAt == null
+                    ? 'No deadline'
+                    : FileUtils.formatDateTime(_dueAt!),
                 onTap: _pickDueDate,
                 onClear: _dueAt == null
                     ? null
                     : () => setState(() {
-                          _dueAt = null;
-                        }),
+                        _dueAt = null;
+                      }),
               );
               final marksField = Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -230,11 +238,7 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
 
               if (isNarrow) {
                 return Column(
-                  children: [
-                    dateField,
-                    const SizedBox(height: 16),
-                    marksField,
-                  ],
+                  children: [dateField, const SizedBox(height: 16), marksField],
                 );
               }
 
@@ -247,6 +251,13 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
                 ],
               );
             },
+          ),
+          const SizedBox(height: 16),
+          _AttachmentEditor(
+            attachments: _attachments,
+            uploading: _isUploadingAttachment,
+            onAdd: _pickAttachment,
+            onRemove: (index) => setState(() => _attachments.removeAt(index)),
           ),
         ],
       ),
@@ -269,8 +280,7 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
               Text('Grading Rubric', style: AppTextStyles.h3),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: AppColors.emeraldLight,
                   borderRadius: BorderRadius.circular(100),
@@ -287,22 +297,31 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Rubric rows are stored as structured JSON so later grading and submissions can build on this cleanly.',
+            'Rubric rows are optional. Add criteria when you want structured grading guidance.',
             style: AppTextStyles.bodySmall,
           ),
           const SizedBox(height: 16),
-          ...List.generate(
-            _rubric.length,
-            (index) => Padding(
+          if (_rubric.isEmpty)
+            Padding(
               padding: const EdgeInsets.only(bottom: 12),
-              child: _RubricRowCard(
-                number: index + 1,
-                draft: _rubric[index],
-                canDelete: _rubric.length > 1,
-                onDelete: () => _removeRubric(index),
+              child: Text(
+                'No criteria/rubric added.',
+                style: AppTextStyles.bodySmall,
+              ),
+            )
+          else
+            ...List.generate(
+              _rubric.length,
+              (index) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _RubricRowCard(
+                  number: index + 1,
+                  draft: _rubric[index],
+                  canDelete: true,
+                  onDelete: () => _removeRubric(index),
+                ),
               ),
             ),
-          ),
           OutlinedButton.icon(
             onPressed: _addRubric,
             icon: const Icon(Icons.add_rounded, size: 16),
@@ -324,16 +343,49 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
     if (selected == null) {
       return;
     }
+    if (!mounted) {
+      return;
+    }
+    final selectedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(
+        _dueAt ?? DateTime(now.year, now.month, now.day, 23, 59),
+      ),
+    );
+    if (selectedTime == null) {
+      return;
+    }
 
     setState(() {
       _dueAt = DateTime(
         selected.year,
         selected.month,
         selected.day,
-        23,
-        59,
+        selectedTime.hour,
+        selectedTime.minute,
       );
     });
+  }
+
+  Future<void> _pickAttachment() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: false,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    setState(() => _isUploadingAttachment = true);
+    try {
+      final attachment = await AssignmentService.instance.uploadAttachment(
+        courseId: widget.courseId,
+        file: result.files.single,
+      );
+      if (!mounted) return;
+      setState(() => _attachments.add(attachment));
+    } catch (error) {
+      _showMessage(error.toString());
+    } finally {
+      if (mounted) setState(() => _isUploadingAttachment = false);
+    }
   }
 
   void _addRubric() {
@@ -359,7 +411,10 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
 
     setState(() => _isSaving = true);
     try {
-      final rubric = _rubric.map((item) => item.toModel().toJson()).toList();
+      final rubric = _rubric
+          .where((item) => item.criterionCtrl.text.trim().isNotEmpty)
+          .map((item) => item.toModel().toJson())
+          .toList();
       final assignment = _isEditing
           ? await AssignmentService.instance.updateAssignment(
               assignmentId: widget.assignment!.id,
@@ -370,6 +425,7 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
               maxPoints: int.parse(_marksCtrl.text.trim()),
               isPublished: publish,
               rubric: rubric,
+              attachments: _attachments,
             )
           : await AssignmentService.instance.createAssignment(
               courseId: widget.courseId,
@@ -380,6 +436,7 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
               maxPoints: int.parse(_marksCtrl.text.trim()),
               isPublished: publish,
               rubric: rubric,
+              attachments: _attachments,
             );
 
       if (!mounted) {
@@ -396,14 +453,17 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
   }
 
   String? _validateRubric() {
-    if (_rubric.isEmpty) {
-      return 'Add at least one rubric criterion before saving.';
-    }
-
     for (var index = 0; index < _rubric.length; index++) {
       final item = _rubric[index];
+      final hasAnyText =
+          item.criterionCtrl.text.trim().isNotEmpty ||
+          item.descriptionCtrl.text.trim().isNotEmpty ||
+          item.marksCtrl.text.trim().isNotEmpty;
+      if (!hasAnyText) {
+        continue;
+      }
       if (item.criterionCtrl.text.trim().isEmpty) {
-        return 'Rubric criterion ${index + 1} needs a title.';
+        return 'Rubric criterion ${index + 1} needs a title or should be removed.';
       }
       if (item.marks <= 0) {
         return 'Rubric criterion ${index + 1} needs valid marks.';
@@ -413,9 +473,9 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _label(String text) => Text(text, style: AppTextStyles.label);
@@ -423,14 +483,14 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
 
 class _RubricDraft {
   _RubricDraft()
-      : criterionCtrl = TextEditingController(),
-        descriptionCtrl = TextEditingController(),
-        marksCtrl = TextEditingController(text: '10');
+    : criterionCtrl = TextEditingController(),
+      descriptionCtrl = TextEditingController(),
+      marksCtrl = TextEditingController(text: '10');
 
   _RubricDraft.fromModel(AssignmentRubricItemModel model)
-      : criterionCtrl = TextEditingController(text: model.criterion),
-        descriptionCtrl = TextEditingController(text: model.description),
-        marksCtrl = TextEditingController(text: model.marks.toString());
+    : criterionCtrl = TextEditingController(text: model.criterion),
+      descriptionCtrl = TextEditingController(text: model.description),
+      marksCtrl = TextEditingController(text: model.marks.toString());
 
   final TextEditingController criterionCtrl;
   final TextEditingController descriptionCtrl;
@@ -450,6 +510,67 @@ class _RubricDraft {
     criterionCtrl.dispose();
     descriptionCtrl.dispose();
     marksCtrl.dispose();
+  }
+}
+
+class _AttachmentEditor extends StatelessWidget {
+  const _AttachmentEditor({
+    required this.attachments,
+    required this.uploading,
+    required this.onAdd,
+    required this.onRemove,
+  });
+
+  final List<Map<String, dynamic>> attachments;
+  final bool uploading;
+  final VoidCallback onAdd;
+  final ValueChanged<int> onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Assignment Attachments', style: AppTextStyles.label),
+        const SizedBox(height: 8),
+        if (attachments.isEmpty)
+          Text('No files attached.', style: AppTextStyles.bodySmall)
+        else
+          ...attachments.asMap().entries.map((entry) {
+            final attachment = entry.value;
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.attach_file_rounded),
+              title: Text(
+                attachment['name']?.toString() ?? 'Attachment',
+                overflow: TextOverflow.ellipsis,
+              ),
+              subtitle: attachment['size'] is num
+                  ? Text(
+                      FileUtils.formatBytes(
+                        (attachment['size'] as num).toInt(),
+                      ),
+                    )
+                  : null,
+              trailing: IconButton(
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => onRemove(entry.key),
+              ),
+            );
+          }),
+        OutlinedButton.icon(
+          onPressed: uploading ? null : onAdd,
+          icon: uploading
+              ? const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.attach_file_rounded, size: 16),
+          label: Text(uploading ? 'Uploading...' : 'Add Attachment'),
+        ),
+      ],
+    );
   }
 }
 
@@ -481,8 +602,7 @@ class _RubricRowCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.emeraldLight,
                   borderRadius: BorderRadius.circular(6),

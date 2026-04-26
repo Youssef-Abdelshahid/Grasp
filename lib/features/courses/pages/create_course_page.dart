@@ -7,10 +7,7 @@ import '../../../models/course_model.dart';
 import '../../../services/course_service.dart';
 
 class CreateCoursePage extends StatefulWidget {
-  const CreateCoursePage({
-    super.key,
-    this.course,
-  });
+  const CreateCoursePage({super.key, this.course});
 
   final CourseModel? course;
 
@@ -114,8 +111,7 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
                       _DropdownField<String>(
                         value: _semester,
                         items: _semesters,
-                        onChanged: (value) =>
-                            setState(() => _semester = value),
+                        onChanged: (value) => setState(() => _semester = value),
                       ),
                     );
                     if (narrow) {
@@ -197,7 +193,11 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
                               height: 18,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : Text(widget.isEditing ? 'Save Changes' : 'Create Course'),
+                          : Text(
+                              widget.isEditing
+                                  ? 'Save Changes'
+                                  : 'Create Course',
+                            ),
                     ),
                   ),
                 ],
@@ -239,11 +239,7 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
     );
   }
 
-  Widget _buildToggle(
-    String label,
-    bool value,
-    ValueChanged<bool> onChanged,
-  ) {
+  Widget _buildToggle(String label, bool value, ValueChanged<bool> onChanged) {
     return Row(
       children: [
         Expanded(child: Text(label, style: AppTextStyles.body)),
@@ -303,9 +299,9 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
   }
 
   void _showError(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -332,10 +328,8 @@ class _DropdownField<T> extends StatelessWidget {
       style: AppTextStyles.body,
       items: items
           .map(
-            (item) => DropdownMenuItem<T>(
-              value: item,
-              child: Text(item.toString()),
-            ),
+            (item) =>
+                DropdownMenuItem<T>(value: item, child: Text(item.toString())),
           )
           .toList(),
       onChanged: (value) {

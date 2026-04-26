@@ -7,13 +7,11 @@ import '../../../core/utils/file_utils.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/quiz_model.dart';
 import '../../../services/quiz_service.dart';
+import '../../activity/activity_sheets.dart';
 import '../pages/quiz_builder_page.dart';
 
 class QuizzesTab extends StatefulWidget {
-  const QuizzesTab({
-    super.key,
-    required this.courseId,
-  });
+  const QuizzesTab({super.key, required this.courseId});
 
   final String courseId;
 
@@ -81,7 +79,10 @@ class _QuizzesTabState extends State<QuizzesTab> {
           children: [
             Text('Quizzes', style: AppTextStyles.h2),
             const SizedBox(height: 4),
-            Text('$count quizzes in this course', style: AppTextStyles.bodySmall),
+            Text(
+              '$count quizzes in this course',
+              style: AppTextStyles.bodySmall,
+            ),
           ],
         );
 
@@ -116,10 +117,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
     final result = await Navigator.push<QuizModel>(
       context,
       MaterialPageRoute(
-        builder: (_) => QuizBuilderPage(
-          courseId: widget.courseId,
-          quiz: quiz,
-        ),
+        builder: (_) => QuizBuilderPage(courseId: widget.courseId, quiz: quiz),
       ),
     );
     if (result != null) {
@@ -140,7 +138,8 @@ class _QuizzesTabState extends State<QuizzesTab> {
   }
 
   Future<void> _deleteQuiz(QuizModel quiz) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed =
+        await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
             title: const Text('Delete Quiz'),
@@ -207,10 +206,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
                     label: 'Duration',
                     value: '${details.durationMinutes} min',
                   ),
-                _DetailLine(
-                  label: 'Points',
-                  value: '${details.maxPoints}',
-                ),
+                _DetailLine(label: 'Points', value: '${details.maxPoints}'),
                 if (details.description.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   Text('Description', style: AppTextStyles.label),
@@ -223,6 +219,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
                   const SizedBox(height: 4),
                   Text(details.instructions, style: AppTextStyles.bodySmall),
                 ],
+                AssessmentActivityPanel(assessmentId: details.id, isQuiz: true),
               ],
             ),
           ),
@@ -251,9 +248,9 @@ class _QuizzesTabState extends State<QuizzesTab> {
   }
 
   void _showMessage(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message)),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 
@@ -274,10 +271,10 @@ class _QuizCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final chipColor =
-        quiz.isPublished ? AppColors.success : AppColors.warning;
-    final chipBackground =
-        quiz.isPublished ? AppColors.successLight : AppColors.warningLight;
+    final chipColor = quiz.isPublished ? AppColors.success : AppColors.warning;
+    final chipBackground = quiz.isPublished
+        ? AppColors.successLight
+        : AppColors.warningLight;
 
     return Material(
       color: AppColors.surface,
@@ -342,8 +339,7 @@ class _QuizCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: chipBackground,
                   borderRadius: BorderRadius.circular(100),
@@ -371,20 +367,12 @@ class _QuizCard extends StatelessWidget {
                   }
                 },
                 itemBuilder: (_) => [
-                  const PopupMenuItem(
-                    value: 'edit',
-                    child: Text('Edit'),
-                  ),
+                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
                   PopupMenuItem(
                     value: 'toggle',
-                    child: Text(
-                      quiz.isPublished ? 'Unpublish' : 'Publish',
-                    ),
+                    child: Text(quiz.isPublished ? 'Unpublish' : 'Publish'),
                   ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete'),
-                  ),
+                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
                 ],
               ),
             ],
@@ -396,10 +384,7 @@ class _QuizCard extends StatelessWidget {
 }
 
 class _DetailLine extends StatelessWidget {
-  const _DetailLine({
-    required this.label,
-    required this.value,
-  });
+  const _DetailLine({required this.label, required this.value});
 
   final String label;
   final String value;

@@ -18,8 +18,11 @@ class ProfileService {
 
   Future<UserModel> getCurrentProfile() async {
     final userId = _client.auth.currentUser!.id;
-    final response =
-        await _client.from('profiles').select().eq('id', userId).single();
+    final response = await _client
+        .from('profiles')
+        .select()
+        .eq('id', userId)
+        .single();
     return UserModel.fromJson(Map<String, dynamic>.from(response));
   }
 
@@ -89,7 +92,9 @@ class ProfileService {
     final objectPath =
         '$userId/avatar_${DateTime.now().millisecondsSinceEpoch}.$extension';
 
-    await _client.storage.from(avatarBucketName).uploadBinary(
+    await _client.storage
+        .from(avatarBucketName)
+        .uploadBinary(
           objectPath,
           bytes,
           fileOptions: FileOptions(
@@ -98,8 +103,9 @@ class ProfileService {
           ),
         );
 
-    final avatarUrl =
-        await _client.storage.from(avatarBucketName).createSignedUrl(objectPath, 31536000);
+    final avatarUrl = await _client.storage
+        .from(avatarBucketName)
+        .createSignedUrl(objectPath, 31536000);
 
     final response = await _client
         .from('profiles')

@@ -158,11 +158,14 @@ class CourseService {
   }
 
   Future<void> archiveCourse(String courseId) async {
-    await _client.from('courses').update({
-      'status': 'archived',
-      'archived_at': DateTime.now().toUtc().toIso8601String(),
-      'updated_at': DateTime.now().toUtc().toIso8601String(),
-    }).eq('id', courseId);
+    await _client
+        .from('courses')
+        .update({
+          'status': 'archived',
+          'archived_at': DateTime.now().toUtc().toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        })
+        .eq('id', courseId);
   }
 
   Future<void> deleteCourse(String courseId) async {
@@ -170,14 +173,17 @@ class CourseService {
   }
 
   Future<({int studentsCount, int materialsCount})> _getCountsForCourse(
-      String courseId) async {
+    String courseId,
+  ) async {
     final students = await _client
         .from('enrollments')
         .select('id')
         .eq('course_id', courseId)
         .eq('status', 'active');
-    final materials =
-        await _client.from('materials').select('id').eq('course_id', courseId);
+    final materials = await _client
+        .from('materials')
+        .select('id')
+        .eq('course_id', courseId);
 
     return (
       studentsCount: (students as List).length,
@@ -186,7 +192,8 @@ class CourseService {
   }
 
   Future<Map<String, ({int studentsCount, int materialsCount})>> _getCounts(
-      List<String> courseIds) async {
+    List<String> courseIds,
+  ) async {
     if (courseIds.isEmpty) {
       return {};
     }
@@ -225,7 +232,10 @@ class CourseService {
 
   Future<List<CourseModel>> _mapCourses(List<dynamic> rows) async {
     final normalized = rows
-        .map((item) => _normalizeCourseJson(Map<String, dynamic>.from(item as Map)))
+        .map(
+          (item) =>
+              _normalizeCourseJson(Map<String, dynamic>.from(item as Map)),
+        )
         .toList();
     final ids = normalized.map((item) => item['id'] as String).toList();
     final counts = await _getCounts(ids);

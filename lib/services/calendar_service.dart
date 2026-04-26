@@ -28,8 +28,9 @@ class CalendarService {
     final events = <CalendarEventModel>[];
     for (final course in courses) {
       final quizzes = await QuizService.instance.getCourseQuizzes(course.id);
-      final assignments =
-          await AssignmentService.instance.getCourseAssignments(course.id);
+      final assignments = await AssignmentService.instance.getCourseAssignments(
+        course.id,
+      );
 
       for (final quiz in quizzes.where((item) => item.dueAt != null)) {
         events.add(
@@ -44,7 +45,9 @@ class CalendarService {
         );
       }
 
-      for (final assignment in assignments.where((item) => item.dueAt != null)) {
+      for (final assignment in assignments.where(
+        (item) => item.dueAt != null,
+      )) {
         events.add(
           CalendarEventModel(
             id: 'assignment_${assignment.id}',
@@ -58,8 +61,8 @@ class CalendarService {
       }
 
       if (includeAnnouncements) {
-        final announcements =
-            await AnnouncementService.instance.getCourseAnnouncements(course.id);
+        final announcements = await AnnouncementService.instance
+            .getCourseAnnouncements(course.id);
         for (final announcement in announcements.take(3)) {
           events.add(
             CalendarEventModel(

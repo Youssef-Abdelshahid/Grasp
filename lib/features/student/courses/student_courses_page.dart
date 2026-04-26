@@ -170,15 +170,18 @@ class _StudentCourseCard extends StatelessWidget {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 4),
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
                           color: accentColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           course.code,
-                          style: AppTextStyles.buttonSmall
-                              .copyWith(color: accentColor),
+                          style: AppTextStyles.buttonSmall.copyWith(
+                            color: accentColor,
+                          ),
                         ),
                       ),
                     ],
@@ -199,7 +202,9 @@ class _StudentCourseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 10),
                   Text(
-                    course.semester.isEmpty ? 'Semester not set' : course.semester,
+                    course.semester.isEmpty
+                        ? 'Semester not set'
+                        : course.semester,
                     style: AppTextStyles.caption,
                   ),
                 ],
@@ -218,8 +223,11 @@ class _StudentCourseCard extends StatelessWidget {
                         style: AppTextStyles.caption,
                       ),
                       const SizedBox(width: 10),
-                      Icon(Icons.people_rounded,
-                          size: 12, color: AppColors.textSecondary),
+                      Icon(
+                        Icons.people_rounded,
+                        size: 12,
+                        color: AppColors.textSecondary,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${course.studentsCount} students',
@@ -230,7 +238,9 @@ class _StudentCourseCard extends StatelessWidget {
                         onPressed: onTap,
                         style: TextButton.styleFrom(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 6),
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           minimumSize: Size.zero,
                         ),
                         child: const Row(

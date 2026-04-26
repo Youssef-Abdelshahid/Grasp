@@ -131,15 +131,18 @@ class _StudentCourseWorkspacePageState extends State<StudentCourseWorkspacePage>
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
                       course.code,
-                      style: AppTextStyles.buttonSmall
-                          .copyWith(color: Colors.white),
+                      style: AppTextStyles.buttonSmall.copyWith(
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -152,26 +155,34 @@ class _StudentCourseWorkspacePageState extends State<StudentCourseWorkspacePage>
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.person_rounded,
-                          color: Colors.white60, size: 13),
+                      const Icon(
+                        Icons.person_rounded,
+                        color: Colors.white60,
+                        size: 13,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         course.instructor,
-                        style: AppTextStyles.caption
-                            .copyWith(color: Colors.white60),
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.white60,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.book_rounded,
-                          color: Colors.white60, size: 13),
+                      const Icon(
+                        Icons.book_rounded,
+                        color: Colors.white60,
+                        size: 13,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${course.lecturesCount} materials',
-                        style: AppTextStyles.caption
-                            .copyWith(color: Colors.white60),
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.white60,
+                        ),
                       ),
                     ],
                   ),
@@ -195,10 +206,7 @@ class _StudentCourseWorkspacePageState extends State<StudentCourseWorkspacePage>
         indicatorWeight: 2,
         labelColor: Colors.white,
         unselectedLabelColor: Colors.white60,
-        labelStyle: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-        ),
+        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         unselectedLabelStyle: const TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w400,

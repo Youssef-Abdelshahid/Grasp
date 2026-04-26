@@ -88,8 +88,11 @@ class _AuthPageState extends State<AuthPage> {
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(Icons.school_rounded,
-                        color: Colors.white, size: 18),
+                    child: const Icon(
+                      Icons.school_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 10),
                   Text(
@@ -101,14 +104,17 @@ class _AuthPageState extends State<AuthPage> {
               const Spacer(),
               Text(
                 'Backend-ready\nlearning platform',
-                style: AppTextStyles.displayMedium
-                    .copyWith(color: Colors.white, height: 1.25),
+                style: AppTextStyles.displayMedium.copyWith(
+                  color: Colors.white,
+                  height: 1.25,
+                ),
               ),
               const SizedBox(height: 16),
               Text(
                 'Secure auth, role-based access, and real Supabase-backed dashboards are now built into the foundation.',
-                style: AppTextStyles.bodyLarge
-                    .copyWith(color: AppColors.sidebarText),
+                style: AppTextStyles.bodyLarge.copyWith(
+                  color: AppColors.sidebarText,
+                ),
               ),
               const SizedBox(height: 40),
               ...const [
@@ -120,14 +126,18 @@ class _AuthPageState extends State<AuthPage> {
                   padding: const EdgeInsets.only(bottom: 12),
                   child: Row(
                     children: [
-                      Icon(Icons.check_circle_rounded,
-                          color: AppColors.emerald, size: 18),
+                      Icon(
+                        Icons.check_circle_rounded,
+                        color: AppColors.emerald,
+                        size: 18,
+                      ),
                       SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           item,
-                          style: AppTextStyles.body
-                              .copyWith(color: AppColors.sidebarText),
+                          style: AppTextStyles.body.copyWith(
+                            color: AppColors.sidebarText,
+                          ),
                         ),
                       ),
                     ],
@@ -154,8 +164,11 @@ class _AuthPageState extends State<AuthPage> {
             onTap: () => Navigator.pop(context),
             child: Row(
               children: [
-                const Icon(Icons.arrow_back_rounded,
-                    size: 18, color: AppColors.textSecondary),
+                const Icon(
+                  Icons.arrow_back_rounded,
+                  size: 18,
+                  color: AppColors.textSecondary,
+                ),
                 const SizedBox(width: 4),
                 Text('Back', style: AppTextStyles.bodySmall),
               ],
@@ -176,10 +189,7 @@ class _AuthPageState extends State<AuthPage> {
           const SizedBox(height: 32),
           _buildToggle(),
           const SizedBox(height: 28),
-          if (!_isLogin) ...[
-            _buildRoleSelector(),
-            const SizedBox(height: 20),
-          ],
+          if (!_isLogin) ...[_buildRoleSelector(), const SizedBox(height: 20)],
           if (!_isLogin) ...[
             _buildField(
               controller: _nameController,
@@ -248,9 +258,7 @@ class _AuthPageState extends State<AuthPage> {
             const SizedBox(height: 8),
             Text(
               'Your role is detected after sign in from your profile record.',
-              style: AppTextStyles.caption.copyWith(
-                color: AppColors.textMuted,
-              ),
+              style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
             ),
           ],
           const SizedBox(height: 24),
@@ -261,7 +269,9 @@ class _AuthPageState extends State<AuthPage> {
               decoration: BoxDecoration(
                 color: AppColors.roseLight,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.rose.withValues(alpha: 0.3)),
+                border: Border.all(
+                  color: AppColors.rose.withValues(alpha: 0.3),
+                ),
               ),
               child: Text(
                 auth.lastError!,
@@ -388,8 +398,10 @@ class _AuthPageState extends State<AuthPage> {
               onTap: () => setState(() => _selectedRole = role),
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
-                padding:
-                    const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 10,
+                  horizontal: 14,
+                ),
                 decoration: BoxDecoration(
                   color: isSelected ? activeBg : AppColors.surface,
                   borderRadius: BorderRadius.circular(10),
@@ -403,17 +415,19 @@ class _AuthPageState extends State<AuthPage> {
                   children: [
                     Icon(
                       icon,
-                      color:
-                          isSelected ? activeColor : AppColors.textSecondary,
+                      color: isSelected ? activeColor : AppColors.textSecondary,
                       size: 17,
                     ),
                     const SizedBox(width: 7),
                     Text(
                       role.label,
                       style: AppTextStyles.label.copyWith(
-                        color:
-                            isSelected ? activeColor : AppColors.textSecondary,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                        color: isSelected
+                            ? activeColor
+                            : AppColors.textSecondary,
+                        fontWeight: isSelected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
                       ),
                     ),
                   ],
@@ -470,8 +484,11 @@ class _AuthPageState extends State<AuthPage> {
           validator: validator,
           decoration: InputDecoration(
             hintText: '........',
-            prefixIcon: const Icon(Icons.lock_outline_rounded,
-                size: 18, color: AppColors.textMuted),
+            prefixIcon: const Icon(
+              Icons.lock_outline_rounded,
+              size: 18,
+              color: AppColors.textMuted,
+            ),
             suffixIcon: IconButton(
               icon: Icon(
                 obscure

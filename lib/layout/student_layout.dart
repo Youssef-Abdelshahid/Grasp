@@ -82,9 +82,7 @@ class _StudentLayoutState extends State<StudentLayout> {
                     onProfileTap: _openProfile,
                     initials: UserUtils.initials(user?.name ?? 'Student'),
                   ),
-                  Expanded(
-                    child: _pages[_selectedIndex],
-                  ),
+                  Expanded(child: _pages[_selectedIndex]),
                 ],
               ),
             ),
@@ -120,8 +118,11 @@ class _StudentLayoutState extends State<StudentLayout> {
       title: Text(_pageTitles[_selectedIndex]),
       actions: [
         IconButton(
-          icon: const Icon(Icons.notifications_outlined,
-              color: AppColors.textSecondary, size: 22),
+          icon: const Icon(
+            Icons.notifications_outlined,
+            color: AppColors.textSecondary,
+            size: 22,
+          ),
           onPressed: _openNotifications,
         ),
         GestureDetector(
@@ -211,9 +212,7 @@ class _StudentSidebar extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       decoration: const BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: AppColors.sidebarHover),
-        ),
+        border: Border(bottom: BorderSide(color: AppColors.sidebarHover)),
       ),
       child: Row(
         children: [
@@ -223,8 +222,11 @@ class _StudentSidebar extends StatelessWidget {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.school_rounded,
-                color: Colors.white, size: 18),
+            child: const Icon(
+              Icons.school_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
           ),
           const SizedBox(width: 10),
           Text(
@@ -361,20 +363,14 @@ class _SidebarNavItem extends StatelessWidget {
                 Icon(
                   icon,
                   size: 18,
-                  color: isSelected
-                      ? Colors.white
-                      : AppColors.sidebarTextMuted,
+                  color: isSelected ? Colors.white : AppColors.sidebarTextMuted,
                 ),
                 const SizedBox(width: 10),
                 Text(
                   label,
                   style: AppTextStyles.body.copyWith(
-                    color: isSelected
-                        ? Colors.white
-                        : AppColors.sidebarText,
-                    fontWeight: isSelected
-                        ? FontWeight.w600
-                        : FontWeight.w400,
+                    color: isSelected ? Colors.white : AppColors.sidebarText,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                     fontSize: 14,
                   ),
                 ),
@@ -422,12 +418,18 @@ class _StudentTopBar extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.search_rounded,
-                    color: AppColors.textMuted, size: 16),
+                const Icon(
+                  Icons.search_rounded,
+                  color: AppColors.textMuted,
+                  size: 16,
+                ),
                 const SizedBox(width: 6),
-                Text('Search...',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textMuted)),
+                Text(
+                  'Search...',
+                  style: AppTextStyles.bodySmall.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
               ],
             ),
           ),
@@ -441,8 +443,11 @@ class _StudentTopBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: AppColors.border),
               ),
-              child: const Icon(Icons.notifications_outlined,
-                  color: AppColors.textSecondary, size: 20),
+              child: const Icon(
+                Icons.notifications_outlined,
+                color: AppColors.textSecondary,
+                size: 20,
+              ),
             ),
           ),
           const SizedBox(width: 12),
