@@ -7,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/file_utils.dart';
 import '../../../models/assignment_model.dart';
 import '../../../models/assignment_rubric_item_model.dart';
+import '../../../services/gemini_ai_service.dart';
 import '../../../services/assignment_service.dart';
 
 class AssignmentBuilderPage extends StatefulWidget {
@@ -14,10 +15,12 @@ class AssignmentBuilderPage extends StatefulWidget {
     super.key,
     required this.courseId,
     this.assignment,
+    this.aiDraft,
   });
 
   final String courseId;
   final AssignmentModel? assignment;
+  final AiAssignmentDraft? aiDraft;
 
   @override
   State<AssignmentBuilderPage> createState() => _AssignmentBuilderPageState();
@@ -42,12 +45,18 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
   void initState() {
     super.initState();
     final assignment = widget.assignment;
-    _rubric = assignment == null
-        ? <_RubricDraft>[]
-        : assignment.rubric
+    final aiDraft = widget.aiDraft;
+    _rubric = assignment != null
+        ? assignment.rubric
               .map(AssignmentRubricItemModel.fromJson)
               .map(_RubricDraft.fromModel)
-              .toList();
+              .toList()
+        : aiDraft != null
+        ? aiDraft.rubric
+              .map(AssignmentRubricItemModel.fromJson)
+              .map(_RubricDraft.fromModel)
+              .toList()
+        : <_RubricDraft>[];
     _attachments =
         assignment?.attachments
             .map((item) => Map<String, dynamic>.from(item))
@@ -60,6 +69,12 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
       _attachmentRequirementsCtrl.text = assignment.attachmentRequirements;
       _marksCtrl.text = assignment.maxPoints.toString();
       _dueAt = assignment.dueAt?.toLocal();
+    } else if (aiDraft != null) {
+      _titleCtrl.text = aiDraft.title;
+      _instructionsCtrl.text = aiDraft.instructions;
+      _attachmentRequirementsCtrl.text = aiDraft.attachmentRequirements;
+      _marksCtrl.text = aiDraft.maxPoints.toString();
+      _dueAt = aiDraft.dueAt?.toLocal();
     }
   }
 
@@ -141,10 +156,10 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Manual assignment setup', style: AppTextStyles.label),
+                Text('Assignment draft setup', style: AppTextStyles.label),
                 const SizedBox(height: 4),
                 Text(
-                  'This stores assignment details, rubric structure, and publish state for the next submission phase.',
+                  'Build manually or review AI-generated instructions before publishing.',
                   style: AppTextStyles.bodySmall,
                 ),
               ],

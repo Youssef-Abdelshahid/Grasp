@@ -7,13 +7,22 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/file_utils.dart';
 import '../../../models/quiz_model.dart';
 import '../../../models/quiz_question_model.dart';
+import '../../../models/material_model.dart';
+import '../../../services/gemini_ai_service.dart';
+import '../../../services/material_service.dart';
 import '../../../services/quiz_service.dart';
 
 class QuizBuilderPage extends StatefulWidget {
-  const QuizBuilderPage({super.key, required this.courseId, this.quiz});
+  const QuizBuilderPage({
+    super.key,
+    required this.courseId,
+    this.quiz,
+    this.aiDraft,
+  });
 
   final String courseId;
   final QuizModel? quiz;
+  final AiQuizDraft? aiDraft;
 
   @override
   State<QuizBuilderPage> createState() => _QuizBuilderPageState();
@@ -27,6 +36,7 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
   final _durationCtrl = TextEditingController();
 
   late final List<_QuestionDraft> _questions;
+  late Future<List<MaterialModel>> _materialsFuture;
   DateTime? _dueAt;
   bool _isSaving = false;
   bool _showCorrectAnswers = false;
@@ -39,12 +49,21 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
   void initState() {
     super.initState();
     final quiz = widget.quiz;
-    _questions = quiz == null
-        ? [_QuestionDraft()]
-        : quiz.questionSchema
+    final aiDraft = widget.aiDraft;
+    _materialsFuture = MaterialService.instance.getCourseMaterials(
+      widget.courseId,
+    );
+    _questions = quiz != null
+        ? quiz.questionSchema
               .map(QuizQuestionModel.fromJson)
               .map(_QuestionDraft.fromModel)
-              .toList();
+              .toList()
+        : aiDraft != null
+        ? aiDraft.questionSchema
+              .map(QuizQuestionModel.fromJson)
+              .map(_QuestionDraft.fromModel)
+              .toList()
+        : [_QuestionDraft()];
 
     if (_questions.isEmpty) {
       _questions.add(_QuestionDraft());
@@ -59,6 +78,15 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
       _showCorrectAnswers = quiz.showCorrectAnswers;
       _allowRetakes = quiz.allowRetakes;
       _showQuestionMarks = quiz.showQuestionMarks;
+    } else if (aiDraft != null) {
+      _titleCtrl.text = aiDraft.title;
+      _descriptionCtrl.text = aiDraft.description;
+      _instructionsCtrl.text = aiDraft.instructions;
+      _durationCtrl.text = aiDraft.durationMinutes?.toString() ?? '';
+      _dueAt = aiDraft.dueAt?.toLocal();
+      _showCorrectAnswers = aiDraft.showCorrectAnswers;
+      _allowRetakes = aiDraft.allowRetakes;
+      _showQuestionMarks = aiDraft.showQuestionMarks;
     }
   }
 
@@ -140,10 +168,10 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Manual quiz setup', style: AppTextStyles.label),
+                Text('Quiz draft setup', style: AppTextStyles.label),
                 const SizedBox(height: 4),
                 Text(
-                  'This phase stores quiz metadata and manual question structure. AI generation stays disabled for now.',
+                  'Build manually or review AI-generated questions before publishing.',
                   style: AppTextStyles.bodySmall,
                 ),
               ],
@@ -355,10 +383,21 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
             ),
           ),
           const SizedBox(height: 4),
-          OutlinedButton.icon(
-            onPressed: _addQuestion,
-            icon: const Icon(Icons.add_rounded, size: 16),
-            label: const Text('Add Question'),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              OutlinedButton.icon(
+                onPressed: _addQuestion,
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: const Text('Add Question'),
+              ),
+              ElevatedButton.icon(
+                onPressed: _isSaving ? null : _generateQuestion,
+                icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                label: const Text('Generate Question'),
+              ),
+            ],
           ),
         ],
       ),
@@ -408,6 +447,22 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
     final question = _questions.removeAt(index);
     question.dispose();
     setState(() {});
+  }
+
+  Future<void> _generateQuestion() async {
+    final materials = await _materialsFuture;
+    if (!mounted) return;
+    final generated = await showDialog<QuizQuestionModel>(
+      context: context,
+      builder: (_) => _GenerateQuestionDialog(
+        courseId: widget.courseId,
+        materials: materials,
+      ),
+    );
+    if (generated == null) return;
+    setState(() {
+      _questions.add(_QuestionDraft.fromModel(generated));
+    });
   }
 
   Future<void> _save(bool publish) async {
@@ -1074,6 +1129,134 @@ class _QuestionImagePickerState extends State<_QuestionImagePicker> {
       ).showSnackBar(SnackBar(content: Text(error.toString())));
     } finally {
       if (mounted) setState(() => _uploading = false);
+    }
+  }
+}
+
+class _GenerateQuestionDialog extends StatefulWidget {
+  const _GenerateQuestionDialog({
+    required this.courseId,
+    required this.materials,
+  });
+
+  final String courseId;
+  final List<MaterialModel> materials;
+
+  @override
+  State<_GenerateQuestionDialog> createState() =>
+      _GenerateQuestionDialogState();
+}
+
+class _GenerateQuestionDialogState extends State<_GenerateQuestionDialog> {
+  static const _types = ['MCQ', 'True / False', 'Short Answer', 'Matching'];
+
+  final _promptCtrl = TextEditingController();
+  String _type = 'MCQ';
+  PlatformFile? _image;
+  bool _isGenerating = false;
+
+  @override
+  void dispose() {
+    _promptCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Generate Question'),
+      content: SizedBox(
+        width: 520,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: _type,
+                decoration: const InputDecoration(labelText: 'Question Type'),
+                items: _types
+                    .map(
+                      (type) =>
+                          DropdownMenuItem(value: type, child: Text(type)),
+                    )
+                    .toList(),
+                onChanged: _isGenerating
+                    ? null
+                    : (value) => setState(() => _type = value ?? 'MCQ'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: _promptCtrl,
+                enabled: !_isGenerating,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Optional Prompt',
+                  hintText: 'Focus area, learning objective, or constraints',
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _image?.name ?? 'No image selected',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: _isGenerating ? null : _pickImage,
+                    icon: const Icon(Icons.image_rounded, size: 16),
+                    label: const Text('Image'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _isGenerating ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _isGenerating ? null : _generate,
+          child: Text(_isGenerating ? 'Generating...' : 'Generate'),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _pickImage() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+    setState(() => _image = result.files.single);
+  }
+
+  Future<void> _generate() async {
+    setState(() => _isGenerating = true);
+    try {
+      final question = await GeminiAiService.instance.generateSingleQuestion(
+        courseId: widget.courseId,
+        materials: widget.materials,
+        type: _type,
+        prompt: _promptCtrl.text,
+        marks: 1,
+        image: _image,
+      );
+      if (!mounted) return;
+      Navigator.pop(context, question);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _isGenerating = false);
     }
   }
 }

@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -6,6 +7,9 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/file_utils.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/quiz_model.dart';
+import '../../../models/material_model.dart';
+import '../../../services/gemini_ai_service.dart';
+import '../../../services/material_service.dart';
 import '../../../services/quiz_service.dart';
 import '../../activity/activity_sheets.dart';
 import '../pages/quiz_builder_page.dart';
@@ -91,6 +95,11 @@ class _QuizzesTabState extends State<QuizzesTab> {
           icon: const Icon(Icons.add_rounded, size: 16),
           label: const Text('Create Quiz'),
         );
+        final generateButton = OutlinedButton.icon(
+          onPressed: _generateQuiz,
+          icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+          label: const Text('Generate Quiz'),
+        );
 
         if (isNarrow) {
           return Column(
@@ -98,6 +107,8 @@ class _QuizzesTabState extends State<QuizzesTab> {
             children: [
               titleBlock,
               const SizedBox(height: 12),
+              SizedBox(width: double.infinity, child: generateButton),
+              const SizedBox(height: 8),
               SizedBox(width: double.infinity, child: createButton),
             ],
           );
@@ -106,6 +117,8 @@ class _QuizzesTabState extends State<QuizzesTab> {
         return Row(
           children: [
             Expanded(child: titleBlock),
+            generateButton,
+            const SizedBox(width: 8),
             createButton,
           ],
         );
@@ -122,6 +135,33 @@ class _QuizzesTabState extends State<QuizzesTab> {
     );
     if (result != null) {
       _refresh();
+    }
+  }
+
+  Future<void> _generateQuiz() async {
+    try {
+      final materials = await MaterialService.instance.getCourseMaterials(
+        widget.courseId,
+      );
+      if (!mounted) return;
+      final draft = await showDialog<AiQuizDraft>(
+        context: context,
+        builder: (_) => _GenerateQuizDialog(
+          courseId: widget.courseId,
+          materials: materials,
+        ),
+      );
+      if (draft == null || !mounted) return;
+      final result = await Navigator.push<QuizModel>(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              QuizBuilderPage(courseId: widget.courseId, aiDraft: draft),
+        ),
+      );
+      if (result != null) _refresh();
+    } catch (error) {
+      _showMessage(error.toString());
     }
   }
 
@@ -370,9 +410,14 @@ class _QuizCard extends StatelessWidget {
                   const PopupMenuItem(value: 'edit', child: Text('Edit')),
                   PopupMenuItem(
                     value: 'toggle',
-                    child: Text(quiz.isPublished ? 'Unpublish' : 'Publish'),
+                    child: Text(
+                      quiz.isPublished ? 'Unpublish' : 'Accept & Publish',
+                    ),
                   ),
-                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                  PopupMenuItem(
+                    value: 'delete',
+                    child: Text(quiz.isPublished ? 'Delete' : 'Reject Draft'),
+                  ),
                 ],
               ),
             ],
@@ -406,5 +451,289 @@ class _DetailLine extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _GenerateQuizDialog extends StatefulWidget {
+  const _GenerateQuizDialog({required this.courseId, required this.materials});
+
+  final String courseId;
+  final List<MaterialModel> materials;
+
+  @override
+  State<_GenerateQuizDialog> createState() => _GenerateQuizDialogState();
+}
+
+class _GenerateQuizDialogState extends State<_GenerateQuizDialog> {
+  final _promptCtrl = TextEditingController();
+  final _countCtrl = TextEditingController(text: '10');
+  final _marksCtrl = TextEditingController(text: '100');
+  final _minutesCtrl = TextEditingController(text: '30');
+  final _selectedMaterialIds = <String>{};
+  final _types = <String>{'MCQ'};
+  final _files = <PlatformFile>[];
+  String _difficulty = 'medium';
+  DateTime? _deadline;
+  bool _allMaterials = true;
+  bool _allowRetakes = false;
+  bool _showAnswers = false;
+  bool _showMarks = true;
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _promptCtrl.dispose();
+    _countCtrl.dispose();
+    _marksCtrl.dispose();
+    _minutesCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Generate Quiz Draft'),
+      content: SizedBox(
+        width: 560,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _promptCtrl,
+                maxLines: 3,
+                decoration: const InputDecoration(
+                  labelText: 'Optional Prompt',
+                  hintText: 'Focus area or special instructions',
+                ),
+              ),
+              const SizedBox(height: 12),
+              _materialSelector(),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: _difficulty,
+                decoration: const InputDecoration(labelText: 'Difficulty'),
+                items: const ['easy', 'medium', 'hard']
+                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
+                    .toList(),
+                onChanged: _loading
+                    ? null
+                    : (value) =>
+                          setState(() => _difficulty = value ?? 'medium'),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _countCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Questions'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _marksCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Marks'),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: _minutesCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Minutes'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Wrap(
+                  spacing: 8,
+                  children: ['MCQ', 'True / False', 'Short Answer', 'Matching']
+                      .map(
+                        (type) => FilterChip(
+                          label: Text(type),
+                          selected: _types.contains(type),
+                          onSelected: _loading
+                              ? null
+                              : (selected) => setState(() {
+                                  selected
+                                      ? _types.add(type)
+                                      : _types.remove(type);
+                                }),
+                        ),
+                      )
+                      .toList(),
+                ),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Allow retakes'),
+                value: _allowRetakes,
+                onChanged: _loading
+                    ? null
+                    : (value) => setState(() => _allowRetakes = value),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Show correction after submission'),
+                value: _showAnswers,
+                onChanged: _loading
+                    ? null
+                    : (value) => setState(() => _showAnswers = value),
+              ),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Show question marks'),
+                value: _showMarks,
+                onChanged: _loading
+                    ? null
+                    : (value) => setState(() => _showMarks = value),
+              ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      _deadline == null
+                          ? 'No deadline'
+                          : FileUtils.formatDateTime(_deadline!),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _loading ? null : _pickDeadline,
+                    child: const Text('Deadline'),
+                  ),
+                  TextButton(
+                    onPressed: _loading ? null : _pickFiles,
+                    child: Text('Context Files (${_files.length})'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: _loading ? null : () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        ElevatedButton(
+          onPressed: _loading ? null : _generate,
+          child: Text(_loading ? 'Generating...' : 'Generate Draft'),
+        ),
+      ],
+    );
+  }
+
+  Widget _materialSelector() {
+    return Column(
+      children: [
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Use all course materials'),
+          value: _allMaterials,
+          onChanged: _loading
+              ? null
+              : (value) => setState(() => _allMaterials = value),
+        ),
+        if (!_allMaterials)
+          ...widget.materials.map(
+            (material) => CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(material.title, overflow: TextOverflow.ellipsis),
+              value: _selectedMaterialIds.contains(material.id),
+              onChanged: _loading
+                  ? null
+                  : (value) => setState(() {
+                      if (value ?? false) {
+                        _selectedMaterialIds.add(material.id);
+                      } else {
+                        _selectedMaterialIds.remove(material.id);
+                      }
+                    }),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _pickDeadline() async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: _deadline ?? DateTime.now(),
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 3650)),
+    );
+    if (date == null || !mounted) return;
+    final time = await showTimePicker(
+      context: context,
+      initialTime: const TimeOfDay(hour: 23, minute: 59),
+    );
+    if (time == null) return;
+    setState(() {
+      _deadline = DateTime(
+        date.year,
+        date.month,
+        date.day,
+        time.hour,
+        time.minute,
+      );
+    });
+  }
+
+  Future<void> _pickFiles() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'pdf', 'txt', 'md'],
+    );
+    if (result == null) return;
+    setState(() {
+      _files
+        ..clear()
+        ..addAll(result.files.take(3));
+    });
+  }
+
+  Future<void> _generate() async {
+    final selected = _allMaterials
+        ? widget.materials
+        : widget.materials
+              .where((material) => _selectedMaterialIds.contains(material.id))
+              .toList();
+    setState(() => _loading = true);
+    try {
+      final draft = await GeminiAiService.instance.generateQuizDraft(
+        courseId: widget.courseId,
+        materials: selected,
+        prompt: _promptCtrl.text,
+        questionCount: int.tryParse(_countCtrl.text) ?? 10,
+        questionTypes: _types.toList(),
+        difficulty: _difficulty,
+        totalMarks: int.tryParse(_marksCtrl.text) ?? 100,
+        timeLimitMinutes: int.tryParse(_minutesCtrl.text),
+        deadline: _deadline,
+        allowRetakes: _allowRetakes,
+        showCorrectAnswers: _showAnswers,
+        showQuestionMarks: _showMarks,
+        contextFiles: _files,
+      );
+      if (!mounted) return;
+      Navigator.pop(context, draft);
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.toString())));
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 }
