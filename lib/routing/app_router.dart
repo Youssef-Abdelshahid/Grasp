@@ -25,6 +25,7 @@ class AppRouter {
   static const adminMaterials = '/admin/materials';
   static const adminQuizzes = '/admin/quizzes';
   static const adminAssignments = '/admin/assignments';
+  static const adminFlashcards = '/admin/flashcards';
   static const adminAnnouncements = '/admin/announcements';
   static const adminPermissions = '/admin/permissions';
   static const adminAiControls = '/admin/ai-controls';
@@ -124,6 +125,13 @@ class AppRouter {
         return _fade(
           const ProtectedPage(
             allowedRoles: [AppRole.admin],
+            child: AdminLayout(initialIndex: 7),
+          ),
+        );
+      case adminFlashcards:
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.admin],
             child: AdminLayout(initialIndex: 6),
           ),
         );
@@ -131,28 +139,28 @@ class AppRouter {
         return _fade(
           const ProtectedPage(
             allowedRoles: [AppRole.admin],
-            child: AdminLayout(initialIndex: 7),
+            child: AdminLayout(initialIndex: 8),
           ),
         );
       case adminAiControls:
         return _fade(
           const ProtectedPage(
             allowedRoles: [AppRole.admin],
-            child: AdminLayout(initialIndex: 8),
+            child: AdminLayout(initialIndex: 9),
           ),
         );
       case adminUploadLimits:
         return _fade(
           const ProtectedPage(
             allowedRoles: [AppRole.admin],
-            child: AdminLayout(initialIndex: 9),
+            child: AdminLayout(initialIndex: 10),
           ),
         );
       case adminPlatform:
         return _fade(
           const ProtectedPage(
             allowedRoles: [AppRole.admin],
-            child: AdminLayout(initialIndex: 10),
+            child: AdminLayout(initialIndex: 11),
           ),
         );
       default:

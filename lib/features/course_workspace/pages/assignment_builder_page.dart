@@ -61,6 +61,9 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
         assignment?.attachments
             .map((item) => Map<String, dynamic>.from(item))
             .toList() ??
+        aiDraft?.attachments
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList() ??
         <Map<String, dynamic>>[];
 
     if (assignment != null) {
@@ -500,16 +503,19 @@ class _RubricDraft {
   _RubricDraft()
     : criterionCtrl = TextEditingController(),
       descriptionCtrl = TextEditingController(),
-      marksCtrl = TextEditingController(text: '10');
+      marksCtrl = TextEditingController(text: '10'),
+      sourceReference = const {};
 
   _RubricDraft.fromModel(AssignmentRubricItemModel model)
     : criterionCtrl = TextEditingController(text: model.criterion),
       descriptionCtrl = TextEditingController(text: model.description),
-      marksCtrl = TextEditingController(text: model.marks.toString());
+      marksCtrl = TextEditingController(text: model.marks.toString()),
+      sourceReference = model.sourceReference;
 
   final TextEditingController criterionCtrl;
   final TextEditingController descriptionCtrl;
   final TextEditingController marksCtrl;
+  Map<String, dynamic> sourceReference;
 
   int get marks => int.tryParse(marksCtrl.text.trim()) ?? 0;
 
@@ -518,6 +524,7 @@ class _RubricDraft {
       criterion: criterionCtrl.text.trim(),
       description: descriptionCtrl.text.trim(),
       marks: marks,
+      sourceReference: sourceReference,
     );
   }
 

@@ -6,6 +6,7 @@ import '../../../models/course_model.dart';
 import '../../../services/course_service.dart';
 import 'tabs/student_announcements_tab.dart';
 import 'tabs/student_assignments_tab.dart';
+import 'tabs/student_flashcards_tab.dart';
 import 'tabs/student_materials_tab.dart';
 import 'tabs/student_overview_tab.dart';
 import 'tabs/student_quizzes_tab.dart';
@@ -35,6 +36,7 @@ class _StudentCourseWorkspacePageState extends State<StudentCourseWorkspacePage>
   static const _tabs = [
     (icon: Icons.dashboard_rounded, label: 'Overview'),
     (icon: Icons.attach_file_rounded, label: 'Materials'),
+    (icon: Icons.style_rounded, label: 'Flashcards'),
     (icon: Icons.quiz_rounded, label: 'Quizzes'),
     (icon: Icons.assignment_rounded, label: 'Assignments'),
     (icon: Icons.campaign_rounded, label: 'Announcements'),
@@ -95,6 +97,7 @@ class _StudentCourseWorkspacePageState extends State<StudentCourseWorkspacePage>
               children: [
                 StudentOverviewTab(course: course),
                 StudentMaterialsTab(courseId: course.id),
+                StudentFlashcardsTab(courseId: course.id),
                 StudentQuizzesTab(courseId: course.id),
                 StudentAssignmentsTab(courseId: course.id),
                 StudentAnnouncementsTab(courseId: course.id),

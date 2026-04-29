@@ -610,7 +610,7 @@ class _GenerateQuizDialogState extends State<_GenerateQuizDialog> {
                   ),
                   TextButton(
                     onPressed: _loading ? null : _pickFiles,
-                    child: Text('Context Files (${_files.length})'),
+                    child: Text('Context Images (${_files.length})'),
                   ),
                 ],
               ),
@@ -688,17 +688,25 @@ class _GenerateQuizDialogState extends State<_GenerateQuizDialog> {
   }
 
   Future<void> _pickFiles() async {
+    final maxImages = int.tryParse(_countCtrl.text) ?? 10;
     final result = await FilePicker.platform.pickFiles(
       allowMultiple: true,
       withData: true,
       type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'pdf', 'txt', 'md'],
+      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
     );
     if (result == null) return;
+    if (!mounted) return;
+    if (result.files.length > maxImages) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Add at most $maxImages context images.')),
+      );
+      return;
+    }
     setState(() {
       _files
         ..clear()
-        ..addAll(result.files.take(3));
+        ..addAll(result.files.take(maxImages));
     });
   }
 
@@ -723,7 +731,7 @@ class _GenerateQuizDialogState extends State<_GenerateQuizDialog> {
         allowRetakes: _allowRetakes,
         showCorrectAnswers: _showAnswers,
         showQuestionMarks: _showMarks,
-        contextFiles: _files,
+        contextImages: _files,
       );
       if (!mounted) return;
       Navigator.pop(context, draft);

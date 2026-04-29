@@ -36,6 +36,7 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
   final _durationCtrl = TextEditingController();
 
   late final List<_QuestionDraft> _questions;
+  late final Set<String> _linkedMaterialIds;
   late Future<List<MaterialModel>> _materialsFuture;
   DateTime? _dueAt;
   bool _isSaving = false;
@@ -53,6 +54,7 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
     _materialsFuture = MaterialService.instance.getCourseMaterials(
       widget.courseId,
     );
+    _linkedMaterialIds = _resolveLinkedMaterialIds(quiz, aiDraft);
     _questions = quiz != null
         ? quiz.questionSchema
               .map(QuizQuestionModel.fromJson)
@@ -450,13 +452,17 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
   }
 
   Future<void> _generateQuestion() async {
-    final materials = await _materialsFuture;
+    final courseMaterials = await _materialsFuture;
+    final scopedMaterials = _scopedQuestionMaterials(courseMaterials);
     if (!mounted) return;
     final generated = await showDialog<QuizQuestionModel>(
       context: context,
       builder: (_) => _GenerateQuestionDialog(
         courseId: widget.courseId,
-        materials: materials,
+        quizId: widget.quiz?.id,
+        materials: scopedMaterials,
+        usingLinkedMaterials: _linkedMaterialIds.isNotEmpty,
+        existingQuizContext: _singleQuestionContext(),
       ),
     );
     if (generated == null) return;
@@ -567,6 +573,57 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
   }
 
   Widget _label(String text) => Text(text, style: AppTextStyles.label);
+
+  Set<String> _resolveLinkedMaterialIds(QuizModel? quiz, AiQuizDraft? aiDraft) {
+    final ids = <String>{};
+    if (aiDraft != null) {
+      ids.addAll(aiDraft.materialIds);
+    }
+    final schema = quiz?.questionSchema ?? aiDraft?.questionSchema ?? const [];
+    for (final item in schema) {
+      final sourceRef = item['source_ref'];
+      if (sourceRef is! Map) continue;
+      final selected = sourceRef['selected_material_ids'];
+      if (selected is List) {
+        ids.addAll(
+          selected.map((id) => id.toString()).where((id) => id.isNotEmpty),
+        );
+      }
+      final materialId = sourceRef['material_id']?.toString() ?? '';
+      if (materialId.isNotEmpty &&
+          materialId != 'user_prompt' &&
+          materialId != 'question_image' &&
+          materialId != 'existing_quiz_context') {
+        ids.add(materialId);
+      }
+    }
+    return ids;
+  }
+
+  List<MaterialModel> _scopedQuestionMaterials(
+    List<MaterialModel> courseMaterials,
+  ) {
+    if (_linkedMaterialIds.isEmpty) return courseMaterials;
+    final scoped = courseMaterials
+        .where((material) => _linkedMaterialIds.contains(material.id))
+        .toList();
+    return scoped.isEmpty ? courseMaterials : scoped;
+  }
+
+  String _singleQuestionContext() {
+    final parts = <String>[
+      if (_titleCtrl.text.trim().isNotEmpty) 'Quiz title: ${_titleCtrl.text}',
+      if (_descriptionCtrl.text.trim().isNotEmpty)
+        'Quiz description: ${_descriptionCtrl.text}',
+      if (_instructionsCtrl.text.trim().isNotEmpty)
+        'Quiz instructions: ${_instructionsCtrl.text}',
+      ..._questions
+          .where((question) => question.textCtrl.text.trim().isNotEmpty)
+          .take(8)
+          .map((question) => 'Existing question: ${question.textCtrl.text}'),
+    ];
+    return parts.join('\n');
+  }
 }
 
 class _QuestionDraft {
@@ -577,13 +634,15 @@ class _QuestionDraft {
       sampleAnswerCtrl = TextEditingController(),
       optionCtrls = List.generate(4, (_) => TextEditingController()),
       mappingRows = List.generate(4, (_) => _MappingRowDraft()),
-      categoryCtrls = const [];
+      categoryCtrls = const [],
+      sourceReference = const {};
 
   _QuestionDraft.fromModel(QuizQuestionModel model)
     : type = model.type,
       correctOption = model.correctOption,
       imagePath = model.imagePath,
       imageName = model.imageName,
+      sourceReference = model.sourceReference,
       textCtrl = TextEditingController(text: model.questionText),
       marksCtrl = TextEditingController(text: _markText(model.marks)),
       explanationCtrl = TextEditingController(text: model.explanation),
@@ -601,6 +660,7 @@ class _QuestionDraft {
   int correctOption = 0;
   String imagePath = '';
   String imageName = '';
+  Map<String, dynamic> sourceReference;
   final TextEditingController textCtrl;
   final List<TextEditingController> optionCtrls;
   final List<_MappingRowDraft> mappingRows;
@@ -644,6 +704,7 @@ class _QuestionDraft {
                 row.leftCtrl.text.trim(): row.rightCtrl.text.trim(),
             }
           : const {},
+      sourceReference: sourceReference,
     );
   }
 
@@ -1136,11 +1197,17 @@ class _QuestionImagePickerState extends State<_QuestionImagePicker> {
 class _GenerateQuestionDialog extends StatefulWidget {
   const _GenerateQuestionDialog({
     required this.courseId,
+    required this.quizId,
     required this.materials,
+    required this.usingLinkedMaterials,
+    required this.existingQuizContext,
   });
 
   final String courseId;
+  final String? quizId;
   final List<MaterialModel> materials;
+  final bool usingLinkedMaterials;
+  final String existingQuizContext;
 
   @override
   State<_GenerateQuestionDialog> createState() =>
@@ -1196,6 +1263,13 @@ class _GenerateQuestionDialogState extends State<_GenerateQuestionDialog> {
                 ),
               ),
               const SizedBox(height: 12),
+              Text(
+                _sourceScopeText(),
+                style: AppTextStyles.caption.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
@@ -1207,7 +1281,7 @@ class _GenerateQuestionDialogState extends State<_GenerateQuestionDialog> {
                   TextButton.icon(
                     onPressed: _isGenerating ? null : _pickImage,
                     icon: const Icon(Icons.image_rounded, size: 16),
-                    label: const Text('Image'),
+                    label: const Text('Question Image'),
                   ),
                 ],
               ),
@@ -1247,6 +1321,8 @@ class _GenerateQuestionDialogState extends State<_GenerateQuestionDialog> {
         prompt: _promptCtrl.text,
         marks: 1,
         image: _image,
+        quizId: widget.quizId,
+        existingQuizContext: widget.existingQuizContext,
       );
       if (!mounted) return;
       Navigator.pop(context, question);
@@ -1258,6 +1334,20 @@ class _GenerateQuestionDialogState extends State<_GenerateQuestionDialog> {
     } finally {
       if (mounted) setState(() => _isGenerating = false);
     }
+  }
+
+  String _sourceScopeText() {
+    if (widget.usingLinkedMaterials && widget.materials.isNotEmpty) {
+      final names = widget.materials.map((material) => material.title).toList();
+      if (names.length <= 2) {
+        return 'Using materials linked to this quiz: ${names.join(', ')}';
+      }
+      return 'Using ${names.length} materials linked to this quiz';
+    }
+    if (widget.materials.isNotEmpty) {
+      return 'Using course materials because no quiz-linked materials were found';
+    }
+    return 'Using prompt or image context';
   }
 }
 

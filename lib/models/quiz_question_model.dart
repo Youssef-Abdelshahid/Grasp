@@ -13,6 +13,7 @@ class QuizQuestionModel {
     this.targets = const [],
     this.categories = const [],
     this.correctMapping = const {},
+    this.sourceReference = const {},
   });
 
   final String type;
@@ -28,6 +29,7 @@ class QuizQuestionModel {
   final List<String> targets;
   final List<String> categories;
   final Map<String, String> correctMapping;
+  final Map<String, dynamic> sourceReference;
 
   factory QuizQuestionModel.fromJson(Map<String, dynamic> json) {
     final normalizedType = _normalizeType(json['type'] as String? ?? 'MCQ');
@@ -66,6 +68,9 @@ class QuizQuestionModel {
       targets: normalizedType == 'Matching' ? matchingTargets : const [],
       categories: const [],
       correctMapping: normalizedType == 'Matching' ? correctMapping : const {},
+      sourceReference: Map<String, dynamic>.from(
+        json['source_ref'] as Map? ?? const {},
+      ),
     );
   }
 
@@ -84,6 +89,7 @@ class QuizQuestionModel {
       'targets': targets,
       'categories': const <String>[],
       'correct_mapping': correctMapping,
+      if (sourceReference.isNotEmpty) 'source_ref': sourceReference,
     };
   }
 

@@ -7,6 +7,7 @@ import '../features/admin/dashboard/admin_dashboard_page.dart';
 import '../features/admin/content/admin_announcements_page.dart';
 import '../features/admin/content/admin_assessments_page.dart';
 import '../features/admin/content/admin_courses_page.dart';
+import '../features/admin/content/admin_flashcards_page.dart';
 import '../features/admin/content/admin_materials_page.dart';
 import '../features/admin/users/admin_users_page.dart';
 import '../features/admin/permissions/admin_permissions_page.dart';
@@ -37,6 +38,7 @@ class _AdminLayoutState extends State<AdminLayout> {
     'Materials',
     'Quizzes',
     'Assignments',
+    'Flashcards',
     'Announcements',
     'Permissions',
     'AI Controls',
@@ -51,6 +53,7 @@ class _AdminLayoutState extends State<AdminLayout> {
     AdminMaterialsPage(),
     AdminAssessmentsPage.quizzes(key: ValueKey('admin-quizzes-page')),
     AdminAssessmentsPage.assignments(key: ValueKey('admin-assignments-page')),
+    AdminFlashcardsPage(),
     AdminAnnouncementsPage(),
     AdminPermissionsPage(),
     AdminAiControlsPage(),
@@ -197,6 +200,7 @@ class _AdminSidebar extends StatelessWidget {
     (icon: Icons.description_rounded, label: 'Materials'),
     (icon: Icons.quiz_rounded, label: 'Quizzes'),
     (icon: Icons.assignment_rounded, label: 'Assignments'),
+    (icon: Icons.style_rounded, label: 'Flashcards'),
     (icon: Icons.campaign_rounded, label: 'Announcements'),
     (icon: Icons.shield_rounded, label: 'Permissions'),
     (icon: Icons.auto_awesome_rounded, label: 'AI Controls'),

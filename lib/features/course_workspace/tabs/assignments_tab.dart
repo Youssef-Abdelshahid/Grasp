@@ -576,7 +576,7 @@ class _GenerateAssignmentDialogState extends State<_GenerateAssignmentDialog> {
                   ),
                   TextButton(
                     onPressed: _loading ? null : _pickFiles,
-                    child: Text('Context Files (${_files.length})'),
+                    child: Text('Assignment Attachments (${_files.length})'),
                   ),
                 ],
               ),
@@ -658,7 +658,17 @@ class _GenerateAssignmentDialogState extends State<_GenerateAssignmentDialog> {
       allowMultiple: true,
       withData: true,
       type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'pdf', 'txt', 'md'],
+      allowedExtensions: [
+        'png',
+        'jpg',
+        'jpeg',
+        'webp',
+        'pdf',
+        'txt',
+        'md',
+        'doc',
+        'docx',
+      ],
     );
     if (result == null) return;
     setState(() {
