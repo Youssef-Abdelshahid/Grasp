@@ -3,11 +3,11 @@ import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
+import '../core/widgets/top_bar_actions.dart';
 import '../features/dashboard/pages/instructor_dashboard_page.dart';
 import '../features/profile/instructor_profile_page.dart';
 import '../features/courses/pages/courses_page.dart';
 import '../features/calendar/instructor_calendar_page.dart';
-import '../features/ai_review/ai_review_page.dart';
 import '../features/profile/instructor_settings_page.dart';
 import '../features/notifications/notifications_page.dart';
 import '../services/auth_service.dart';
@@ -25,20 +25,13 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   late int _selectedIndex;
 
-  static const _pageTitles = [
-    'Dashboard',
-    'Courses',
-    'Calendar',
-    'AI Review',
-    'Settings',
-  ];
+  static const _pageTitles = ['Dashboard', 'Courses', 'Calendar', 'Settings'];
 
-  static const _pages = [
-    InstructorDashboardPage(),
-    CoursesPage(),
-    InstructorCalendarPage(),
-    AiReviewPage(),
-    InstructorSettingsPage(),
+  List<Widget> get _pages => [
+    InstructorDashboardPage(onNavigateToTab: _selectTab),
+    const CoursesPage(),
+    const InstructorCalendarPage(),
+    const InstructorSettingsPage(),
   ];
 
   @override
@@ -47,8 +40,8 @@ class _MainLayoutState extends State<MainLayout> {
     _selectedIndex = widget.initialIndex;
   }
 
-  void _openNotifications() {
-    Navigator.push(
+  Future<void> _openNotifications() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const NotificationsPage()),
     );
@@ -59,6 +52,10 @@ class _MainLayoutState extends State<MainLayout> {
       context,
       MaterialPageRoute(builder: (_) => const InstructorProfilePage()),
     );
+  }
+
+  void _selectTab(int index) {
+    setState(() => _selectedIndex = index);
   }
 
   @override
@@ -73,7 +70,7 @@ class _MainLayoutState extends State<MainLayout> {
           children: [
             AppSidebar(
               selectedIndex: _selectedIndex,
-              onItemSelected: (i) => setState(() => _selectedIndex = i),
+              onItemSelected: _selectTab,
               onProfileTap: _openProfile,
             ),
             Expanded(
@@ -102,7 +99,7 @@ class _MainLayoutState extends State<MainLayout> {
         child: AppSidebar(
           selectedIndex: _selectedIndex,
           onItemSelected: (i) {
-            setState(() => _selectedIndex = i);
+            _selectTab(i);
             Navigator.pop(context);
           },
           onProfileTap: () {
@@ -121,30 +118,14 @@ class _MainLayoutState extends State<MainLayout> {
       backgroundColor: AppColors.surface,
       title: Text(_pageTitles[_selectedIndex]),
       actions: [
-        IconButton(
-          icon: const Icon(
-            Icons.notifications_outlined,
-            color: AppColors.textSecondary,
-            size: 22,
-          ),
-          onPressed: _openNotifications,
-        ),
-        GestureDetector(
+        MobileNotificationBadgeButton(onPressed: _openNotifications),
+        ProfileAvatarButton(
+          initials: UserUtils.initials(user?.name ?? 'Instructor'),
+          backgroundColor: AppColors.primaryLight,
+          textColor: AppColors.primary,
+          radius: 16,
+          padding: const EdgeInsets.only(right: 16, left: 4),
           onTap: _openProfile,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 16, left: 4),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.primaryLight,
-              child: Text(
-                UserUtils.initials(user?.name ?? 'Instructor'),
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
         ),
       ],
       bottom: PreferredSize(
@@ -188,61 +169,15 @@ class _TopBar extends StatelessWidget {
             ),
           Text(title, style: AppTextStyles.h2),
           const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.search_rounded,
-                  color: AppColors.textMuted,
-                  size: 16,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Search...',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          GestureDetector(
-            onTap: onNotificationsTap,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Icon(
-                Icons.notifications_outlined,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
-            ),
+          NotificationBadgeButton(
+            onPressed: () async => onNotificationsTap?.call(),
           ),
           const SizedBox(width: 12),
-          GestureDetector(
-            onTap: onProfileTap,
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.primaryLight,
-              child: Text(
-                initials,
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+          ProfileAvatarButton(
+            initials: initials,
+            backgroundColor: AppColors.primaryLight,
+            textColor: AppColors.primary,
+            onTap: () => onProfileTap?.call(),
           ),
         ],
       ),

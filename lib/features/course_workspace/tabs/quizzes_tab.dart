@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -471,7 +470,6 @@ class _GenerateQuizDialogState extends State<_GenerateQuizDialog> {
   final _minutesCtrl = TextEditingController(text: '30');
   final _selectedMaterialIds = <String>{};
   final _types = <String>{'MCQ'};
-  final _files = <PlatformFile>[];
   String _difficulty = 'medium';
   DateTime? _deadline;
   bool _allMaterials = true;
@@ -608,10 +606,6 @@ class _GenerateQuizDialogState extends State<_GenerateQuizDialog> {
                     onPressed: _loading ? null : _pickDeadline,
                     child: const Text('Deadline'),
                   ),
-                  TextButton(
-                    onPressed: _loading ? null : _pickFiles,
-                    child: Text('Context Images (${_files.length})'),
-                  ),
                 ],
               ),
             ],
@@ -687,29 +681,6 @@ class _GenerateQuizDialogState extends State<_GenerateQuizDialog> {
     });
   }
 
-  Future<void> _pickFiles() async {
-    final maxImages = int.tryParse(_countCtrl.text) ?? 10;
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      withData: true,
-      type: FileType.custom,
-      allowedExtensions: ['png', 'jpg', 'jpeg', 'webp'],
-    );
-    if (result == null) return;
-    if (!mounted) return;
-    if (result.files.length > maxImages) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Add at most $maxImages context images.')),
-      );
-      return;
-    }
-    setState(() {
-      _files
-        ..clear()
-        ..addAll(result.files.take(maxImages));
-    });
-  }
-
   Future<void> _generate() async {
     final selected = _allMaterials
         ? widget.materials
@@ -731,7 +702,6 @@ class _GenerateQuizDialogState extends State<_GenerateQuizDialog> {
         allowRetakes: _allowRetakes,
         showCorrectAnswers: _showAnswers,
         showQuestionMarks: _showMarks,
-        contextImages: _files,
       );
       if (!mounted) return;
       Navigator.pop(context, draft);

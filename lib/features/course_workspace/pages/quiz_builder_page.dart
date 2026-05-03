@@ -1219,7 +1219,6 @@ class _GenerateQuestionDialogState extends State<_GenerateQuestionDialog> {
 
   final _promptCtrl = TextEditingController();
   String _type = 'MCQ';
-  PlatformFile? _image;
   bool _isGenerating = false;
 
   @override
@@ -1269,22 +1268,6 @@ class _GenerateQuestionDialogState extends State<_GenerateQuestionDialog> {
                   color: AppColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      _image?.name ?? 'No image selected',
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: _isGenerating ? null : _pickImage,
-                    icon: const Icon(Icons.image_rounded, size: 16),
-                    label: const Text('Question Image'),
-                  ),
-                ],
-              ),
             ],
           ),
         ),
@@ -1302,15 +1285,6 @@ class _GenerateQuestionDialogState extends State<_GenerateQuestionDialog> {
     );
   }
 
-  Future<void> _pickImage() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.image,
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return;
-    setState(() => _image = result.files.single);
-  }
-
   Future<void> _generate() async {
     setState(() => _isGenerating = true);
     try {
@@ -1320,7 +1294,6 @@ class _GenerateQuestionDialogState extends State<_GenerateQuestionDialog> {
         type: _type,
         prompt: _promptCtrl.text,
         marks: 1,
-        image: _image,
         quizId: widget.quizId,
         existingQuizContext: widget.existingQuizContext,
       );
@@ -1347,7 +1320,7 @@ class _GenerateQuestionDialogState extends State<_GenerateQuestionDialog> {
     if (widget.materials.isNotEmpty) {
       return 'Using course materials because no quiz-linked materials were found';
     }
-    return 'Using prompt or image context';
+    return 'Using prompt context';
   }
 }
 

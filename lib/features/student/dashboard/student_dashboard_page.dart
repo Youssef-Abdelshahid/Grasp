@@ -9,10 +9,13 @@ import '../../../core/widgets/stat_card.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/dashboard_service.dart';
+import '../calendar/student_calendar_page.dart';
 import '../courses/student_courses_page.dart';
 
 class StudentDashboardPage extends StatefulWidget {
-  const StudentDashboardPage({super.key});
+  const StudentDashboardPage({super.key, this.onNavigateToTab});
+
+  final ValueChanged<int>? onNavigateToTab;
 
   @override
   State<StudentDashboardPage> createState() => _StudentDashboardPageState();
@@ -90,13 +93,12 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
               _buildWelcome(
                 userName: user?.name ?? 'Student',
                 pendingTasks: summary.pendingTasks,
-                onContinue: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const StudentCoursesPage()),
-                ),
+                onContinue: () => _openCourses(context),
               ),
               const SizedBox(height: 24),
               _buildStatsGrid(isWide, stats),
+              const SizedBox(height: 28),
+              _buildQuickActions(context, isWide),
               const SizedBox(height: 28),
               if (isWide)
                 Row(
@@ -214,6 +216,106 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           },
         ),
       ],
+    );
+  }
+
+  Widget _buildQuickActions(BuildContext context, bool isWide) {
+    final actions = [
+      (
+        icon: Icons.auto_stories_rounded,
+        label: 'Continue Studying',
+        color: AppColors.primary,
+        bg: AppColors.primaryLight,
+        onTap: () => _openCourses(context),
+      ),
+      (
+        icon: Icons.style_rounded,
+        label: 'Flashcards',
+        color: AppColors.cyan,
+        bg: AppColors.cyanLight,
+        onTap: () => _openCourses(context),
+      ),
+      (
+        icon: Icons.quiz_rounded,
+        label: 'Quizzes',
+        color: AppColors.violet,
+        bg: AppColors.violetLight,
+        onTap: () => _openCourses(context),
+      ),
+      (
+        icon: Icons.assignment_rounded,
+        label: 'Assignments',
+        color: AppColors.emerald,
+        bg: AppColors.emeraldLight,
+        onTap: () => _openCourses(context),
+      ),
+      (
+        icon: Icons.menu_book_rounded,
+        label: 'Courses',
+        color: AppColors.amber,
+        bg: AppColors.amberLight,
+        onTap: () => _openCourses(context),
+      ),
+      (
+        icon: Icons.calendar_month_rounded,
+        label: 'Calendar',
+        color: AppColors.rose,
+        bg: AppColors.roseLight,
+        onTap: () => _openCalendar(context),
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Quick Actions'),
+        const SizedBox(height: 16),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: isWide ? 3 : 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            mainAxisExtent: 64,
+          ),
+          itemCount: actions.length,
+          itemBuilder: (_, index) {
+            final action = actions[index];
+            return _QuickActionCard(
+              icon: action.icon,
+              label: action.label,
+              color: action.color,
+              bg: action.bg,
+              onTap: action.onTap,
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  void _openCourses(BuildContext context) {
+    final navigate = widget.onNavigateToTab;
+    if (navigate != null) {
+      navigate(1);
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const StudentCoursesPage()),
+    );
+  }
+
+  void _openCalendar(BuildContext context) {
+    final navigate = widget.onNavigateToTab;
+    if (navigate != null) {
+      navigate(2);
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const StudentCalendarPage()),
     );
   }
 
@@ -362,6 +464,62 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _QuickActionCard extends StatelessWidget {
+  const _QuickActionCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.bg,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color bg;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppTextStyles.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

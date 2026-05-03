@@ -1,10 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/auth/app_role.dart';
@@ -27,18 +25,14 @@ class GeminiAiService {
   static const _requestTimeout = Duration(seconds: 45);
   static const _maxContextChars = 16000;
   static const _maxMaterialBytes = 2 * 1024 * 1024;
-  static const _maxContextFileBytes = 3 * 1024 * 1024;
   static const _maxRawMaterialBytes = 8 * 1024 * 1024;
-  static const _maxContextFiles = 3;
   static const _maxOutputTokens = 8192;
-  static const _quizImageFolder = 'quiz-images';
-  static const _assignmentAttachmentFolder = 'assignment-attachments';
   static const _minExtractedChars = 20;
   static const _minReadableRatio = 0.35;
   static const _materialReadError =
       'Could not read enough content from the selected material. Please try another file or upload a clearer version.';
   static const _noQuestionContextError =
-      'Add a prompt, image, or readable course material before generating a question.';
+      'Add a prompt or readable course material before generating a question.';
   static const _unsupportedGenerationError =
       'The AI response was not grounded enough in the selected material. Please try again with fewer questions or clearer material.';
   static const _invalidQuestionError =
@@ -61,25 +55,14 @@ class GeminiAiService {
     required bool allowRetakes,
     required bool showCorrectAnswers,
     required bool showQuestionMarks,
-    List<PlatformFile> contextImages = const [],
   }) async {
     await _ensureCanGenerate(courseId);
     final cleanMaterials = _requireMaterials(materials);
     final normalizedTypes = _normalizeQuestionTypes(questionTypes);
     final safeQuestionCount = questionCount.clamp(1, 30).toInt();
     final safeMarks = totalMarks.clamp(1, 500).toInt();
-    final uploadedContextImages = await _uploadQuizContextImages(
-      courseId: courseId,
-      files: contextImages,
-      maxImages: safeQuestionCount,
-    );
     final groundedContext = await _buildGroundedContext(cleanMaterials);
-    final contextParts = [
-      ...groundedContext.contextParts,
-      ...uploadedContextImages
-          .where((file) => file.inlinePart != null)
-          .map((file) => file.toContextPart()),
-    ];
+    final contextParts = groundedContext.contextParts;
     final cacheKey = _cacheKey({
       'kind': 'quiz',
       'course': courseId,
@@ -94,9 +77,6 @@ class GeminiAiService {
       'retakes': allowRetakes,
       'answers': showCorrectAnswers,
       'marksVisible': showQuestionMarks,
-      'contextImages': uploadedContextImages
-          .map((file) => {'name': file.name, 'size': file.size})
-          .toList(),
       'ctx': groundedContext.fingerprint,
     });
     final cached = _memoryCache[cacheKey];
@@ -114,9 +94,8 @@ class GeminiAiService {
         'If the context is insufficient, return {"failure":"insufficient_context"} only. '
         'Make a quiz. Types only: MCQ, True / False, Short Answer, Matching. '
         'Do not mention source material names, file names, "according to the material", "based on the lecture", "based on the uploaded file", or similar internal source wording in any student-visible text. '
-        'Context images are visual question assets, not lecture materials. When a context image is useful, create a question that requires looking at the image, refer to it naturally as "the image below", "the diagram below", "the chart below", "the code snippet below", or "the figure below", and set context_image_name to the image file name only in that JSON field. Do not include the image file name in question_text, options, explanation, sample_answer, items, or targets. Do not use context images as hidden grounding text. '
-        'Available context images: ${_uploadedFileNames(uploadedContextImages)}. '
-        'Schema: {"title":string,"description":string,"instructions":string,"questions":[{"type":string,"question_text":string,"options":string[],"correct_option":number,"marks":number,"explanation":string,"sample_answer":string,"items":string[],"targets":string[],"correct_mapping":object,"context_image_name":string,"source_ref":{"material_id":string,"material_name":string,"page":string,"excerpt":string}}]}. '
+        'For Matching questions, create at least two meaningful text pairs from the material. Never use numeric placeholders or indexes such as "0", "1", "Item 1", or "Match 1" as items, targets, or correct_mapping values. correct_mapping keys and values must be the actual concepts, terms, definitions, examples, or descriptions students should match. '
+        'Schema: {"title":string,"description":string,"instructions":string,"questions":[{"type":string,"question_text":string,"options":string[],"correct_option":number,"marks":number,"explanation":string,"sample_answer":string,"items":string[],"targets":string[],"correct_mapping":object,"source_ref":{"material_id":string,"material_name":string,"page":string,"excerpt":string}}]}. '
         'source_ref.excerpt must be copied from the provided context and must directly support the item. '
         'Count $safeQuestionCount. Types ${normalizedTypes.join(", ")}. Difficulty ${_cleanShort(difficulty, fallback: "medium")}. Total marks $safeMarks. '
         'Use concise wording. No markdown. Custom: ${_cleanShort(prompt, max: 500, fallback: "none")}.\nPROVIDED MATERIAL CONTEXT:\n${groundedContext.promptText}';
@@ -127,7 +106,7 @@ class GeminiAiService {
       context: groundedContext,
       materialIds: cleanMaterials.map((material) => material.id).toList(),
       materialNames: cleanMaterials.map((material) => material.title).toList(),
-      contextImages: uploadedContextImages,
+      contextImages: const [],
       questionCount: safeQuestionCount,
       totalMarks: safeMarks,
       durationMinutes: _limitNullableInt(timeLimitMinutes, 1, 300),
@@ -156,23 +135,13 @@ class GeminiAiService {
     required int marks,
     required bool includeRubric,
     required DateTime? deadline,
-    List<PlatformFile> contextFiles = const [],
   }) async {
     await _ensureCanGenerate(courseId);
     final cleanMaterials = _requireMaterials(materials);
     final safeTaskCount = taskCount.clamp(1, 20).toInt();
     final safeMarks = marks.clamp(1, 500).toInt();
-    final assignmentAttachments = await _uploadAssignmentContextFiles(
-      courseId: courseId,
-      files: contextFiles,
-    );
     final groundedContext = await _buildGroundedContext(cleanMaterials);
-    final contextParts = [
-      ...groundedContext.contextParts,
-      ...assignmentAttachments
-          .where((file) => file.inlinePart != null)
-          .map((file) => file.toContextPart()),
-    ];
+    final contextParts = groundedContext.contextParts;
     final cacheKey = _cacheKey({
       'kind': 'assignment',
       'course': courseId,
@@ -183,9 +152,6 @@ class GeminiAiService {
       'marks': safeMarks,
       'rubric': includeRubric,
       'deadline': deadline?.toUtc().toIso8601String(),
-      'files': assignmentAttachments
-          .map((file) => {'name': file.name, 'size': file.size})
-          .toList(),
       'ctx': groundedContext.fingerprint,
     });
     final cached = _memoryCache[cacheKey];
@@ -202,7 +168,6 @@ class GeminiAiService {
         'Do not create tasks from the broad topic; every task and rubric row must be answerable from explicit text in the context. '
         'If the context is insufficient, return {"failure":"insufficient_context"} only. '
         'Make an assignment. '
-        'Context files are student-visible assignment attachments, not lecture materials. When context files are provided, generated tasks should directly reference the attached files by name where appropriate. Attached files: ${_uploadedFileNames(assignmentAttachments)}. '
         'Schema: {"title":string,"instructions":string,"attachment_requirements":string,"tasks":[{"task":string,"source_ref":{"material_id":string,"material_name":string,"page":string,"excerpt":string}}],"rubric":[{"criterion":string,"description":string,"marks":number,"source_ref":{"material_id":string,"material_name":string,"page":string,"excerpt":string}}]}. '
         'Each source_ref.excerpt must be copied from the provided context and must directly support the task or criterion. '
         'Difficulty ${_cleanShort(difficulty, fallback: "medium")}. Tasks $safeTaskCount. Total marks $safeMarks. '
@@ -216,9 +181,7 @@ class GeminiAiService {
       totalMarks: safeMarks,
       deadline: deadline,
       includeRubric: includeRubric,
-      attachments: assignmentAttachments
-          .map((file) => file.attachment)
-          .toList(),
+      attachments: const [],
     );
     _memoryCache[cacheKey] = draft.toJson();
     await _storeAiDraft(
@@ -301,24 +264,70 @@ class GeminiAiService {
     return draft;
   }
 
+  Future<AiStudyNoteDraft> generateStudyNoteDraft({
+    required String courseId,
+    required List<MaterialModel> materials,
+    required String prompt,
+  }) async {
+    await _ensureStudentCanGenerateStudyNotes(courseId);
+    final cleanMaterials = _requireMaterials(materials);
+    final groundedContext = await _buildGroundedContext(cleanMaterials);
+    final cacheKey = _cacheKey({
+      'kind': 'study_notes',
+      'course': courseId,
+      'student': _client.auth.currentUser?.id,
+      'materials': cleanMaterials.map((m) => m.id).toList(),
+      'prompt': prompt.trim(),
+      'ctx': groundedContext.fingerprint,
+    });
+    final cached = _memoryCache[cacheKey];
+    if (cached != null) return AiStudyNoteDraft.fromJson(cached);
+    final stored = await _findStoredDraft('study_notes', cacheKey);
+    if (stored != null) {
+      _memoryCache[cacheKey] = stored;
+      return AiStudyNoteDraft.fromJson(stored);
+    }
+
+    final promptText =
+        'JSON only. Use only the PROVIDED MATERIAL CONTENT, including extracted text and any attached original material files. Do not add outside knowledge. '
+        'Create detailed student study notes or a revision sheet from the selected lecture content. This must be more than a short summary. '
+        'Preserve lecture-specific concepts, definitions, explanations, steps, examples, comparisons, and details that are explicitly present. '
+        'Do not invent examples, facts, formulas, or background information. Do not create generic topic notes. '
+        'Do not mention source material names, file names, "according to the material", "based on the lecture", "based on the uploaded file", or similar source wording. '
+        'Output clean markdown with readable headings, bullet points, and numbered lists. Use Unicode symbols such as ∧, ∨, ¬, →, and ≡ instead of raw LaTeX when possible. Do not wrap normal terms in unnecessary backticks. '
+        'If the context is insufficient or unreadable, return {"failure":"insufficient_context"} only. '
+        'Schema: {"title":string,"content":string}. '
+        'content should be clean markdown-like text with clear headings and bullets where useful. Include these sections when supported by the content: Important Concepts, Definitions, Key Explanations, Examples, Step-by-Step Breakdowns, Comparisons, Things to Memorize, and Quick Review. '
+        'Optional prompt may guide focus or style, but must not add unrelated content. Custom: ${_cleanShort(prompt, max: 500, fallback: "none")}.\nPROVIDED MATERIAL CONTEXT:\n${groundedContext.promptText}';
+
+    final json = await _generateJson(promptText, groundedContext.contextParts);
+    final draft = _validateStudyNoteDraft(
+      json,
+      context: groundedContext,
+      materialIds: cleanMaterials.map((material) => material.id).toList(),
+    );
+    _memoryCache[cacheKey] = draft.toJson();
+    await _storeAiDraft(
+      courseId: courseId,
+      materials: cleanMaterials,
+      contentType: 'study_notes',
+      generationKey: cacheKey,
+      payload: draft.toJson(),
+    );
+    return draft;
+  }
+
   Future<QuizQuestionModel> generateSingleQuestion({
     required String courseId,
     required List<MaterialModel> materials,
     required String type,
     required String prompt,
     required double marks,
-    PlatformFile? image,
     String existingQuizContext = '',
     String? quizId,
   }) async {
     await _ensureCanGenerate(courseId);
     final normalizedType = _normalizeQuestionTypes([type]).first;
-    final contextImage = image == null
-        ? null
-        : await _uploadSingleQuestionContextImage(
-            courseId: courseId,
-            image: image,
-          );
     final scopedMaterials = materials.isNotEmpty
         ? materials
         : quizId == null
@@ -327,7 +336,6 @@ class GeminiAiService {
     final groundedContext = await _buildSingleQuestionContext(
       materials: scopedMaterials,
       prompt: prompt,
-      contextImage: contextImage,
       existingQuizContext: existingQuizContext,
     );
     final parts = groundedContext.contextParts;
@@ -338,8 +346,8 @@ class GeminiAiService {
         'If the context is insufficient, return {"failure":"insufficient_context"} only. '
         'Make one quiz question. Type $normalizedType only. '
         'Do not mention source material names, file names, "according to the material", "based on the lecture", "based on the uploaded file", or similar internal source wording in any student-visible text. '
-        'The optional context image is a visual question asset, not lecture material. If provided, use it directly, make the question require looking at the image, refer to it naturally as "the image below", "the diagram below", "the chart below", "the code snippet below", or "the figure below", and set context_image_name to the image file name only in that JSON field. Do not include the image file name in question_text, options, explanation, sample_answer, items, or targets. Context image: ${contextImage?.name ?? "none"}. '
-        'Schema: {"type":string,"question_text":string,"options":string[],"correct_option":number,"marks":number,"explanation":string,"sample_answer":string,"items":string[],"targets":string[],"correct_mapping":object,"context_image_name":string,"source_ref":{"material_id":string,"material_name":string,"page":string,"excerpt":string}}. '
+        'For Matching questions, create at least two meaningful text pairs from the material. Never use numeric placeholders or indexes such as "0", "1", "Item 1", or "Match 1" as items, targets, or correct_mapping values. correct_mapping keys and values must be the actual concepts, terms, definitions, examples, or descriptions students should match. '
+        'Schema: {"type":string,"question_text":string,"options":string[],"correct_option":number,"marks":number,"explanation":string,"sample_answer":string,"items":string[],"targets":string[],"correct_mapping":object,"source_ref":{"material_id":string,"material_name":string,"page":string,"excerpt":string}}. '
         'source_ref.excerpt must be copied from the provided context and must directly support the item. '
         'Marks ${marks <= 0 ? 1 : marks}. Custom: ${_cleanShort(prompt, max: 400, fallback: "none")}.\nPROVIDED MATERIAL CONTEXT:\n${groundedContext.promptText}';
     final json = await _generateJson(promptText, parts);
@@ -347,8 +355,8 @@ class GeminiAiService {
       return _validateQuestion(
         json,
         context: groundedContext,
-        contextImages: [?contextImage],
-        requireContextImage: contextImage != null,
+        contextImages: const [],
+        requireContextImage: false,
         usedContextImageNames: <String>{},
         fallbackType: normalizedType,
         fallbackMarks: marks,
@@ -728,7 +736,6 @@ class GeminiAiService {
   Future<_GroundedContext> _buildSingleQuestionContext({
     required List<MaterialModel> materials,
     required String prompt,
-    required _UploadedAiFile? contextImage,
     required String existingQuizContext,
   }) async {
     _GroundedContext? materialContext;
@@ -777,25 +784,6 @@ class GeminiAiService {
           definitions: const [],
           examples: const [],
           chunks: [cleanExistingContext],
-        ),
-      );
-    }
-
-    if (contextImage != null) {
-      if (contextImage.inlinePart != null) {
-        contextParts.add(contextImage.toContextPart());
-      }
-      sources.add(
-        _GroundedSource(
-          materialId: 'question_image',
-          materialName: contextImage.name,
-          fileName: contextImage.name,
-          rawFileAttached: true,
-          headings: const [],
-          keyBullets: const [],
-          definitions: const [],
-          examples: const [],
-          chunks: const [],
         ),
       );
     }
@@ -1022,124 +1010,6 @@ class GeminiAiService {
         .toList();
   }
 
-  Future<List<_UploadedAiFile>> _uploadQuizContextImages({
-    required String courseId,
-    required List<PlatformFile> files,
-    required int maxImages,
-  }) async {
-    if (files.length > maxImages) {
-      throw GeminiAiException(
-        'Add at most $maxImages context images for this quiz.',
-      );
-    }
-    final uploaded = <_UploadedAiFile>[];
-    for (final file in files) {
-      final mime = _mimeForExtension(file.extension ?? '');
-      if (!_isImageMime(mime)) {
-        throw GeminiAiException(
-          '${file.name} is not supported. Quiz context images must be PNG, JPG, or WEBP.',
-        );
-      }
-      uploaded.add(
-        await _uploadAiFile(
-          courseId: courseId,
-          file: file,
-          folder: _quizImageFolder,
-          mime: mime,
-          inlineForGemini: true,
-          attachmentKey: 'image_path',
-        ),
-      );
-    }
-    return uploaded;
-  }
-
-  Future<_UploadedAiFile> _uploadSingleQuestionContextImage({
-    required String courseId,
-    required PlatformFile image,
-  }) async {
-    final mime = _mimeForExtension(image.extension ?? '');
-    if (!_isImageMime(mime)) {
-      throw GeminiAiException(
-        '${image.name} is not supported. Choose a PNG, JPG, or WEBP image.',
-      );
-    }
-    return _uploadAiFile(
-      courseId: courseId,
-      file: image,
-      folder: _quizImageFolder,
-      mime: mime,
-      inlineForGemini: true,
-      attachmentKey: 'image_path',
-    );
-  }
-
-  Future<List<_UploadedAiFile>> _uploadAssignmentContextFiles({
-    required String courseId,
-    required List<PlatformFile> files,
-  }) async {
-    if (files.length > _maxContextFiles) {
-      throw GeminiAiException(
-        'Attach at most $_maxContextFiles assignment context files.',
-      );
-    }
-    final uploaded = <_UploadedAiFile>[];
-    for (final file in files) {
-      final mime = _mimeForExtension(file.extension ?? '');
-      if (!_isSupportedAssignmentAttachment(file.extension ?? '')) {
-        throw GeminiAiException(
-          '${file.name} is not a supported assignment attachment.',
-        );
-      }
-      uploaded.add(
-        await _uploadAiFile(
-          courseId: courseId,
-          file: file,
-          folder: _assignmentAttachmentFolder,
-          mime: mime,
-          inlineForGemini: _supportedContextMime(mime),
-          attachmentKey: 'path',
-        ),
-      );
-    }
-    return uploaded;
-  }
-
-  Future<_UploadedAiFile> _uploadAiFile({
-    required String courseId,
-    required PlatformFile file,
-    required String folder,
-    required String mime,
-    required bool inlineForGemini,
-    required String attachmentKey,
-  }) async {
-    if (file.size > _maxContextFileBytes && inlineForGemini) {
-      throw GeminiAiException('${file.name} is too large for AI context.');
-    }
-    final bytes = await _readFileBytes(file);
-    final objectPath =
-        '$courseId/$folder/${DateTime.now().millisecondsSinceEpoch}_${p.basename(file.name)}';
-    await _client.storage
-        .from(MaterialService.bucketName)
-        .uploadBinary(
-          objectPath,
-          bytes,
-          fileOptions: FileOptions(contentType: mime, upsert: false),
-        );
-    return _UploadedAiFile(
-      name: file.name,
-      path: objectPath,
-      size: file.size,
-      mimeType: mime,
-      inlinePart: inlineForGemini
-          ? {
-              'inlineData': {'mimeType': mime, 'data': base64Encode(bytes)},
-            }
-          : null,
-      attachmentKey: attachmentKey,
-    );
-  }
-
   _UploadedAiFile? _resolveQuestionImage(
     String requestedName,
     String questionText,
@@ -1173,24 +1043,6 @@ class GeminiAiService {
       return contextImages.first;
     }
     return null;
-  }
-
-  String _uploadedFileNames(List<_UploadedAiFile> files) {
-    if (files.isEmpty) return 'none';
-    return files.map((file) => file.name).join(', ');
-  }
-
-  Future<Uint8List> _readFileBytes(PlatformFile file) async {
-    if (file.bytes != null) return file.bytes!;
-    final stream = file.readStream;
-    if (stream == null) {
-      throw GeminiAiException('Unable to read ${file.name}.');
-    }
-    final chunks = <int>[];
-    await for (final chunk in stream) {
-      chunks.addAll(chunk);
-    }
-    return Uint8List.fromList(chunks);
   }
 
   Future<void> _ensureCanGenerate(String courseId) async {
@@ -1229,6 +1081,25 @@ class GeminiAiService {
     if ((rows as List<dynamic>).isEmpty) {
       throw const GeminiAiException(
         'You can only generate flashcards for your enrolled courses.',
+      );
+    }
+  }
+
+  Future<void> _ensureStudentCanGenerateStudyNotes(String courseId) async {
+    final user = AuthService.instance.currentUser;
+    if (user == null || user.role != AppRole.student) {
+      throw const GeminiAiException('Only students can generate study notes.');
+    }
+    final rows = await _client
+        .from('enrollments')
+        .select('id')
+        .eq('course_id', courseId)
+        .eq('student_id', user.id)
+        .eq('status', 'active')
+        .limit(1);
+    if ((rows as List<dynamic>).isEmpty) {
+      throw const GeminiAiException(
+        'You can only generate study notes for your enrolled courses.',
       );
     }
   }
@@ -1470,6 +1341,37 @@ class GeminiAiService {
     );
   }
 
+  AiStudyNoteDraft _validateStudyNoteDraft(
+    Map<String, dynamic> json, {
+    required _GroundedContext context,
+    required List<String> materialIds,
+  }) {
+    _throwIfStructuredFailure(json);
+    final title = _cleanQuestionText(
+      json['title']?.toString() ?? '',
+      contextImages: const [],
+      context: context,
+      max: 120,
+    );
+    final content = _cleanStudyNoteContent(
+      json['content']?.toString() ?? '',
+      context: context,
+    );
+    if (content.length < 300) {
+      throw const GeminiAiException(
+        'The selected material did not contain enough readable content to generate detailed study notes.',
+      );
+    }
+    if (!_studyNoteContentLooksGrounded(content, context)) {
+      throw const GeminiAiException(_unsupportedGenerationError);
+    }
+    return AiStudyNoteDraft(
+      title: title.isEmpty ? 'Study Notes' : title,
+      content: content,
+      materialIds: materialIds,
+    );
+  }
+
   QuizQuestionModel _validateQuestion(
     Map<String, dynamic> json, {
     required _GroundedContext context,
@@ -1494,24 +1396,6 @@ class GeminiAiService {
         .where((item) => item.isNotEmpty)
         .take(4)
         .toList();
-    final mapping = Map<String, String>.from(
-      (json['correct_mapping'] as Map? ?? const {}).map(
-        (key, value) => MapEntry(
-          _cleanQuestionText(
-            key.toString(),
-            contextImages: contextImages,
-            context: context,
-            max: 120,
-          ),
-          _cleanQuestionText(
-            value.toString(),
-            contextImages: contextImages,
-            context: context,
-            max: 120,
-          ),
-        ),
-      ),
-    )..removeWhere((key, value) => key.isEmpty || value.isEmpty);
     final questionText = _cleanQuestionText(
       json['question_text']?.toString() ?? '',
       contextImages: contextImages,
@@ -1532,6 +1416,13 @@ class GeminiAiService {
       throw const GeminiAiException(_unsupportedGenerationError);
     }
     final sourceRef = _validateSourceRef(json['source_ref'], context);
+    final mapping = type == 'Matching'
+        ? _validateMatchingMapping(
+            json,
+            contextImages: contextImages,
+            context: context,
+          )
+        : const <String, String>{};
     return QuizQuestionModel(
       type: type,
       questionText: questionText,
@@ -1577,6 +1468,123 @@ class GeminiAiService {
       correctMapping: type == 'Matching' ? mapping : const {},
       sourceReference: sourceRef,
     );
+  }
+
+  Map<String, String> _validateMatchingMapping(
+    Map<String, dynamic> json, {
+    required List<_UploadedAiFile> contextImages,
+    required _GroundedContext context,
+  }) {
+    final items = _cleanMatchingList(
+      json['items'],
+      contextImages: contextImages,
+      context: context,
+    );
+    final targets = _cleanMatchingList(
+      json['targets'] ?? json['categories'],
+      contextImages: contextImages,
+      context: context,
+    );
+    final rawMapping = json['correct_mapping'] as Map? ?? const {};
+    final mapping = <String, String>{};
+
+    for (final entry in rawMapping.entries) {
+      final key = _resolveMatchingValue(
+        entry.key.toString(),
+        items,
+        contextImages: contextImages,
+        context: context,
+      );
+      final value = _resolveMatchingValue(
+        entry.value.toString(),
+        targets,
+        contextImages: contextImages,
+        context: context,
+      );
+      if (_isValidMatchingPair(key, value)) {
+        mapping[key] = value;
+      }
+    }
+
+    if (mapping.isEmpty && items.length == targets.length) {
+      for (var index = 0; index < items.length; index++) {
+        final key = items[index];
+        final value = targets[index];
+        if (_isValidMatchingPair(key, value)) {
+          mapping[key] = value;
+        }
+      }
+    }
+
+    if (mapping.length < 2) {
+      throw const GeminiAiException(_unsupportedGenerationError);
+    }
+    return mapping;
+  }
+
+  List<String> _cleanMatchingList(
+    Object? value, {
+    required List<_UploadedAiFile> contextImages,
+    required _GroundedContext context,
+  }) {
+    return (value as List<dynamic>? ?? const [])
+        .map(
+          (item) => _cleanQuestionText(
+            item.toString(),
+            contextImages: contextImages,
+            context: context,
+            max: 160,
+          ),
+        )
+        .where(_isMeaningfulMatchingText)
+        .toList();
+  }
+
+  String _resolveMatchingValue(
+    String value,
+    List<String> indexedValues, {
+    required List<_UploadedAiFile> contextImages,
+    required _GroundedContext context,
+  }) {
+    final clean = _cleanQuestionText(
+      value,
+      contextImages: contextImages,
+      context: context,
+      max: 160,
+    );
+    final index = int.tryParse(clean);
+    if (index != null && index >= 0 && index < indexedValues.length) {
+      return indexedValues[index];
+    }
+    return clean;
+  }
+
+  bool _isValidMatchingPair(String key, String value) {
+    if (!_isMeaningfulMatchingText(key) || !_isMeaningfulMatchingText(value)) {
+      return false;
+    }
+    return _normalizeMatchingText(key) != _normalizeMatchingText(value);
+  }
+
+  bool _isMeaningfulMatchingText(String value) {
+    final normalized = _normalizeMatchingText(value);
+    if (normalized.isEmpty) return false;
+    if (RegExp(r'^\d+$').hasMatch(normalized)) return false;
+    if (RegExp(r'^[a-d]$').hasMatch(normalized)) return false;
+    if (RegExp(
+      r'^(item|match|target|prompt|left prompt|correct match)\s*\d*$',
+    ).hasMatch(normalized)) {
+      return false;
+    }
+    return RegExp(r'[a-z]').hasMatch(normalized);
+  }
+
+  String _normalizeMatchingText(String value) {
+    return value
+        .trim()
+        .toLowerCase()
+        .replaceAll(RegExp(r'\s+'), ' ')
+        .replaceAll(RegExp(r'[^a-z0-9 ]'), '');
   }
 
   void _throwIfStructuredFailure(Map<String, dynamic> json) {
@@ -1672,6 +1680,157 @@ class GeminiAiService {
     if (clean.length <= max) return clean;
     return clean.substring(0, max).trim();
   }
+
+  String _cleanStudyNoteContent(
+    String value, {
+    required _GroundedContext context,
+    int max = 12000,
+  }) {
+    var clean = value
+        .replaceAll('\r\n', '\n')
+        .replaceAll('\r', '\n')
+        .replaceAll(RegExp(r'[ \t]+\n'), '\n')
+        .replaceAll(RegExp(r'\n{4,}'), '\n\n\n')
+        .trim();
+    if (clean.isEmpty) return '';
+
+    for (final source in context.sources) {
+      clean = clean.replaceAll(source.fileName, '');
+      clean = clean.replaceAll(source.materialName, '');
+      clean = clean.replaceAll(
+        RegExp(RegExp.escape(source.fileName), caseSensitive: false),
+        '',
+      );
+      clean = clean.replaceAll(
+        RegExp(RegExp.escape(source.materialName), caseSensitive: false),
+        '',
+      );
+    }
+
+    final replacements = <RegExp, String>{
+      RegExp(
+        r'\baccording to (the )?(provided |selected |uploaded )?(lecture )?material[:,]?\s*',
+        caseSensitive: false,
+      ): '',
+      RegExp(
+        r'\bbased on (the )?(provided |selected |uploaded )?(lecture |file|material)[:,]?\s*',
+        caseSensitive: false,
+      ): '',
+      RegExp(
+        r'\bfrom (the )?(provided |selected |uploaded )?(lecture |file|material)[:,]?\s*',
+        caseSensitive: false,
+      ): '',
+      RegExp(r'\buploaded file\s*[,:\-]?\s*', caseSensitive: false): '',
+    };
+    for (final entry in replacements.entries) {
+      clean = clean.replaceAll(entry.key, entry.value);
+    }
+
+    clean = _normalizeStudyNoteSymbols(clean);
+
+    clean = clean
+        .split('\n')
+        .map((line) => line.replaceAll(RegExp(r'[ \t]{2,}'), ' ').trimRight())
+        .join('\n')
+        .replaceAll(RegExp(r'\n{4,}'), '\n\n\n')
+        .trim();
+    if (clean.length <= max) return clean;
+    return clean.substring(0, max).trim();
+  }
+
+  String _normalizeStudyNoteSymbols(String value) {
+    var clean = value;
+    final symbolPatterns = <RegExp, String>{
+      RegExp(r'\\?\$\s*\\+wedge\s*\\?\$', caseSensitive: false): '∧',
+      RegExp(r'\\?\$\s*\\+vee\s*\\?\$', caseSensitive: false): '∨',
+      RegExp(r'\\?\$\s*\\+neg\s*\\?\$', caseSensitive: false): '¬',
+      RegExp(r'\\?\$\s*\\+rightarrow\s*\\?\$', caseSensitive: false): '→',
+      RegExp(r'\\?\$\s*\\+to\s*\\?\$', caseSensitive: false): '→',
+      RegExp(r'\\?\$\s*\\+equiv\s*\\?\$', caseSensitive: false): '≡',
+      RegExp(r'\\?\$\s*\\+leftrightarrow\s*\\?\$', caseSensitive: false): '↔',
+      RegExp(r'\\?\$\s*\\+forall\s*\\?\$', caseSensitive: false): '∀',
+      RegExp(r'\\?\$\s*\\+exists\s*\\?\$', caseSensitive: false): '∃',
+      RegExp(r'\\?\$\s*\\+land\s*\\?\$', caseSensitive: false): '∧',
+      RegExp(r'\\?\$\s*\\+lor\s*\\?\$', caseSensitive: false): '∨',
+      RegExp(r'\\+wedge\b', caseSensitive: false): '∧',
+      RegExp(r'\\+vee\b', caseSensitive: false): '∨',
+      RegExp(r'\\+neg\b', caseSensitive: false): '¬',
+      RegExp(r'\\+rightarrow\b', caseSensitive: false): '→',
+      RegExp(r'\\+equiv\b', caseSensitive: false): '≡',
+      RegExp(r'\\+leftrightarrow\b', caseSensitive: false): '↔',
+      RegExp(r'\\+forall\b', caseSensitive: false): '∀',
+      RegExp(r'\\+exists\b', caseSensitive: false): '∃',
+      RegExp(r'\\+land\b', caseSensitive: false): '∧',
+      RegExp(r'\\+lor\b', caseSensitive: false): '∨',
+    };
+    for (final entry in symbolPatterns.entries) {
+      clean = clean.replaceAll(entry.key, entry.value);
+    }
+    return clean
+        .replaceAll(r'\`', '`')
+        .replaceAll(r'\*', '*')
+        .replaceAll(r'\#', '#')
+        .replaceAll(r'\_', '_')
+        .replaceAll(r'\$', '');
+  }
+
+  bool _studyNoteContentLooksGrounded(
+    String content,
+    _GroundedContext context,
+  ) {
+    if (context.sources.any((source) => source.rawFileAttached)) {
+      return true;
+    }
+    final sourceText = _GroundedContext._normalizeForMatch(
+      context.sources.map((source) => source.searchText).join(' '),
+    );
+    if (sourceText.trim().isEmpty) return false;
+
+    final words = _GroundedContext._normalizeForMatch(content)
+        .split(' ')
+        .where(
+          (word) =>
+              word.length >= 5 &&
+              !_studyNoteStopWords.contains(word) &&
+              !RegExp(r'^\d+$').hasMatch(word),
+        )
+        .toSet()
+        .toList();
+    if (words.length < 18) return false;
+    final matched = words
+        .where((word) => sourceText.contains(' $word '))
+        .length;
+    return matched / words.length >= 0.45;
+  }
+
+  static const Set<String> _studyNoteStopWords = {
+    'about',
+    'after',
+    'again',
+    'because',
+    'before',
+    'between',
+    'could',
+    'definition',
+    'definitions',
+    'example',
+    'examples',
+    'explain',
+    'important',
+    'include',
+    'includes',
+    'review',
+    'section',
+    'should',
+    'these',
+    'thing',
+    'things',
+    'through',
+    'under',
+    'where',
+    'which',
+    'while',
+  };
 
   bool _referencesVisual(String text) {
     final lower = text.toLowerCase();
@@ -1880,24 +2039,6 @@ class GeminiAiService {
       'application/pdf',
       'text/plain',
     }.contains(mime);
-  }
-
-  bool _isImageMime(String mime) {
-    return {'image/png', 'image/jpeg', 'image/webp'}.contains(mime);
-  }
-
-  bool _isSupportedAssignmentAttachment(String extension) {
-    return {
-      'pdf',
-      'png',
-      'jpg',
-      'jpeg',
-      'webp',
-      'txt',
-      'md',
-      'doc',
-      'docx',
-    }.contains(extension.toLowerCase());
   }
 }
 
@@ -2220,7 +2361,9 @@ class AiFlashcardDraft {
       title: json['title'] as String? ?? 'Study Flashcards',
       cards: (json['cards'] as List<dynamic>? ?? const [])
           .whereType<Map>()
-          .map((item) => FlashcardItem.fromJson(Map<String, dynamic>.from(item)))
+          .map(
+            (item) => FlashcardItem.fromJson(Map<String, dynamic>.from(item)),
+          )
           .toList(),
       materialIds: (json['material_ids'] as List<dynamic>? ?? const [])
           .map((item) => item.toString())
@@ -2233,6 +2376,37 @@ class AiFlashcardDraft {
     return {
       'title': title,
       'cards': cards.map((card) => card.toJson()).toList(),
+      if (materialIds.isNotEmpty) 'material_ids': materialIds,
+    };
+  }
+}
+
+class AiStudyNoteDraft {
+  const AiStudyNoteDraft({
+    required this.title,
+    required this.content,
+    this.materialIds = const [],
+  });
+
+  final String title;
+  final String content;
+  final List<String> materialIds;
+
+  factory AiStudyNoteDraft.fromJson(Map<String, dynamic> json) {
+    return AiStudyNoteDraft(
+      title: json['title'] as String? ?? 'Study Notes',
+      content: json['content'] as String? ?? '',
+      materialIds: (json['material_ids'] as List<dynamic>? ?? const [])
+          .map((item) => item.toString())
+          .where((item) => item.isNotEmpty)
+          .toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'title': title,
+      'content': content,
       if (materialIds.isNotEmpty) 'material_ids': materialIds,
     };
   }

@@ -3,12 +3,14 @@ import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
+import '../core/widgets/top_bar_actions.dart';
 import '../features/admin/dashboard/admin_dashboard_page.dart';
 import '../features/admin/content/admin_announcements_page.dart';
 import '../features/admin/content/admin_assessments_page.dart';
 import '../features/admin/content/admin_courses_page.dart';
 import '../features/admin/content/admin_flashcards_page.dart';
 import '../features/admin/content/admin_materials_page.dart';
+import '../features/admin/content/admin_study_notes_page.dart';
 import '../features/admin/users/admin_users_page.dart';
 import '../features/admin/permissions/admin_permissions_page.dart';
 import '../features/admin/ai_controls/admin_ai_controls_page.dart';
@@ -39,6 +41,7 @@ class _AdminLayoutState extends State<AdminLayout> {
     'Quizzes',
     'Assignments',
     'Flashcards',
+    'Study Notes',
     'Announcements',
     'Permissions',
     'AI Controls',
@@ -46,19 +49,22 @@ class _AdminLayoutState extends State<AdminLayout> {
     'Platform',
   ];
 
-  static const _pages = [
-    AdminDashboardPage(),
-    AdminUsersPage(),
-    AdminCoursesPage(),
-    AdminMaterialsPage(),
-    AdminAssessmentsPage.quizzes(key: ValueKey('admin-quizzes-page')),
-    AdminAssessmentsPage.assignments(key: ValueKey('admin-assignments-page')),
-    AdminFlashcardsPage(),
-    AdminAnnouncementsPage(),
-    AdminPermissionsPage(),
-    AdminAiControlsPage(),
-    AdminUploadLimitsPage(),
-    AdminPlatformPage(),
+  List<Widget> get _pages => [
+    AdminDashboardPage(onNavigateToTab: _selectTab),
+    const AdminUsersPage(),
+    const AdminCoursesPage(),
+    const AdminMaterialsPage(),
+    const AdminAssessmentsPage.quizzes(key: ValueKey('admin-quizzes-page')),
+    const AdminAssessmentsPage.assignments(
+      key: ValueKey('admin-assignments-page'),
+    ),
+    const AdminFlashcardsPage(),
+    const AdminStudyNotesPage(),
+    const AdminAnnouncementsPage(),
+    const AdminPermissionsPage(),
+    const AdminAiControlsPage(),
+    const AdminUploadLimitsPage(),
+    const AdminPlatformPage(),
   ];
 
   @override
@@ -75,8 +81,8 @@ class _AdminLayoutState extends State<AdminLayout> {
     }
   }
 
-  void _openNotifications() {
-    Navigator.push(
+  Future<void> _openNotifications() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const NotificationsPage()),
     );
@@ -87,6 +93,10 @@ class _AdminLayoutState extends State<AdminLayout> {
       context,
       MaterialPageRoute(builder: (_) => const AdminProfilePage()),
     );
+  }
+
+  void _selectTab(int index) {
+    setState(() => _selectedIndex = index);
   }
 
   @override
@@ -101,7 +111,7 @@ class _AdminLayoutState extends State<AdminLayout> {
           children: [
             _AdminSidebar(
               selectedIndex: _selectedIndex,
-              onItemSelected: (i) => setState(() => _selectedIndex = i),
+              onItemSelected: _selectTab,
               onProfileTap: _openProfile,
             ),
             Expanded(
@@ -129,7 +139,7 @@ class _AdminLayoutState extends State<AdminLayout> {
         child: _AdminSidebar(
           selectedIndex: _selectedIndex,
           onItemSelected: (i) {
-            setState(() => _selectedIndex = i);
+            _selectTab(i);
             Navigator.pop(context);
           },
           onProfileTap: () {
@@ -148,30 +158,14 @@ class _AdminLayoutState extends State<AdminLayout> {
       backgroundColor: AppColors.surface,
       title: Text(_pageTitles[_selectedIndex]),
       actions: [
-        IconButton(
-          icon: const Icon(
-            Icons.notifications_outlined,
-            color: AppColors.textSecondary,
-            size: 22,
-          ),
-          onPressed: _openNotifications,
-        ),
-        GestureDetector(
+        MobileNotificationBadgeButton(onPressed: _openNotifications),
+        ProfileAvatarButton(
+          initials: UserUtils.initials(user?.name ?? 'Admin'),
+          backgroundColor: AppColors.roseLight,
+          textColor: AppColors.rose,
+          radius: 16,
+          padding: const EdgeInsets.only(right: 16, left: 4),
           onTap: _openProfile,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 16, left: 4),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.roseLight,
-              child: Text(
-                UserUtils.initials(user?.name ?? 'Admin'),
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.rose,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
         ),
       ],
       bottom: PreferredSize(
@@ -201,6 +195,7 @@ class _AdminSidebar extends StatelessWidget {
     (icon: Icons.quiz_rounded, label: 'Quizzes'),
     (icon: Icons.assignment_rounded, label: 'Assignments'),
     (icon: Icons.style_rounded, label: 'Flashcards'),
+    (icon: Icons.note_alt_rounded, label: 'Study Notes'),
     (icon: Icons.campaign_rounded, label: 'Announcements'),
     (icon: Icons.shield_rounded, label: 'Permissions'),
     (icon: Icons.auto_awesome_rounded, label: 'AI Controls'),
@@ -338,59 +333,62 @@ class _AdminSidebar extends StatelessWidget {
             },
           ),
           const SizedBox(height: 8),
-          GestureDetector(
-            onTap: onProfileTap,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.sidebarHover,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    height: 32,
-                    decoration: BoxDecoration(
-                      color: AppColors.rose.withValues(alpha: 0.3),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppColors.rose.withValues(alpha: 0.5),
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: onProfileTap,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.sidebarHover,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: AppColors.rose.withValues(alpha: 0.3),
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.rose.withValues(alpha: 0.5),
+                        ),
+                      ),
+                      child: const Icon(
+                        Icons.admin_panel_settings_rounded,
+                        color: Colors.white,
+                        size: 16,
                       ),
                     ),
-                    child: const Icon(
-                      Icons.admin_panel_settings_rounded,
-                      color: Colors.white,
-                      size: 16,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          user?.name ?? 'System Admin',
-                          style: AppTextStyles.label.copyWith(
-                            color: AppColors.sidebarText,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user?.name ?? 'System Admin',
+                            style: AppTextStyles.label.copyWith(
+                              color: AppColors.sidebarText,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          'View Profile',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.rose,
+                          Text(
+                            'View Profile',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.rose,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 14,
-                    color: AppColors.sidebarTextMuted,
-                  ),
-                ],
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 14,
+                      color: AppColors.sidebarTextMuted,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -495,61 +493,15 @@ class _AdminTopBar extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.search_rounded,
-                  color: AppColors.textMuted,
-                  size: 16,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Search...',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          GestureDetector(
-            onTap: onNotificationsTap,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Icon(
-                Icons.notifications_outlined,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
-            ),
+          NotificationBadgeButton(
+            onPressed: () async => onNotificationsTap?.call(),
           ),
           const SizedBox(width: 12),
-          GestureDetector(
-            onTap: onProfileTap,
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.roseLight,
-              child: Text(
-                initials,
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.rose,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+          ProfileAvatarButton(
+            initials: initials,
+            backgroundColor: AppColors.roseLight,
+            textColor: AppColors.rose,
+            onTap: () => onProfileTap?.call(),
           ),
         ],
       ),

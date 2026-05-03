@@ -1,20 +1,19 @@
 import 'package:intl/intl.dart';
 
-class FlashcardModel {
-  const FlashcardModel({
+class StudyNoteModel {
+  const StudyNoteModel({
     required this.id,
     required this.courseId,
     required this.studentId,
     required this.title,
     required this.prompt,
-    required this.difficulty,
     required this.materialIds,
+    required this.content,
     this.studentName = '',
     this.studentEmail = '',
     this.courseTitle = '',
     this.courseCode = '',
     this.materialNames = const [],
-    required this.cards,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -24,22 +23,22 @@ class FlashcardModel {
   final String studentId;
   final String title;
   final String prompt;
-  final String difficulty;
   final List<String> materialIds;
+  final String content;
   final String studentName;
   final String studentEmail;
   final String courseTitle;
   final String courseCode;
   final List<String> materialNames;
-  final List<FlashcardItem> cards;
   final DateTime createdAt;
   final DateTime updatedAt;
 
-  int get cardCount => cards.length;
   String get createdLabel => DateFormat('MMM d, yyyy h:mm a').format(createdAt);
+  String get updatedLabel => DateFormat('MMM d, yyyy h:mm a').format(updatedAt);
   String get studentLabel =>
       studentName.trim().isEmpty ? 'Unknown student' : studentName.trim();
   String get studentSubtitle => studentEmail.trim();
+
   String get courseLabel {
     final title = courseTitle.trim();
     final code = courseCode.trim();
@@ -60,7 +59,7 @@ class FlashcardModel {
     return '${names.length} materials';
   }
 
-  factory FlashcardModel.fromJson(Map<String, dynamic> json) {
+  factory StudyNoteModel.fromJson(Map<String, dynamic> json) {
     final student =
         _mapValue(json['student']) ??
         _mapValue(json['profiles']) ??
@@ -70,17 +69,17 @@ class FlashcardModel {
         _mapValue(json['courses']) ??
         _mapValue(json['course_info']);
 
-    return FlashcardModel(
+    return StudyNoteModel(
       id: json['id'] as String,
       courseId: json['course_id'] as String,
       studentId: json['student_id'] as String,
-      title: json['title'] as String? ?? 'Study Flashcards',
+      title: json['title'] as String? ?? 'Study Notes',
       prompt: json['prompt'] as String? ?? '',
-      difficulty: json['difficulty'] as String? ?? '',
       materialIds: (json['selected_material_ids'] as List<dynamic>? ?? const [])
           .map((item) => item.toString())
           .where((item) => item.isNotEmpty)
           .toList(),
+      content: json['content'] as String? ?? '',
       studentName:
           json['student_name'] as String? ??
           student?['full_name'] as String? ??
@@ -98,12 +97,6 @@ class FlashcardModel {
           .map((item) => item.toString())
           .where((item) => item.trim().isNotEmpty)
           .toList(),
-      cards: (json['cards'] as List<dynamic>? ?? const [])
-          .whereType<Map>()
-          .map(
-            (item) => FlashcardItem.fromJson(Map<String, dynamic>.from(item)),
-          )
-          .toList(),
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: DateTime.parse(
         (json['updated_at'] ?? json['created_at']) as String,
@@ -111,28 +104,26 @@ class FlashcardModel {
     );
   }
 
-  FlashcardModel copyWith({
+  StudyNoteModel copyWith({
     String? title,
     String? prompt,
-    String? difficulty,
     List<String>? materialIds,
     List<String>? materialNames,
-    List<FlashcardItem>? cards,
+    String? content,
   }) {
-    return FlashcardModel(
+    return StudyNoteModel(
       id: id,
       courseId: courseId,
       studentId: studentId,
       title: title ?? this.title,
       prompt: prompt ?? this.prompt,
-      difficulty: difficulty ?? this.difficulty,
       materialIds: materialIds ?? this.materialIds,
+      content: content ?? this.content,
       studentName: studentName,
       studentEmail: studentEmail,
       courseTitle: courseTitle,
       courseCode: courseCode,
       materialNames: materialNames ?? this.materialNames,
-      cards: cards ?? this.cards,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
@@ -142,9 +133,8 @@ class FlashcardModel {
     return {
       'title': title.trim(),
       'prompt': prompt.trim(),
-      'difficulty': difficulty.trim(),
       'selected_material_ids': materialIds,
-      'cards': cards.map((card) => card.toJson()).toList(),
+      'content': content.trim(),
     };
   }
 }
@@ -153,42 +143,4 @@ Map<String, dynamic>? _mapValue(dynamic value) {
   if (value is Map<String, dynamic>) return value;
   if (value is Map) return Map<String, dynamic>.from(value);
   return null;
-}
-
-class FlashcardItem {
-  const FlashcardItem({
-    required this.front,
-    required this.back,
-    this.difficulty = '',
-    this.tag = '',
-    this.sourceReference = const {},
-  });
-
-  final String front;
-  final String back;
-  final String difficulty;
-  final String tag;
-  final Map<String, dynamic> sourceReference;
-
-  factory FlashcardItem.fromJson(Map<String, dynamic> json) {
-    return FlashcardItem(
-      front: json['front'] as String? ?? '',
-      back: json['back'] as String? ?? '',
-      difficulty: json['difficulty'] as String? ?? '',
-      tag: json['tag'] as String? ?? '',
-      sourceReference: Map<String, dynamic>.from(
-        json['source_ref'] as Map? ?? const {},
-      ),
-    );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'front': front.trim(),
-      'back': back.trim(),
-      if (difficulty.trim().isNotEmpty) 'difficulty': difficulty.trim(),
-      if (tag.trim().isNotEmpty) 'tag': tag.trim(),
-      if (sourceReference.isNotEmpty) 'source_ref': sourceReference,
-    };
-  }
 }

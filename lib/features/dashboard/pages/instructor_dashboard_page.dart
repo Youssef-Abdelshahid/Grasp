@@ -13,7 +13,9 @@ import '../../courses/pages/create_course_page.dart';
 import '../../courses/pages/courses_page.dart';
 
 class InstructorDashboardPage extends StatefulWidget {
-  const InstructorDashboardPage({super.key});
+  const InstructorDashboardPage({super.key, this.onNavigateToTab});
+
+  final ValueChanged<int>? onNavigateToTab;
 
   @override
   State<InstructorDashboardPage> createState() =>
@@ -222,23 +224,38 @@ class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
       ),
       (
         icon: Icons.quiz_rounded,
-        label: 'Course Quizzes',
+        label: 'Create Quiz',
         color: AppColors.violet,
         bg: AppColors.violetLight,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CoursesPage()),
-        ),
+        onTap: () => _openCoursesTab(context),
       ),
       (
         icon: Icons.assignment_rounded,
-        label: 'Course Assignments',
+        label: 'Create Assignment',
         color: AppColors.emerald,
         bg: AppColors.emeraldLight,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CoursesPage()),
-        ),
+        onTap: () => _openCoursesTab(context),
+      ),
+      (
+        icon: Icons.upload_file_rounded,
+        label: 'Upload Material',
+        color: AppColors.amber,
+        bg: AppColors.amberLight,
+        onTap: () => _openCoursesTab(context),
+      ),
+      (
+        icon: Icons.campaign_rounded,
+        label: 'Post Announcement',
+        color: AppColors.rose,
+        bg: AppColors.roseLight,
+        onTap: () => _openCoursesTab(context),
+      ),
+      (
+        icon: Icons.menu_book_rounded,
+        label: 'Courses',
+        color: AppColors.cyan,
+        bg: AppColors.cyanLight,
+        onTap: () => _openCoursesTab(context),
       ),
     ];
 
@@ -269,6 +286,18 @@ class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
           },
         ),
       ],
+    );
+  }
+
+  void _openCoursesTab(BuildContext context) {
+    final navigate = widget.onNavigateToTab;
+    if (navigate != null) {
+      navigate(1);
+      return;
+    }
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const CoursesPage()),
     );
   }
 

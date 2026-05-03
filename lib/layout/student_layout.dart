@@ -3,6 +3,7 @@ import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
+import '../core/widgets/top_bar_actions.dart';
 import '../routing/app_router.dart';
 import '../features/student/profile/student_profile_page.dart';
 import '../features/student/dashboard/student_dashboard_page.dart';
@@ -31,8 +32,8 @@ class _StudentLayoutState extends State<StudentLayout> {
     'Settings',
   ];
 
-  static final _pages = [
-    const StudentDashboardPage(),
+  List<Widget> get _pages => [
+    StudentDashboardPage(onNavigateToTab: _selectTab),
     const StudentCoursesPage(),
     const StudentCalendarPage(),
     const StudentSettingsPage(),
@@ -44,8 +45,8 @@ class _StudentLayoutState extends State<StudentLayout> {
     _selectedIndex = widget.initialIndex;
   }
 
-  void _openNotifications() {
-    Navigator.push(
+  Future<void> _openNotifications() async {
+    await Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => const NotificationsPage()),
     );
@@ -56,6 +57,10 @@ class _StudentLayoutState extends State<StudentLayout> {
       context,
       MaterialPageRoute(builder: (_) => const StudentProfilePage()),
     );
+  }
+
+  void _selectTab(int index) {
+    setState(() => _selectedIndex = index);
   }
 
   @override
@@ -70,7 +75,7 @@ class _StudentLayoutState extends State<StudentLayout> {
           children: [
             _StudentSidebar(
               selectedIndex: _selectedIndex,
-              onItemSelected: (i) => setState(() => _selectedIndex = i),
+              onItemSelected: _selectTab,
               onProfileTap: _openProfile,
             ),
             Expanded(
@@ -98,7 +103,7 @@ class _StudentLayoutState extends State<StudentLayout> {
         child: _StudentSidebar(
           selectedIndex: _selectedIndex,
           onItemSelected: (i) {
-            setState(() => _selectedIndex = i);
+            _selectTab(i);
             Navigator.pop(context);
           },
           onProfileTap: () {
@@ -117,30 +122,14 @@ class _StudentLayoutState extends State<StudentLayout> {
       backgroundColor: AppColors.surface,
       title: Text(_pageTitles[_selectedIndex]),
       actions: [
-        IconButton(
-          icon: const Icon(
-            Icons.notifications_outlined,
-            color: AppColors.textSecondary,
-            size: 22,
-          ),
-          onPressed: _openNotifications,
-        ),
-        GestureDetector(
+        MobileNotificationBadgeButton(onPressed: _openNotifications),
+        ProfileAvatarButton(
+          initials: UserUtils.initials(user?.name ?? 'Student'),
+          backgroundColor: AppColors.cyanLight,
+          textColor: AppColors.cyan,
+          radius: 16,
+          padding: const EdgeInsets.only(right: 16, left: 4),
           onTap: _openProfile,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 16, left: 4),
-            child: CircleAvatar(
-              radius: 16,
-              backgroundColor: AppColors.cyanLight,
-              child: Text(
-                UserUtils.initials(user?.name ?? 'Student'),
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.cyan,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-          ),
         ),
       ],
       bottom: PreferredSize(
@@ -275,51 +264,54 @@ class _StudentSidebar extends StatelessWidget {
             },
           ),
           const SizedBox(height: 8),
-          GestureDetector(
-            onTap: onProfileTap,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: selectedIndex == 3
-                    ? AppColors.sidebarActive
-                    : AppColors.sidebarHover,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.cyan,
-                    child: Text(
-                      UserUtils.initials(name),
-                      style: AppTextStyles.caption.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: onProfileTap,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: selectedIndex == 3
+                      ? AppColors.sidebarActive
+                      : AppColors.sidebarHover,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.cyan,
+                      child: Text(
+                        UserUtils.initials(name),
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: AppTextStyles.label.copyWith(
-                            color: AppColors.sidebarText,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: AppTextStyles.label.copyWith(
+                              color: AppColors.sidebarText,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          user?.role.label ?? 'Student',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.sidebarTextMuted,
+                          Text(
+                            user?.role.label ?? 'Student',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.sidebarTextMuted,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
@@ -409,61 +401,15 @@ class _StudentTopBar extends StatelessWidget {
         children: [
           Text(title, style: AppTextStyles.h2),
           const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.search_rounded,
-                  color: AppColors.textMuted,
-                  size: 16,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'Search...',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textMuted,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 16),
-          GestureDetector(
-            onTap: onNotificationsTap,
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Icon(
-                Icons.notifications_outlined,
-                color: AppColors.textSecondary,
-                size: 20,
-              ),
-            ),
+          NotificationBadgeButton(
+            onPressed: () async => onNotificationsTap?.call(),
           ),
           const SizedBox(width: 12),
-          GestureDetector(
-            onTap: onProfileTap,
-            child: CircleAvatar(
-              radius: 18,
-              backgroundColor: AppColors.cyanLight,
-              child: Text(
-                initials,
-                style: AppTextStyles.caption.copyWith(
-                  color: AppColors.cyan,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
+          ProfileAvatarButton(
+            initials: initials,
+            backgroundColor: AppColors.cyanLight,
+            textColor: AppColors.cyan,
+            onTap: () => onProfileTap?.call(),
           ),
         ],
       ),

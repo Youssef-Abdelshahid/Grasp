@@ -54,17 +54,14 @@ class ProtectedPage extends StatelessWidget {
 
         if (allowedRoles.isNotEmpty &&
             !allowedRoles.contains(auth.currentUser!.role)) {
-          return _ProtectedStateScaffold(
-            message:
-                'Your account does not have access to this section. Redirecting you to your dashboard.',
-            onAction: () {
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRouter.defaultRouteForRole(auth.currentUser!.role),
-                (_) => false,
-              );
-            },
-            actionLabel: 'Go To My Dashboard',
+          final route = AppRouter.defaultRouteForRole(auth.currentUser!.role);
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
+          });
+          return const _ProtectedStateScaffold(
+            message: 'Redirecting you to your dashboard...',
+            showSpinner: true,
           );
         }
 

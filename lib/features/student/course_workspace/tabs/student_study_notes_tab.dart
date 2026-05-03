@@ -3,24 +3,24 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/widgets/empty_state.dart';
-import '../../../shared/flashcards/flashcard_editor_sheet.dart';
-import '../../../../models/flashcard_model.dart';
+import '../../../../features/shared/study_notes/study_note_reader_page.dart';
 import '../../../../models/material_model.dart';
-import '../../../../services/flashcard_service.dart';
+import '../../../../models/study_note_model.dart';
 import '../../../../services/gemini_ai_service.dart';
 import '../../../../services/material_service.dart';
+import '../../../../services/study_note_service.dart';
 
-class StudentFlashcardsTab extends StatefulWidget {
-  const StudentFlashcardsTab({super.key, required this.courseId});
+class StudentStudyNotesTab extends StatefulWidget {
+  const StudentStudyNotesTab({super.key, required this.courseId});
 
   final String courseId;
 
   @override
-  State<StudentFlashcardsTab> createState() => _StudentFlashcardsTabState();
+  State<StudentStudyNotesTab> createState() => _StudentStudyNotesTabState();
 }
 
-class _StudentFlashcardsTabState extends State<StudentFlashcardsTab> {
-  late Future<_FlashcardTabData> _future;
+class _StudentStudyNotesTabState extends State<StudentStudyNotesTab> {
+  late Future<_StudyNotesTabData> _future;
 
   @override
   void initState() {
@@ -30,10 +30,10 @@ class _StudentFlashcardsTabState extends State<StudentFlashcardsTab> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_FlashcardTabData>(
+    return FutureBuilder<_StudyNotesTabData>(
       future: _future,
       builder: (context, snapshot) {
-        final data = snapshot.data ?? const _FlashcardTabData([], []);
+        final data = snapshot.data ?? const _StudyNotesTabData([], []);
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -41,7 +41,7 @@ class _StudentFlashcardsTabState extends State<StudentFlashcardsTab> {
             children: [
               Row(
                 children: [
-                  Expanded(child: Text('Flashcards', style: AppTextStyles.h2)),
+                  Expanded(child: Text('Study Notes', style: AppTextStyles.h2)),
                   ElevatedButton.icon(
                     onPressed: snapshot.connectionState == ConnectionState.done
                         ? () => _openGenerateDialog(data.materials)
@@ -53,28 +53,28 @@ class _StudentFlashcardsTabState extends State<StudentFlashcardsTab> {
               ),
               const SizedBox(height: 4),
               Text(
-                '${data.flashcards.length} private study sets',
+                '${data.notes.length} private revision sheets',
                 style: AppTextStyles.bodySmall,
               ),
               const SizedBox(height: 20),
               if (snapshot.connectionState != ConnectionState.done)
                 const Center(child: CircularProgressIndicator())
-              else if (data.flashcards.isEmpty)
+              else if (data.notes.isEmpty)
                 const EmptyState(
-                  icon: Icons.style_rounded,
-                  title: 'No flashcards yet',
+                  icon: Icons.note_alt_rounded,
+                  title: 'No study notes yet',
                   subtitle:
-                      'Generate private study flashcards from your course materials.',
+                      'Generate private revision sheets from your course materials.',
                 )
               else
-                ...data.flashcards.map(
-                  (set) => Padding(
+                ...data.notes.map(
+                  (note) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _FlashcardSetCard(
-                      flashcards: set,
-                      onStudy: () => _openStudySheet(set),
-                      onEdit: () => _edit(set),
-                      onDelete: () => _delete(set),
+                    child: _StudyNoteCard(
+                      note: note,
+                      onOpen: () => _openNotePage(note),
+                      onEdit: () => _edit(note),
+                      onDelete: () => _delete(note),
                     ),
                   ),
                 ),
@@ -85,14 +85,14 @@ class _StudentFlashcardsTabState extends State<StudentFlashcardsTab> {
     );
   }
 
-  Future<_FlashcardTabData> _load() async {
-    final flashcards = await FlashcardService.instance.getCourseFlashcards(
+  Future<_StudyNotesTabData> _load() async {
+    final notes = await StudyNoteService.instance.getCourseNotes(
       widget.courseId,
     );
     final materials = await MaterialService.instance.getCourseMaterials(
       widget.courseId,
     );
-    return _FlashcardTabData(flashcards, materials);
+    return _StudyNotesTabData(notes, materials);
   }
 
   void _refresh() {
@@ -107,12 +107,10 @@ class _StudentFlashcardsTabState extends State<StudentFlashcardsTab> {
       return;
     }
     final promptController = TextEditingController();
-    final countController = TextEditingController(text: '12');
-    var difficulty = 'mixed';
     var selectedIds = materials.map((material) => material.id).toSet();
     var isGenerating = false;
 
-    final generated = await showDialog<FlashcardModel>(
+    final generated = await showDialog<StudyNoteModel>(
       context: context,
       barrierDismissible: false,
       builder: (dialogContext) {
@@ -129,24 +127,21 @@ class _StudentFlashcardsTabState extends State<StudentFlashcardsTab> {
                     .where((material) => selectedIds.contains(material.id))
                     .toList();
                 final draft = await GeminiAiService.instance
-                    .generateFlashcardDraft(
+                    .generateStudyNoteDraft(
                       courseId: widget.courseId,
                       materials: selectedMaterials,
                       prompt: promptController.text,
-                      cardCount: int.tryParse(countController.text) ?? 12,
-                      difficulty: difficulty,
                     );
-                final saved = await FlashcardService.instance.createFlashcards(
+                final saved = await StudyNoteService.instance.createNote(
                   courseId: widget.courseId,
                   title: draft.title,
                   prompt: promptController.text,
-                  difficulty: difficulty,
                   materialIds: draft.materialIds.isEmpty
                       ? selectedMaterials
                             .map((material) => material.id)
                             .toList()
                       : draft.materialIds,
-                  cards: draft.cards,
+                  content: draft.content,
                 );
                 if (dialogContext.mounted) {
                   Navigator.pop(dialogContext, saved);
@@ -158,67 +153,21 @@ class _StudentFlashcardsTabState extends State<StudentFlashcardsTab> {
             }
 
             return AlertDialog(
-              title: const Text('Generate Flashcards'),
+              title: const Text('Generate Study Notes'),
               content: SizedBox(
-                width: 520,
+                width: 540,
                 child: SingleChildScrollView(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: countController,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                labelText: 'Cards',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: DropdownButtonFormField<String>(
-                              initialValue: difficulty,
-                              decoration: const InputDecoration(
-                                labelText: 'Difficulty',
-                              ),
-                              items: const [
-                                DropdownMenuItem(
-                                  value: 'mixed',
-                                  child: Text('Mixed'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'easy',
-                                  child: Text('Easy'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'medium',
-                                  child: Text('Medium'),
-                                ),
-                                DropdownMenuItem(
-                                  value: 'hard',
-                                  child: Text('Hard'),
-                                ),
-                              ],
-                              onChanged: isGenerating
-                                  ? null
-                                  : (value) => setDialogState(
-                                      () => difficulty = value ?? difficulty,
-                                    ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
                       TextField(
                         controller: promptController,
                         enabled: !isGenerating,
                         maxLines: 3,
                         decoration: const InputDecoration(
                           labelText: 'Optional prompt',
-                          hintText: 'Focus on formulas, examples, key terms...',
+                          hintText: 'Focus on definitions, examples, steps...',
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -239,9 +188,7 @@ class _StudentFlashcardsTabState extends State<StudentFlashcardsTab> {
                           TextButton(
                             onPressed: isGenerating
                                 ? null
-                                : () => setDialogState(() {
-                                    selectedIds.clear();
-                                  }),
+                                : () => setDialogState(selectedIds.clear),
                             child: const Text('None'),
                           ),
                         ],
@@ -297,50 +244,41 @@ class _StudentFlashcardsTabState extends State<StudentFlashcardsTab> {
     );
 
     promptController.dispose();
-    countController.dispose();
     if (!mounted || generated == null) return;
-    _showMessage('Flashcards generated.');
+    _showMessage('Study notes generated.');
     _refresh();
-    _openStudySheet(generated);
+    _openNotePage(generated);
   }
 
-  void _openStudySheet(FlashcardModel flashcards) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => _FlashcardStudySheet(flashcards: flashcards),
-    );
-  }
-
-  Future<void> _edit(FlashcardModel flashcards) async {
-    final saved = await showModalBottomSheet<FlashcardModel>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => FlashcardEditorSheet(
-        initial: flashcards,
-        onSave: FlashcardService.instance.updateFlashcards,
+  Future<void> _openNotePage(
+    StudyNoteModel note, {
+    bool initialEditing = false,
+  }) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StudyNoteReaderPage(
+          initialNote: note,
+          initialEditing: initialEditing,
+          onSave: StudyNoteService.instance.updateNote,
+          onDelete: StudyNoteService.instance.deleteNote,
+        ),
       ),
     );
-    if (saved == null || !mounted) return;
-    _showMessage('Flashcards updated.');
-    _refresh();
+    if (changed == true && mounted) _refresh();
   }
 
-  Future<void> _delete(FlashcardModel flashcards) async {
+  Future<void> _edit(StudyNoteModel note) async {
+    await _openNotePage(note, initialEditing: true);
+  }
+
+  Future<void> _delete(StudyNoteModel note) async {
     final ok =
         await showDialog<bool>(
           context: context,
           builder: (_) => AlertDialog(
-            title: const Text('Delete Flashcards'),
-            content: Text('Delete "${flashcards.title}"?'),
+            title: const Text('Delete Study Notes'),
+            content: Text('Delete "${note.title}"?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
@@ -355,9 +293,9 @@ class _StudentFlashcardsTabState extends State<StudentFlashcardsTab> {
         ) ??
         false;
     if (!ok) return;
-    await FlashcardService.instance.deleteFlashcards(flashcards.id);
+    await StudyNoteService.instance.deleteNote(note.id);
     if (!mounted) return;
-    _showMessage('Flashcards deleted.');
+    _showMessage('Study notes deleted.');
     _refresh();
   }
 
@@ -371,16 +309,16 @@ class _StudentFlashcardsTabState extends State<StudentFlashcardsTab> {
   }
 }
 
-class _FlashcardSetCard extends StatelessWidget {
-  const _FlashcardSetCard({
-    required this.flashcards,
-    required this.onStudy,
+class _StudyNoteCard extends StatelessWidget {
+  const _StudyNoteCard({
+    required this.note,
+    required this.onOpen,
     required this.onEdit,
     required this.onDelete,
   });
 
-  final FlashcardModel flashcards;
-  final VoidCallback onStudy;
+  final StudyNoteModel note;
+  final VoidCallback onOpen;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
@@ -407,30 +345,30 @@ class _FlashcardSetCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.all(9),
                     decoration: BoxDecoration(
-                      color: AppColors.cyanLight,
+                      color: AppColors.violetLight,
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(
-                      Icons.style_rounded,
-                      color: AppColors.cyan,
+                      Icons.note_alt_rounded,
+                      color: AppColors.violet,
                       size: 16,
                     ),
                   ),
                   const SizedBox(width: 12),
                   SizedBox(
-                    width: isCompact ? constraints.maxWidth - 48 : 260,
+                    width: isCompact ? constraints.maxWidth - 48 : 300,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          flashcards.title,
+                          note.title,
                           style: AppTextStyles.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 3),
                         Text(
-                          '${flashcards.cardCount} cards - ${flashcards.materialLabel} - ${flashcards.createdLabel}',
+                          '${note.materialLabel} - ${note.createdLabel}',
                           style: AppTextStyles.caption,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -458,9 +396,9 @@ class _FlashcardSetCard extends StatelessWidget {
                     ),
                   ),
                   ElevatedButton.icon(
-                    onPressed: onStudy,
-                    icon: const Icon(Icons.play_arrow_rounded, size: 16),
-                    label: const Text('Study'),
+                    onPressed: onOpen,
+                    icon: const Icon(Icons.visibility_rounded, size: 16),
+                    label: const Text('Open'),
                   ),
                 ],
               ),
@@ -472,108 +410,9 @@ class _FlashcardSetCard extends StatelessWidget {
   }
 }
 
-class _FlashcardStudySheet extends StatefulWidget {
-  const _FlashcardStudySheet({required this.flashcards});
+class _StudyNotesTabData {
+  const _StudyNotesTabData(this.notes, this.materials);
 
-  final FlashcardModel flashcards;
-
-  @override
-  State<_FlashcardStudySheet> createState() => _FlashcardStudySheetState();
-}
-
-class _FlashcardStudySheetState extends State<_FlashcardStudySheet> {
-  int _index = 0;
-  bool _showBack = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final cards = widget.flashcards.cards;
-    final card = cards[_index];
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(widget.flashcards.title, style: AppTextStyles.h2),
-                ),
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            InkWell(
-              onTap: () => setState(() => _showBack = !_showBack),
-              borderRadius: BorderRadius.circular(12),
-              child: Container(
-                width: double.infinity,
-                constraints: const BoxConstraints(minHeight: 220),
-                padding: const EdgeInsets.all(22),
-                decoration: BoxDecoration(
-                  color: _showBack ? AppColors.primaryLight : AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      _showBack ? card.back : card.front,
-                      style: AppTextStyles.h3,
-                      textAlign: TextAlign.center,
-                    ),
-                    if (card.tag.isNotEmpty) ...[
-                      const SizedBox(height: 16),
-                      Chip(label: Text(card.tag)),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 14),
-            Row(
-              children: [
-                Text('${_index + 1} of ${cards.length}'),
-                const Spacer(),
-                TextButton.icon(
-                  onPressed: _index == 0
-                      ? null
-                      : () => setState(() {
-                          _index--;
-                          _showBack = false;
-                        }),
-                  icon: const Icon(Icons.chevron_left_rounded),
-                  label: const Text('Previous'),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  onPressed: _index == cards.length - 1
-                      ? null
-                      : () => setState(() {
-                          _index++;
-                          _showBack = false;
-                        }),
-                  icon: const Icon(Icons.chevron_right_rounded),
-                  label: const Text('Next'),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FlashcardTabData {
-  const _FlashcardTabData(this.flashcards, this.materials);
-
-  final List<FlashcardModel> flashcards;
+  final List<StudyNoteModel> notes;
   final List<MaterialModel> materials;
 }

@@ -22,7 +22,6 @@ class AppSidebar extends StatelessWidget {
     (icon: Icons.dashboard_rounded, label: 'Dashboard'),
     (icon: Icons.menu_book_rounded, label: 'Courses'),
     (icon: Icons.calendar_month_rounded, label: 'Calendar'),
-    (icon: Icons.auto_awesome_rounded, label: 'AI Review'),
   ];
 
   @override
@@ -113,8 +112,8 @@ class AppSidebar extends StatelessWidget {
           _NavItem(
             icon: Icons.settings_rounded,
             label: 'Settings',
-            isSelected: selectedIndex == 4,
-            onTap: () => onItemSelected(4),
+            isSelected: selectedIndex == 3,
+            onTap: () => onItemSelected(3),
           ),
           _NavItem(
             icon: Icons.logout_rounded,
@@ -133,51 +132,54 @@ class AppSidebar extends StatelessWidget {
             },
           ),
           const SizedBox(height: 8),
-          GestureDetector(
-            onTap: onProfileTap,
-            child: Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: selectedIndex == 4
-                    ? AppColors.sidebarActive
-                    : AppColors.sidebarHover,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 16,
-                    backgroundColor: AppColors.primary,
-                    child: Text(
-                      initials,
-                      style: AppTextStyles.caption.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
+          MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: onProfileTap,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: selectedIndex == 3
+                      ? AppColors.sidebarActive
+                      : AppColors.sidebarHover,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 16,
+                      backgroundColor: AppColors.primary,
+                      child: Text(
+                        initials,
+                        style: AppTextStyles.caption.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          name,
-                          style: AppTextStyles.label.copyWith(
-                            color: AppColors.sidebarText,
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            name,
+                            style: AppTextStyles.label.copyWith(
+                              color: AppColors.sidebarText,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Text(
-                          user?.role.label ?? 'Instructor',
-                          style: AppTextStyles.caption.copyWith(
-                            color: AppColors.sidebarTextMuted,
+                          Text(
+                            user?.role.label ?? 'Instructor',
+                            style: AppTextStyles.caption.copyWith(
+                              color: AppColors.sidebarTextMuted,
+                            ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

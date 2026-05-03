@@ -1,4 +1,3 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -486,7 +485,6 @@ class _GenerateAssignmentDialogState extends State<_GenerateAssignmentDialog> {
   final _tasksCtrl = TextEditingController(text: '3');
   final _marksCtrl = TextEditingController(text: '100');
   final _selectedMaterialIds = <String>{};
-  final _files = <PlatformFile>[];
   String _difficulty = 'medium';
   DateTime? _deadline;
   bool _allMaterials = true;
@@ -574,10 +572,6 @@ class _GenerateAssignmentDialogState extends State<_GenerateAssignmentDialog> {
                     onPressed: _loading ? null : _pickDeadline,
                     child: const Text('Deadline'),
                   ),
-                  TextButton(
-                    onPressed: _loading ? null : _pickFiles,
-                    child: Text('Assignment Attachments (${_files.length})'),
-                  ),
                 ],
               ),
             ],
@@ -653,31 +647,6 @@ class _GenerateAssignmentDialogState extends State<_GenerateAssignmentDialog> {
     });
   }
 
-  Future<void> _pickFiles() async {
-    final result = await FilePicker.platform.pickFiles(
-      allowMultiple: true,
-      withData: true,
-      type: FileType.custom,
-      allowedExtensions: [
-        'png',
-        'jpg',
-        'jpeg',
-        'webp',
-        'pdf',
-        'txt',
-        'md',
-        'doc',
-        'docx',
-      ],
-    );
-    if (result == null) return;
-    setState(() {
-      _files
-        ..clear()
-        ..addAll(result.files.take(3));
-    });
-  }
-
   Future<void> _generate() async {
     final selected = _allMaterials
         ? widget.materials
@@ -695,7 +664,6 @@ class _GenerateAssignmentDialogState extends State<_GenerateAssignmentDialog> {
         marks: int.tryParse(_marksCtrl.text) ?? 100,
         includeRubric: _includeRubric,
         deadline: _deadline,
-        contextFiles: _files,
       );
       if (!mounted) return;
       Navigator.pop(context, draft);

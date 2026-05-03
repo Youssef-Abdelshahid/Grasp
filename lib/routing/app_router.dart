@@ -19,6 +19,7 @@ class AppRouter {
   static const courses = '/courses';
   static const studentDashboard = '/student/dashboard';
   static const studentCourses = '/student/courses';
+  static const studentCalendar = '/student/calendar';
   static const adminDashboard = '/admin/dashboard';
   static const adminUsers = '/admin/users';
   static const adminCourses = '/admin/courses';
@@ -26,6 +27,7 @@ class AppRouter {
   static const adminQuizzes = '/admin/quizzes';
   static const adminAssignments = '/admin/assignments';
   static const adminFlashcards = '/admin/flashcards';
+  static const adminStudyNotes = '/admin/study-notes';
   static const adminAnnouncements = '/admin/announcements';
   static const adminPermissions = '/admin/permissions';
   static const adminAiControls = '/admin/ai-controls';
@@ -79,6 +81,13 @@ class AppRouter {
             child: StudentLayout(initialIndex: 1),
           ),
         );
+      case studentCalendar:
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.student],
+            child: StudentLayout(initialIndex: 2),
+          ),
+        );
       case adminDashboard:
         return _fade(
           const ProtectedPage(
@@ -125,7 +134,7 @@ class AppRouter {
         return _fade(
           const ProtectedPage(
             allowedRoles: [AppRole.admin],
-            child: AdminLayout(initialIndex: 7),
+            child: AdminLayout(initialIndex: 8),
           ),
         );
       case adminFlashcards:
@@ -135,32 +144,39 @@ class AppRouter {
             child: AdminLayout(initialIndex: 6),
           ),
         );
-      case adminPermissions:
+      case adminStudyNotes:
         return _fade(
           const ProtectedPage(
             allowedRoles: [AppRole.admin],
-            child: AdminLayout(initialIndex: 8),
+            child: AdminLayout(initialIndex: 7),
           ),
         );
-      case adminAiControls:
+      case adminPermissions:
         return _fade(
           const ProtectedPage(
             allowedRoles: [AppRole.admin],
             child: AdminLayout(initialIndex: 9),
           ),
         );
-      case adminUploadLimits:
+      case adminAiControls:
         return _fade(
           const ProtectedPage(
             allowedRoles: [AppRole.admin],
             child: AdminLayout(initialIndex: 10),
           ),
         );
-      case adminPlatform:
+      case adminUploadLimits:
         return _fade(
           const ProtectedPage(
             allowedRoles: [AppRole.admin],
             child: AdminLayout(initialIndex: 11),
+          ),
+        );
+      case adminPlatform:
+        return _fade(
+          const ProtectedPage(
+            allowedRoles: [AppRole.admin],
+            child: AdminLayout(initialIndex: 12),
           ),
         );
       default:

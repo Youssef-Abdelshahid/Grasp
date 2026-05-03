@@ -9,10 +9,19 @@ import '../../../core/widgets/stat_card.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/dashboard_service.dart';
+import '../content/admin_announcements_page.dart';
+import '../content/admin_assessments_page.dart';
+import '../content/admin_courses_page.dart';
+import '../content/admin_flashcards_page.dart';
+import '../content/admin_materials_page.dart';
+import '../content/admin_study_notes_page.dart';
+import '../profile/admin_profile_page.dart';
 import '../users/admin_users_page.dart';
 
 class AdminDashboardPage extends StatefulWidget {
-  const AdminDashboardPage({super.key});
+  const AdminDashboardPage({super.key, this.onNavigateToTab});
+
+  final ValueChanged<int>? onNavigateToTab;
 
   @override
   State<AdminDashboardPage> createState() => _AdminDashboardPageState();
@@ -115,6 +124,8 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
               ),
               const SizedBox(height: 24),
               _buildStatsGrid(isWide, stats),
+              const SizedBox(height: 28),
+              _buildQuickActions(context, isWide),
               const SizedBox(height: 28),
               _buildAlerts(summary.alerts),
               const SizedBox(height: 28),
@@ -276,6 +287,117 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
         ),
       ],
     );
+  }
+
+  Widget _buildQuickActions(BuildContext context, bool isWide) {
+    final actions = [
+      (
+        icon: Icons.people_rounded,
+        label: 'Users',
+        color: AppColors.primary,
+        bg: AppColors.primaryLight,
+        onTap: () => _openAdminTab(context, 1, const AdminUsersPage()),
+      ),
+      (
+        icon: Icons.menu_book_rounded,
+        label: 'Courses',
+        color: AppColors.emerald,
+        bg: AppColors.emeraldLight,
+        onTap: () => _openAdminTab(context, 2, const AdminCoursesPage()),
+      ),
+      (
+        icon: Icons.description_rounded,
+        label: 'Materials',
+        color: AppColors.amber,
+        bg: AppColors.amberLight,
+        onTap: () => _openAdminTab(context, 3, const AdminMaterialsPage()),
+      ),
+      (
+        icon: Icons.quiz_rounded,
+        label: 'Quizzes',
+        color: AppColors.violet,
+        bg: AppColors.violetLight,
+        onTap: () =>
+            _openAdminTab(context, 4, const AdminAssessmentsPage.quizzes()),
+      ),
+      (
+        icon: Icons.assignment_rounded,
+        label: 'Assignments',
+        color: AppColors.rose,
+        bg: AppColors.roseLight,
+        onTap: () =>
+            _openAdminTab(context, 5, const AdminAssessmentsPage.assignments()),
+      ),
+      (
+        icon: Icons.campaign_rounded,
+        label: 'Announcements',
+        color: AppColors.success,
+        bg: AppColors.successLight,
+        onTap: () => _openAdminTab(context, 8, const AdminAnnouncementsPage()),
+      ),
+      (
+        icon: Icons.style_rounded,
+        label: 'Flashcards',
+        color: AppColors.cyan,
+        bg: AppColors.cyanLight,
+        onTap: () => _openAdminTab(context, 6, const AdminFlashcardsPage()),
+      ),
+      (
+        icon: Icons.note_alt_rounded,
+        label: 'Study Notes',
+        color: AppColors.violet,
+        bg: AppColors.violetLight,
+        onTap: () => _openAdminTab(context, 7, const AdminStudyNotesPage()),
+      ),
+      (
+        icon: Icons.account_circle_rounded,
+        label: 'Profile',
+        color: AppColors.textSecondary,
+        bg: AppColors.background,
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AdminProfilePage()),
+        ),
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'Quick Actions'),
+        const SizedBox(height: 16),
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: isWide ? 4 : 2,
+            mainAxisSpacing: 12,
+            crossAxisSpacing: 12,
+            mainAxisExtent: 64,
+          ),
+          itemCount: actions.length,
+          itemBuilder: (_, index) {
+            final action = actions[index];
+            return _QuickActionCard(
+              icon: action.icon,
+              label: action.label,
+              color: action.color,
+              bg: action.bg,
+              onTap: action.onTap,
+            );
+          },
+        ),
+      ],
+    );
+  }
+
+  void _openAdminTab(BuildContext context, int index, Widget page) {
+    final navigate = widget.onNavigateToTab;
+    if (navigate != null) {
+      navigate(index);
+      return;
+    }
+    Navigator.push(context, MaterialPageRoute(builder: (_) => page));
   }
 
   Widget _buildAlerts(List<AdminAlertItem> alerts) {
@@ -470,6 +592,62 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
             ),
           ),
       ],
+    );
+  }
+}
+
+class _QuickActionCard extends StatelessWidget {
+  const _QuickActionCard({
+    required this.icon,
+    required this.label,
+    required this.color,
+    required this.bg,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final Color color;
+  final Color bg;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.surface,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(7),
+                decoration: BoxDecoration(
+                  color: bg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 16),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  label,
+                  style: AppTextStyles.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

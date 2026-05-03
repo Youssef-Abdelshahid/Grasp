@@ -5,22 +5,22 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../features/shared/flashcards/flashcard_editor_sheet.dart';
-import '../../../models/flashcard_model.dart';
-import '../../../services/flashcard_service.dart';
+import '../../../features/shared/study_notes/study_note_reader_page.dart';
+import '../../../models/study_note_model.dart';
+import '../../../services/study_note_service.dart';
 
-class AdminFlashcardsPage extends StatefulWidget {
-  const AdminFlashcardsPage({super.key});
+class AdminStudyNotesPage extends StatefulWidget {
+  const AdminStudyNotesPage({super.key});
 
   @override
-  State<AdminFlashcardsPage> createState() => _AdminFlashcardsPageState();
+  State<AdminStudyNotesPage> createState() => _AdminStudyNotesPageState();
 }
 
-class _AdminFlashcardsPageState extends State<AdminFlashcardsPage> {
+class _AdminStudyNotesPageState extends State<AdminStudyNotesPage> {
   final _searchController = TextEditingController();
   Timer? _debounce;
   String? _createdRange;
-  Future<List<FlashcardModel>>? _future;
+  Future<List<StudyNoteModel>>? _future;
 
   @override
   void initState() {
@@ -40,17 +40,17 @@ class _AdminFlashcardsPageState extends State<AdminFlashcardsPage> {
     final isWide =
         MediaQuery.of(context).size.width >= AppConstants.mobileBreakpoint;
 
-    return FutureBuilder<List<FlashcardModel>>(
+    return FutureBuilder<List<StudyNoteModel>>(
       future: _future,
       builder: (context, snapshot) {
-        final items = snapshot.data ?? const <FlashcardModel>[];
+        final items = snapshot.data ?? const <StudyNoteModel>[];
         return SingleChildScrollView(
           padding: EdgeInsets.all(isWide ? 28 : 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _Header(
-                title: 'Flashcards',
+                title: 'Study Notes',
                 count: items.length,
                 onRefresh: _load,
               ),
@@ -98,7 +98,7 @@ class _AdminFlashcardsPageState extends State<AdminFlashcardsPage> {
                 _Empty(
                   _hasFilters
                       ? 'No results for current filters'
-                      : 'No flashcards found',
+                      : 'No study notes found',
                 )
               else
                 _Panel(
@@ -111,14 +111,14 @@ class _AdminFlashcardsPageState extends State<AdminFlashcardsPage> {
                               vertical: 10,
                             ),
                             leading: const Icon(
-                              Icons.style_rounded,
+                              Icons.note_alt_rounded,
                               color: AppColors.primary,
                             ),
                             title: Text(item.title, style: AppTextStyles.label),
                             subtitle: Padding(
                               padding: const EdgeInsets.only(top: 4),
                               child: Text(
-                                '${item.cardCount} cards - ${item.studentLabel}'
+                                '${item.studentLabel}'
                                 '${item.studentSubtitle.isEmpty ? '' : ' (${item.studentSubtitle})'}\n'
                                 '${item.courseLabel} - ${item.materialLabel} - ${item.createdLabel}',
                                 style: AppTextStyles.caption,
@@ -129,7 +129,7 @@ class _AdminFlashcardsPageState extends State<AdminFlashcardsPage> {
                               children: [
                                 IconButton(
                                   tooltip: 'View details',
-                                  onPressed: () => _showDetails(item),
+                                  onPressed: () => _openNotePage(item),
                                   icon: const Icon(Icons.visibility_rounded),
                                 ),
                                 IconButton(
@@ -147,7 +147,7 @@ class _AdminFlashcardsPageState extends State<AdminFlashcardsPage> {
                                 ),
                               ],
                             ),
-                            onTap: () => _showDetails(item),
+                            onTap: () => _openNotePage(item),
                           ),
                         )
                         .toList(),
@@ -166,7 +166,7 @@ class _AdminFlashcardsPageState extends State<AdminFlashcardsPage> {
 
   void _load() {
     setState(() {
-      _future = FlashcardService.instance.getAllFlashcards(
+      _future = StudyNoteService.instance.getAllNotes(
         search: _searchController.text,
         createdRange: _createdRange,
       );
@@ -178,77 +178,36 @@ class _AdminFlashcardsPageState extends State<AdminFlashcardsPage> {
     _debounce = Timer(const Duration(milliseconds: 350), _load);
   }
 
-  void _showDetails(FlashcardModel item) {
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(item.title, style: AppTextStyles.h2),
-                const SizedBox(height: 16),
-                _DetailRow('Student', item.studentLabel),
-                if (item.studentSubtitle.isNotEmpty)
-                  _DetailRow('Email', item.studentSubtitle),
-                _DetailRow('Course', item.courseLabel),
-                _DetailRow('Materials', item.materialLabel),
-                _DetailRow('Created', item.createdLabel),
-                const SizedBox(height: 16),
-                ...item.cards.asMap().entries.map(
-                  (entry) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      tileColor: AppColors.background,
-                      title: Text(entry.value.front),
-                      subtitle: Text(entry.value.back),
-                      trailing: entry.value.tag.isEmpty
-                          ? null
-                          : Chip(label: Text(entry.value.tag)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
+  Future<void> _openNotePage(
+    StudyNoteModel item, {
+    bool initialEditing = false,
+  }) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => StudyNoteReaderPage(
+          initialNote: item,
+          initialEditing: initialEditing,
+          showStudent: true,
+          onSave: StudyNoteService.instance.updateNote,
+          onDelete: StudyNoteService.instance.deleteNote,
         ),
       ),
     );
+    if (changed == true && mounted) _load();
   }
 
-  Future<void> _edit(FlashcardModel item) async {
-    final saved = await showModalBottomSheet<FlashcardModel>(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: AppColors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => FlashcardEditorSheet(
-        initial: item,
-        onSave: FlashcardService.instance.updateFlashcards,
-      ),
-    );
-    if (saved == null || !mounted) return;
-    _snack('Flashcards updated');
-    _load();
+  Future<void> _edit(StudyNoteModel item) async {
+    await _openNotePage(item, initialEditing: true);
   }
 
-  Future<void> _delete(FlashcardModel item) async {
-    final ok = await _confirm('Delete Flashcards', 'Delete "${item.title}"?');
+  Future<void> _delete(StudyNoteModel item) async {
+    final ok = await _confirm('Delete Study Notes', 'Delete "${item.title}"?');
     if (!ok) return;
     try {
-      await FlashcardService.instance.deleteFlashcards(item.id);
+      await StudyNoteService.instance.deleteNote(item.id);
       if (!mounted) return;
-      _snack('Flashcards deleted');
+      _snack('Study notes deleted');
       _load();
     } catch (error) {
       _snack(error.toString(), isError: true);
@@ -312,30 +271,6 @@ class _Header extends StatelessWidget {
           icon: const Icon(Icons.refresh_rounded),
         ),
       ],
-    );
-  }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow(this.label, this.value);
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 100,
-            child: Text(label, style: AppTextStyles.caption),
-          ),
-          Expanded(child: Text(value, style: AppTextStyles.label)),
-        ],
-      ),
     );
   }
 }
