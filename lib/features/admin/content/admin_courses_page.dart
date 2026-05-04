@@ -74,13 +74,13 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
   Future<void> _delete(AdminCourseItem course) async {
     final ok = await _confirm(
       'Delete Course',
-      'Remove ${course.title} from active admin lists? Related records stay intact and the course is archived safely.',
+      'Permanently delete ${course.title}? Related course records will be removed from the active system.',
     );
     if (!ok) return;
     try {
       await AdminContentService.instance.deleteCourseSafely(course.id);
       if (!mounted) return;
-      _snack('Course removed');
+      _snack('Course deleted');
       _load();
     } catch (error) {
       _snack(error.toString(), isError: true);
@@ -186,13 +186,6 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
       role: AppRole.instructor,
     );
     if (!mounted) return;
-    if (instructors.isEmpty) {
-      _snack(
-        'Create an instructor account before creating a course.',
-        isError: true,
-      );
-      return;
-    }
 
     final title = TextEditingController(text: course?.title ?? '');
     final code = TextEditingController(text: course?.code ?? '');
@@ -201,7 +194,10 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
     final maxStudents = TextEditingController(
       text: '${course?.maxStudents ?? 50}',
     );
-    var instructorId = course?.instructorId ?? instructors.first.id;
+    final selectedInstructorIds = course == null
+        ? <String>{}
+        : await _loadAssignedInstructorIds(course);
+    if (!mounted) return;
     var status = course?.status ?? 'draft';
     var allowSelfEnrollment = course?.allowSelfEnrollment ?? false;
     var isVisible = course?.isVisible ?? false;
@@ -249,20 +245,18 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
                   keyboardType: TextInputType.number,
                 ),
                 const SizedBox(height: 12),
-                Text('Instructor', style: AppTextStyles.label),
+                Text('Instructors', style: AppTextStyles.label),
                 const SizedBox(height: 6),
-                DropdownButtonFormField<String>(
-                  initialValue: instructorId,
-                  items: instructors
-                      .map(
-                        (user) => DropdownMenuItem(
-                          value: user.id,
-                          child: Text(user.name),
-                        ),
-                      )
-                      .toList(),
-                  onChanged: (value) =>
-                      setSheet(() => instructorId = value ?? instructorId),
+                _InstructorSelector(
+                  instructors: instructors,
+                  selectedIds: selectedInstructorIds,
+                  onChanged: (ids) {
+                    setSheet(() {
+                      selectedInstructorIds
+                        ..clear()
+                        ..addAll(ids);
+                    });
+                  },
                 ),
                 const SizedBox(height: 12),
                 Text('Status', style: AppTextStyles.label),
@@ -304,13 +298,21 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () async {
+                          if (selectedInstructorIds.isEmpty) {
+                            _snack(
+                              'Please assign at least one instructor to this course.',
+                              isError: true,
+                            );
+                            return;
+                          }
                           try {
                             await AdminContentService.instance.saveCourse(
                               courseId: course?.id,
                               title: title.text,
                               code: code.text,
                               description: description.text,
-                              instructorId: instructorId,
+                              instructorId: selectedInstructorIds.first,
+                              instructorIds: selectedInstructorIds.toList(),
                               status: status,
                               semester: semester.text,
                               maxStudents: int.tryParse(maxStudents.text) ?? 50,
@@ -338,6 +340,17 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
     );
   }
 
+  Future<Set<String>> _loadAssignedInstructorIds(AdminCourseItem course) async {
+    try {
+      final members = await AdminContentService.instance.getCourseMembers(
+        course.id,
+      );
+      return members.instructors.map((user) => user.id).toSet();
+    } catch (_) {
+      return course.instructors.map((user) => user.id).toSet();
+    }
+  }
+
   void _showCourseDetails(AdminCourseItem course) {
     showModalBottomSheet<void>(
       context: context,
@@ -358,7 +371,7 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
                 rows: {
                   'Code': course.code,
                   'Status': course.statusLabel,
-                  'Instructor': course.instructorName,
+                  'Instructors': course.instructorName,
                   'Students': '${course.studentsCount}',
                   'Materials': '${course.materialsCount}',
                   'Quizzes': '${course.quizzesCount}',
@@ -642,7 +655,7 @@ class _CourseList extends StatelessWidget {
               style: AppTextStyles.label,
             ),
             subtitle: Text(
-              '${item.instructorName} - ${item.studentsCount} students - ${item.statusLabel}',
+              '${item.instructorSummary} - ${item.studentsCount} students - ${item.statusLabel}',
               style: AppTextStyles.caption,
             ),
             trailing: Wrap(
@@ -756,20 +769,55 @@ class _CourseMembersSheetState extends State<_CourseMembersSheet> {
                 if (snapshot.connectionState != ConnectionState.done)
                   const Center(child: CircularProgressIndicator())
                 else ...[
-                  _sectionTitle('Main Instructor'),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(members?.instructor?.name ?? 'No instructor'),
-                    subtitle: Text(members?.instructor?.email ?? ''),
-                    trailing: OutlinedButton(
-                      onPressed: _assignInstructor,
-                      child: const Text('Change'),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(child: _sectionTitle('Instructors')),
+                      OutlinedButton.icon(
+                        onPressed: _addInstructor,
+                        icon: const Icon(Icons.person_add_rounded, size: 16),
+                        label: const Text('Add'),
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 8),
+                  if ((members?.instructors ?? const []).isEmpty)
+                    Text(
+                      'No instructors assigned.',
+                      style: AppTextStyles.bodySmall,
+                    )
+                  else
+                    Column(
+                      children: members!.instructors.map((instructor) {
+                        final isOnly = members.instructors.length == 1;
+                        return ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(instructor.name),
+                          subtitle: Text(instructor.email),
+                          trailing: IconButton(
+                            tooltip: isOnly
+                                ? 'At least one instructor is required'
+                                : 'Remove instructor',
+                            onPressed: isOnly
+                                ? null
+                                : () => _removeInstructor(instructor),
+                            icon: Icon(
+                              Icons.remove_circle_outline_rounded,
+                              color: isOnly
+                                  ? AppColors.textMuted
+                                  : AppColors.error,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
                   const Divider(color: AppColors.border),
                   Row(
                     children: [
-                      Expanded(child: _sectionTitle('Students')),
+                      Expanded(
+                        child: _sectionTitle(
+                          'Students (${members?.students.length ?? 0})',
+                        ),
+                      ),
                       OutlinedButton.icon(
                         onPressed: _addStudent,
                         icon: const Icon(Icons.person_add_rounded, size: 16),
@@ -787,23 +835,17 @@ class _CourseMembersSheetState extends State<_CourseMembersSheet> {
                     FutureBuilder<List<CourseStudentActivity>>(
                       future: _activityFuture,
                       builder: (context, activitySnapshot) {
-                        final byStudentId = {
-                          for (final item
-                              in activitySnapshot.data ??
-                                  const <CourseStudentActivity>[])
-                            item.studentId: item,
-                        };
                         return Column(
                           children: members!.students.map((student) {
-                            final activity = byStudentId[student.id];
+                            final meta = [
+                              student.email,
+                              if (student.enrolledAt != null)
+                                'Enrolled ${student.enrolledLabel}',
+                            ].join(' - ');
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
                               title: Text(student.name),
-                              subtitle: Text(
-                                activity == null
-                                    ? student.email
-                                    : '${student.email} - Q ${activity.quizzesCompleted}/${activity.totalQuizzes} - A ${activity.assignmentsSubmitted}/${activity.totalAssignments} - ${activity.overdueCount} overdue',
-                              ),
+                              subtitle: Text(meta),
                               onTap: () => showStudentActivitySheet(
                                 context: context,
                                 courseId: widget.course.id,
@@ -849,19 +891,40 @@ class _CourseMembersSheetState extends State<_CourseMembersSheet> {
     return Text(text, style: AppTextStyles.h3);
   }
 
-  Future<void> _assignInstructor() async {
+  Future<void> _addInstructor() async {
     if (_instructors.isEmpty) {
       _snack('No instructors available.', isError: true);
       return;
     }
-    final selected = await _pickUser('Assign Instructor', _instructors);
+    final current = (await _future).instructors.map((user) => user.id).toSet();
+    final available = _instructors
+        .where((instructor) => !current.contains(instructor.id))
+        .toList();
+    if (available.isEmpty) {
+      _snack('No available instructors to add.', isError: true);
+      return;
+    }
+    final selected = await _pickUser('Add Instructor', available);
     if (selected == null) return;
     try {
-      await AdminContentService.instance.assignCourseInstructor(
+      await AdminContentService.instance.addCourseInstructor(
         courseId: widget.course.id,
         instructorId: selected.id,
       );
-      _snack('Instructor assigned');
+      _snack('Instructor added');
+      _refresh();
+    } catch (error) {
+      _snack(error.toString(), isError: true);
+    }
+  }
+
+  Future<void> _removeInstructor(AdminUser instructor) async {
+    try {
+      await AdminContentService.instance.removeCourseInstructor(
+        courseId: widget.course.id,
+        instructorId: instructor.id,
+      );
+      _snack('Instructor removed');
       _refresh();
     } catch (error) {
       _snack(error.toString(), isError: true);
@@ -873,18 +936,26 @@ class _CourseMembersSheetState extends State<_CourseMembersSheet> {
     final available = _students
         .where((student) => !current.contains(student.id))
         .toList();
-    if (available.isEmpty) {
-      _snack('No available students to add.', isError: true);
+    if (_students.isEmpty) {
+      _snack('No student accounts are available.', isError: true);
       return;
     }
-    final selected = await _pickUser('Add Student', available);
-    if (selected == null) return;
+    if (available.isEmpty) {
+      _snack('All available students are already enrolled.', isError: true);
+      return;
+    }
+    final selected = await _pickUsers('Add Students', available);
+    if (selected.isEmpty) return;
     try {
-      await AdminContentService.instance.addCourseStudent(
+      await AdminContentService.instance.addCourseStudents(
         courseId: widget.course.id,
-        studentId: selected.id,
+        studentIds: selected.map((user) => user.id).toList(),
       );
-      _snack('Student added');
+      _snack(
+        selected.length == 1
+            ? 'Student added'
+            : '${selected.length} students added',
+      );
       _refresh();
     } catch (error) {
       _snack(error.toString(), isError: true);
@@ -892,6 +963,29 @@ class _CourseMembersSheetState extends State<_CourseMembersSheet> {
   }
 
   Future<void> _removeStudent(AdminUser student) async {
+    final confirmed =
+        await showDialog<bool>(
+          context: context,
+          builder: (_) => AlertDialog(
+            title: const Text('Remove Student'),
+            content: Text(
+              'Remove ${student.name} from ${widget.course.code}? Their previous submissions stay safely stored.',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text('Remove'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+
     try {
       await AdminContentService.instance.removeCourseStudent(
         courseId: widget.course.id,
@@ -964,6 +1058,105 @@ class _CourseMembersSheetState extends State<_CourseMembersSheet> {
         ),
       ),
     );
+  }
+
+  Future<List<AdminUser>> _pickUsers(String title, List<AdminUser> users) {
+    final search = TextEditingController();
+    var filtered = users;
+    final selectedIds = <String>{};
+    return showDialog<List<AdminUser>>(
+          context: context,
+          builder: (_) => StatefulBuilder(
+            builder: (ctx, setDlg) => AlertDialog(
+              title: Text(title),
+              content: SizedBox(
+                width: 460,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      controller: search,
+                      decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.search_rounded),
+                        hintText: 'Search students...',
+                      ),
+                      onChanged: (value) {
+                        final query = value.toLowerCase();
+                        setDlg(() {
+                          filtered = users
+                              .where(
+                                (user) =>
+                                    user.name.toLowerCase().contains(query) ||
+                                    user.email.toLowerCase().contains(query),
+                              )
+                              .toList();
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+                    ConstrainedBox(
+                      constraints: const BoxConstraints(maxHeight: 340),
+                      child: filtered.isEmpty
+                          ? Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Text(
+                                'No students found.',
+                                style: AppTextStyles.bodySmall,
+                              ),
+                            )
+                          : ListView.builder(
+                              shrinkWrap: true,
+                              itemCount: filtered.length,
+                              itemBuilder: (_, index) {
+                                final user = filtered[index];
+                                final selected = selectedIds.contains(user.id);
+                                return CheckboxListTile(
+                                  value: selected,
+                                  contentPadding: EdgeInsets.zero,
+                                  title: Text(user.name),
+                                  subtitle: Text(user.email),
+                                  onChanged: (value) {
+                                    setDlg(() {
+                                      if (value ?? false) {
+                                        selectedIds.add(user.id);
+                                      } else {
+                                        selectedIds.remove(user.id);
+                                      }
+                                    });
+                                  },
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, const <AdminUser>[]),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: selectedIds.isEmpty
+                      ? null
+                      : () {
+                          Navigator.pop(
+                            ctx,
+                            users
+                                .where((user) => selectedIds.contains(user.id))
+                                .toList(),
+                          );
+                        },
+                  child: Text(
+                    selectedIds.isEmpty ? 'Add' : 'Add ${selectedIds.length}',
+                  ),
+                ),
+              ],
+            ),
+          ),
+        )
+        .then((value) => value ?? const <AdminUser>[])
+        .whenComplete(search.dispose);
   }
 }
 
@@ -1153,6 +1346,162 @@ class _Field extends StatelessWidget {
       maxLines: maxLines,
       keyboardType: keyboardType,
       decoration: InputDecoration(labelText: label),
+    );
+  }
+}
+
+class _InstructorSelector extends StatelessWidget {
+  const _InstructorSelector({
+    required this.instructors,
+    required this.selectedIds,
+    required this.onChanged,
+  });
+
+  final List<AdminUser> instructors;
+  final Set<String> selectedIds;
+  final ValueChanged<Set<String>> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final selected = instructors
+        .where((user) => selectedIds.contains(user.id))
+        .toList();
+    final available = instructors
+        .where((user) => !selectedIds.contains(user.id))
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (selected.isEmpty)
+          Text(
+            'Select at least one instructor.',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: selected.map((user) {
+              return InputChip(
+                avatar: const Icon(Icons.person_rounded, size: 16),
+                label: Text(
+                  user.email.isEmpty
+                      ? user.name
+                      : '${user.name} - ${user.email}',
+                ),
+                onDeleted: () {
+                  onChanged({...selectedIds}..remove(user.id));
+                },
+              );
+            }).toList(),
+          ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          onPressed: () async {
+            if (instructors.isEmpty) {
+              _showMessage(
+                context,
+                'No instructors are available. Create an instructor account first.',
+                isError: true,
+              );
+              return;
+            }
+            if (available.isEmpty) {
+              _showMessage(
+                context,
+                'All available instructors are already assigned.',
+              );
+              return;
+            }
+            final picked = await _pickInstructor(context, available);
+            if (picked == null) return;
+            onChanged({...selectedIds, picked.id});
+          },
+          icon: const Icon(Icons.person_add_rounded, size: 16),
+          label: const Text('Add instructor'),
+        ),
+      ],
+    );
+  }
+
+  Future<AdminUser?> _pickInstructor(
+    BuildContext context,
+    List<AdminUser> users,
+  ) {
+    final search = TextEditingController();
+    var filtered = users;
+    return showDialog<AdminUser>(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setDlg) => AlertDialog(
+          title: const Text('Add Instructor'),
+          content: SizedBox(
+            width: 420,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: search,
+                  decoration: const InputDecoration(
+                    prefixIcon: Icon(Icons.search_rounded),
+                    hintText: 'Search instructors...',
+                  ),
+                  onChanged: (value) {
+                    final query = value.toLowerCase();
+                    setDlg(() {
+                      filtered = users
+                          .where(
+                            (user) =>
+                                user.name.toLowerCase().contains(query) ||
+                                user.email.toLowerCase().contains(query),
+                          )
+                          .toList();
+                    });
+                  },
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 300),
+                  child: ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: filtered.length,
+                    itemBuilder: (_, index) {
+                      final user = filtered[index];
+                      return ListTile(
+                        title: Text(user.name),
+                        subtitle: Text(user.email),
+                        onTap: () => Navigator.pop(ctx, user),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+          ],
+        ),
+      ),
+    ).whenComplete(search.dispose);
+  }
+
+  void _showMessage(
+    BuildContext context,
+    String message, {
+    bool isError = false,
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+        behavior: SnackBarBehavior.floating,
+        margin: const EdgeInsets.all(16),
+      ),
     );
   }
 }

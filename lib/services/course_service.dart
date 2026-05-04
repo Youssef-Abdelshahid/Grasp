@@ -11,10 +11,22 @@ class CourseService {
 
   Future<List<CourseModel>> getInstructorCourses() async {
     final userId = _client.auth.currentUser!.id;
+    final assignments = await _client
+        .from('course_instructors')
+        .select('course_id')
+        .eq('instructor_id', userId);
+    final assignedIds = (assignments as List<dynamic>)
+        .map((item) => (item as Map)['course_id'] as String)
+        .toSet();
+
     final response = await _client
         .from('courses')
         .select('*, profiles!courses_instructor_id_fkey(full_name)')
-        .eq('instructor_id', userId)
+        .or(
+          assignedIds.isEmpty
+              ? 'instructor_id.eq.$userId'
+              : 'instructor_id.eq.$userId,id.in.(${assignedIds.join(',')})',
+        )
         .neq('status', 'archived')
         .order('created_at', ascending: false);
 
@@ -54,7 +66,7 @@ class CourseService {
         .single();
 
     final course = CourseModel.fromJson(
-      _normalizeCourseJson(Map<String, dynamic>.from(response)),
+      await _normalizeCourseJson(Map<String, dynamic>.from(response)),
     );
     final counts = await _getCountsForCourse(course.id);
 
@@ -66,6 +78,7 @@ class CourseService {
       lecturesCount: counts.materialsCount,
       instructor: course.instructor,
       instructorId: course.instructorId,
+      instructors: course.instructors,
       description: course.description,
       status: course.status,
       semester: course.semester,
@@ -102,9 +115,16 @@ class CourseService {
         .select('*, profiles!courses_instructor_id_fkey(full_name)')
         .single();
 
-    return CourseModel.fromJson(
-      _normalizeCourseJson(Map<String, dynamic>.from(response)),
+    final created = CourseModel.fromJson(
+      await _normalizeCourseJson(Map<String, dynamic>.from(response)),
     );
+    await _client.from('course_instructors').upsert({
+      'course_id': created.id,
+      'instructor_id': userId,
+      'assigned_by': userId,
+    });
+
+    return getCourseDetails(created.id);
   }
 
   Future<CourseModel> updateCourse({
@@ -135,7 +155,7 @@ class CourseService {
         .single();
 
     final course = CourseModel.fromJson(
-      _normalizeCourseJson(Map<String, dynamic>.from(response)),
+      await _normalizeCourseJson(Map<String, dynamic>.from(response)),
     );
     final counts = await _getCountsForCourse(course.id);
 
@@ -147,6 +167,7 @@ class CourseService {
       lecturesCount: counts.materialsCount,
       instructor: course.instructor,
       instructorId: course.instructorId,
+      instructors: course.instructors,
       description: course.description,
       status: course.status,
       semester: course.semester,
@@ -232,11 +253,11 @@ class CourseService {
 
   Future<List<CourseModel>> _mapCourses(List<dynamic> rows) async {
     final normalized = rows
-        .map(
-          (item) =>
-              _normalizeCourseJson(Map<String, dynamic>.from(item as Map)),
-        )
+        .map((item) => Map<String, dynamic>.from(item as Map))
         .toList();
+    for (final item in normalized) {
+      await _normalizeCourseJson(item);
+    }
     final ids = normalized.map((item) => item['id'] as String).toList();
     final counts = await _getCounts(ids);
 
@@ -252,6 +273,7 @@ class CourseService {
         lecturesCount: courseCounts.materialsCount,
         instructor: base.instructor,
         instructorId: base.instructorId,
+        instructors: base.instructors,
         description: base.description,
         status: base.status,
         semester: base.semester,
@@ -263,13 +285,29 @@ class CourseService {
     }).toList();
   }
 
-  Map<String, dynamic> _normalizeCourseJson(Map<String, dynamic> json) {
+  Future<Map<String, dynamic>> _normalizeCourseJson(
+    Map<String, dynamic> json,
+  ) async {
     final profile = json['profiles'];
     if (profile is Map<String, dynamic>) {
       json['instructor_name'] = profile['full_name'];
     } else if (profile is Map) {
       json['instructor_name'] = profile['full_name'];
     }
+    json['instructors'] = await _getCourseInstructors(json['id'] as String);
     return json;
+  }
+
+  Future<List<Map<String, dynamic>>> _getCourseInstructors(
+    String courseId,
+  ) async {
+    final response = await _client.rpc(
+      'course_instructor_summary',
+      params: {'p_course_id': courseId},
+    );
+    return (response as List<dynamic>? ?? const [])
+        .whereType<Map>()
+        .map((item) => Map<String, dynamic>.from(item))
+        .toList();
   }
 }

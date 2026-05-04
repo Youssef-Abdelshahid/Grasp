@@ -52,6 +52,8 @@ class AdminUser {
     this.createdAt,
     this.updatedAt,
     this.lastActiveAt,
+    this.enrolledAt,
+    this.enrollmentStatus = '',
     this.coursesCount = 0,
     this.submissionsCount = 0,
     this.adminActionsCount = 0,
@@ -74,6 +76,8 @@ class AdminUser {
   final DateTime? createdAt;
   final DateTime? updatedAt;
   final DateTime? lastActiveAt;
+  final DateTime? enrolledAt;
+  final String enrollmentStatus;
   final int coursesCount;
   final int submissionsCount;
   final int adminActionsCount;
@@ -83,6 +87,9 @@ class AdminUser {
   String get statusLabel => status.label;
   String get joinedLabel => _formatDate(createdAt);
   String get lastActiveLabel => _formatRelative(lastActiveAt);
+  String get enrolledLabel => _formatDate(enrolledAt);
+  String get enrollmentStatusLabel =>
+      enrollmentStatus.isEmpty ? '' : _label(enrollmentStatus);
 
   factory AdminUser.fromJson(Map<String, dynamic> json) {
     return AdminUser(
@@ -106,6 +113,8 @@ class AdminUser {
       createdAt: _parseDate(json['created_at']),
       updatedAt: _parseDate(json['updated_at']),
       lastActiveAt: _parseDate(json['last_active_at']),
+      enrolledAt: _parseDate(json['enrolled_at']),
+      enrollmentStatus: json['enrollment_status'] as String? ?? '',
       coursesCount: (json['courses_count'] as num? ?? 0).toInt(),
       submissionsCount: (json['submissions_count'] as num? ?? 0).toInt(),
       adminActionsCount: (json['admin_actions_count'] as num? ?? 0).toInt(),
@@ -212,6 +221,13 @@ String _formatDate(DateTime? value) {
     return 'Unknown';
   }
   return DateFormat('MMM d, yyyy').format(value);
+}
+
+String _label(String value) {
+  if (value.isEmpty) {
+    return '';
+  }
+  return value[0].toUpperCase() + value.substring(1);
 }
 
 String _formatRelative(DateTime? value) {

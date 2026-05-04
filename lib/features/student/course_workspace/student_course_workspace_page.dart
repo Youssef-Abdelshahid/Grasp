@@ -11,6 +11,7 @@ import 'tabs/student_materials_tab.dart';
 import 'tabs/student_overview_tab.dart';
 import 'tabs/student_quizzes_tab.dart';
 import 'tabs/student_study_notes_tab.dart';
+import 'tabs/student_students_tab.dart';
 
 class StudentCourseWorkspacePage extends StatefulWidget {
   const StudentCourseWorkspacePage({
@@ -41,6 +42,7 @@ class _StudentCourseWorkspacePageState extends State<StudentCourseWorkspacePage>
     (icon: Icons.note_alt_rounded, label: 'Notes'),
     (icon: Icons.quiz_rounded, label: 'Quizzes'),
     (icon: Icons.assignment_rounded, label: 'Assignments'),
+    (icon: Icons.people_rounded, label: 'Students'),
     (icon: Icons.campaign_rounded, label: 'Announcements'),
   ];
 
@@ -103,6 +105,7 @@ class _StudentCourseWorkspacePageState extends State<StudentCourseWorkspacePage>
                 StudentStudyNotesTab(courseId: course.id),
                 StudentQuizzesTab(courseId: course.id),
                 StudentAssignmentsTab(courseId: course.id),
+                StudentStudentsTab(courseId: course.id),
                 StudentAnnouncementsTab(courseId: course.id),
               ],
             ),
@@ -168,10 +171,12 @@ class _StudentCourseWorkspacePageState extends State<StudentCourseWorkspacePage>
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        course.instructor,
+                        course.instructorSummary,
                         style: AppTextStyles.caption.copyWith(
                           color: Colors.white60,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),

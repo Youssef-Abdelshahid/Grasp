@@ -86,7 +86,10 @@ class _StudentOverviewTabState extends State<StudentOverviewTab> {
             spacing: 8,
             runSpacing: 8,
             children: [
-              _Tag(label: widget.course.instructor, icon: Icons.person_rounded),
+              _Tag(
+                label: widget.course.instructorsCountLabel,
+                icon: Icons.person_rounded,
+              ),
               _Tag(
                 label: '${widget.course.lecturesCount} Materials',
                 icon: Icons.book_rounded,
@@ -97,8 +100,36 @@ class _StudentOverviewTabState extends State<StudentOverviewTab> {
               ),
             ],
           ),
+          const SizedBox(height: 14),
+          _buildInstructors(),
         ],
       ),
+    );
+  }
+
+  Widget _buildInstructors() {
+    final instructors = widget.course.instructors;
+    if (instructors.isEmpty && widget.course.instructor.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Course Instructors', style: AppTextStyles.label),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: instructors.isEmpty
+              ? [_InstructorChip(name: widget.course.instructor, email: '')]
+              : instructors
+                    .map(
+                      (item) =>
+                          _InstructorChip(name: item.name, email: item.email),
+                    )
+                    .toList(),
+        ),
+      ],
     );
   }
 
@@ -276,6 +307,50 @@ class _Tag extends StatelessWidget {
           Icon(icon, size: 13, color: AppColors.textSecondary),
           const SizedBox(width: 5),
           Text(label, style: AppTextStyles.caption),
+        ],
+      ),
+    );
+  }
+}
+
+class _InstructorChip extends StatelessWidget {
+  const _InstructorChip({required this.name, required this.email});
+
+  final String name;
+  final String email;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.person_rounded,
+            size: 14,
+            color: AppColors.textSecondary,
+          ),
+          const SizedBox(width: 6),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name, style: AppTextStyles.caption),
+              if (email.isNotEmpty)
+                Text(
+                  email,
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );

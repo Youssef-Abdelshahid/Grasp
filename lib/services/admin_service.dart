@@ -49,27 +49,91 @@ class AdminService {
   Future<AdminUserDetail> updateUser({
     required String userId,
     String? fullName,
+    String? email,
     AppRole? role,
     AdminAccountStatus? status,
-    String? department,
     String? phone,
   }) async {
-    final response = await _client.rpc(
-      'admin_update_user',
-      params: {
-        'p_user_id': userId,
-        'p_full_name': fullName,
-        'p_role': role?.value,
-        'p_status': status?.value,
-        'p_department': department,
-        'p_phone': phone,
-      },
-    );
-    return AdminUserDetail.fromJson(_mapResponse(response));
+    try {
+      final response = await _client.functions.invoke(
+        'admin-update-user',
+        body: {
+          'user_id': userId,
+          if (fullName != null) 'full_name': fullName.trim(),
+          if (email != null) 'email': email.trim(),
+          if (role != null) 'role': role.value,
+          if (status != null) 'account_status': status.value,
+          if (phone != null) 'phone': phone.trim(),
+        },
+      );
+      final data = response.data;
+      if (data is Map && data['error'] is String) {
+        throw AdminServiceException(data['error'] as String);
+      }
+      return getUserDetail(userId);
+    } on FunctionException catch (error) {
+      final details = error.details;
+      if (details is Map && details['error'] is String) {
+        throw AdminServiceException(details['error'] as String);
+      }
+      throw const AdminServiceException('User profile could not be updated.');
+    } on AdminServiceException {
+      rethrow;
+    } catch (_) {
+      throw const AdminServiceException('User profile could not be updated.');
+    }
   }
 
   Future<void> removeUser(String userId) async {
     await _client.rpc('admin_remove_user', params: {'p_user_id': userId});
+  }
+
+  Future<AdminUser> createUser({
+    required String fullName,
+    required String email,
+    required String temporaryPassword,
+    required AppRole role,
+    required AdminAccountStatus status,
+    String phone = '',
+    String department = '',
+  }) async {
+    try {
+      final response = await _client.functions.invoke(
+        'admin-create-user',
+        body: {
+          'full_name': fullName.trim(),
+          'email': email.trim(),
+          'password': temporaryPassword,
+          'role': role.value,
+          'account_status': status.value,
+          'phone': phone.trim(),
+          'department': department.trim(),
+        },
+      );
+      final data = response.data;
+      if (data is! Map) {
+        throw const AdminServiceException('User account could not be created.');
+      }
+      final error = data['error'] as String?;
+      if (error != null && error.isNotEmpty) {
+        throw AdminServiceException(error);
+      }
+      final user = data['user'];
+      if (user is! Map) {
+        throw const AdminServiceException('User account could not be created.');
+      }
+      return AdminUser.fromJson(Map<String, dynamic>.from(user));
+    } on FunctionException catch (error) {
+      final details = error.details;
+      if (details is Map && details['error'] is String) {
+        throw AdminServiceException(details['error'] as String);
+      }
+      throw const AdminServiceException('User account could not be created.');
+    } on AdminServiceException {
+      rethrow;
+    } catch (_) {
+      throw const AdminServiceException('User account could not be created.');
+    }
   }
 
   Future<AdminProfileData> getCurrentAdminProfile() async {
@@ -106,8 +170,29 @@ class AdminService {
     return AdminProfileData.fromJson(_mapResponse(response));
   }
 
-  Future<void> updatePassword(String newPassword) async {
-    await _client.auth.updateUser(UserAttributes(password: newPassword));
+  Future<void> updatePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final email = _client.auth.currentUser?.email?.trim() ?? '';
+    if (email.isEmpty) {
+      throw const AdminServiceException('Admin session could not be verified.');
+    }
+
+    try {
+      await _client.auth.signInWithPassword(
+        email: email,
+        password: currentPassword,
+      );
+    } on AuthException {
+      throw const AdminServiceException('Current password is incorrect.');
+    }
+
+    try {
+      await _client.auth.updateUser(UserAttributes(password: newPassword));
+    } on AuthException {
+      throw const AdminServiceException('Password could not be updated.');
+    }
   }
 
   Map<String, dynamic> _mapResponse(dynamic response) {

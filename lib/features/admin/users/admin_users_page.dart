@@ -65,6 +65,19 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     }
   }
 
+  Future<void> _openCreateUser() async {
+    final message = await _showCreateUserSheet();
+    if (message == null || !mounted) {
+      return;
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 250));
+    if (!mounted) {
+      return;
+    }
+    _loadUsers();
+    _showSnackBar(message);
+  }
+
   Future<void> _toggleStatus(AdminUser user) async {
     final newStatus = user.status == AdminAccountStatus.active
         ? AdminAccountStatus.suspended
@@ -223,8 +236,269 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
           icon: const Icon(Icons.refresh_rounded, size: 18),
           tooltip: 'Refresh users',
         ),
+        const SizedBox(width: 8),
+        ElevatedButton.icon(
+          onPressed: isLoading ? null : _openCreateUser,
+          icon: const Icon(Icons.person_add_rounded, size: 16),
+          label: const Text('Create User'),
+        ),
       ],
     );
+  }
+
+  Future<String?> _showCreateUserSheet() {
+    final formKey = GlobalKey<FormState>();
+    final name = TextEditingController();
+    final email = TextEditingController();
+    final password = TextEditingController();
+    final phone = TextEditingController();
+    final department = TextEditingController();
+    var role = AppRole.student;
+    var status = AdminAccountStatus.active;
+    var obscurePassword = true;
+    var isSubmitting = false;
+    String? formError;
+
+    return showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setSheet) => Padding(
+          padding: EdgeInsets.only(
+            left: 24,
+            right: 24,
+            top: 20,
+            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
+          child: Form(
+            key: formKey,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Create User', style: AppTextStyles.h2),
+                  if (formError != null) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.errorLight,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: AppColors.error.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Text(
+                        formError!,
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.error,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 16),
+                  _CreateUserField(
+                    label: 'Full Name',
+                    child: TextFormField(
+                      controller: name,
+                      textInputAction: TextInputAction.next,
+                      validator: (value) => _required(value, 'Full name'),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _CreateUserField(
+                    label: 'Email',
+                    child: TextFormField(
+                      controller: email,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.next,
+                      validator: _emailError,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _CreateUserField(
+                    label: 'Temporary Password',
+                    child: TextFormField(
+                      controller: password,
+                      obscureText: obscurePassword,
+                      validator: _passwordError,
+                      decoration: InputDecoration(
+                        suffixIcon: IconButton(
+                          onPressed: () => setSheet(
+                            () => obscurePassword = !obscurePassword,
+                          ),
+                          icon: Icon(
+                            obscurePassword
+                                ? Icons.visibility_rounded
+                                : Icons.visibility_off_rounded,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  LayoutBuilder(
+                    builder: (_, constraints) {
+                      final narrow = constraints.maxWidth < 440;
+                      final roleField = _CreateUserField(
+                        label: 'Role',
+                        child: DropdownButtonFormField<AppRole>(
+                          initialValue: role,
+                          items: AppRole.values
+                              .map(
+                                (item) => DropdownMenuItem(
+                                  value: item,
+                                  child: Text(item.label),
+                                ),
+                              )
+                              .toList(),
+                          onChanged: (value) =>
+                              setSheet(() => role = value ?? role),
+                        ),
+                      );
+                      final statusField = _CreateUserField(
+                        label: 'Status',
+                        child: DropdownButtonFormField<AdminAccountStatus>(
+                          initialValue: status,
+                          items:
+                              const [
+                                    AdminAccountStatus.active,
+                                    AdminAccountStatus.inactive,
+                                    AdminAccountStatus.suspended,
+                                  ]
+                                  .map(
+                                    (item) => DropdownMenuItem(
+                                      value: item,
+                                      child: Text(item.label),
+                                    ),
+                                  )
+                                  .toList(),
+                          onChanged: (value) =>
+                              setSheet(() => status = value ?? status),
+                        ),
+                      );
+                      if (narrow) {
+                        return Column(
+                          children: [
+                            roleField,
+                            const SizedBox(height: 12),
+                            statusField,
+                          ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(child: roleField),
+                          const SizedBox(width: 12),
+                          Expanded(child: statusField),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  _CreateUserField(
+                    label: 'Phone',
+                    child: TextFormField(
+                      controller: phone,
+                      keyboardType: TextInputType.phone,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _CreateUserField(
+                    label: 'Department',
+                    child: TextFormField(controller: department),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () => Navigator.pop(ctx),
+                          child: const Text('Cancel'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: isSubmitting
+                              ? null
+                              : () async {
+                                  if (!formKey.currentState!.validate()) {
+                                    return;
+                                  }
+                                  var closed = false;
+                                  setSheet(() {
+                                    formError = null;
+                                    isSubmitting = true;
+                                  });
+                                  try {
+                                    final created = await AdminService.instance
+                                        .createUser(
+                                          fullName: name.text,
+                                          email: email.text,
+                                          temporaryPassword: password.text,
+                                          role: role,
+                                          status: status,
+                                          phone: phone.text,
+                                          department: department.text,
+                                        );
+                                    if (!ctx.mounted) return;
+                                    closed = true;
+                                    Navigator.pop(
+                                      ctx,
+                                      '${created.name} created as ${created.roleLabel.toLowerCase()}',
+                                    );
+                                  } catch (error) {
+                                    if (ctx.mounted) {
+                                      setSheet(
+                                        () => formError =
+                                            _friendlyCreateUserError(error),
+                                      );
+                                    }
+                                  } finally {
+                                    if (!closed && ctx.mounted) {
+                                      setSheet(() => isSubmitting = false);
+                                    }
+                                  }
+                                },
+                          child: isSubmitting
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Text('Create'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ).whenComplete(() {
+      Future<void>.delayed(const Duration(milliseconds: 250), () {
+        name.dispose();
+        email.dispose();
+        password.dispose();
+        phone.dispose();
+        department.dispose();
+      });
+    });
   }
 
   Widget _buildSearchAndFilter() {
@@ -599,6 +873,68 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
           ],
         ),
       ),
+    );
+  }
+
+  String? _required(String? value, String label) {
+    if (value == null || value.trim().isEmpty) {
+      return '$label is required.';
+    }
+    return null;
+  }
+
+  String? _emailError(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) {
+      return 'Email is required.';
+    }
+    final valid = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(trimmed);
+    if (!valid) {
+      return 'Enter a valid email address.';
+    }
+    return null;
+  }
+
+  String? _passwordError(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Temporary password is required.';
+    }
+    if (value.length < 8) {
+      return 'Temporary password must be at least 8 characters.';
+    }
+    return null;
+  }
+
+  String _friendlyCreateUserError(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '');
+    if (message.contains('AdminServiceException')) {
+      return message.replaceFirst('AdminServiceException: ', '');
+    }
+    if (message.toLowerCase().contains('already')) {
+      return 'A user with this email already exists.';
+    }
+    if (message.toLowerCase().contains('password')) {
+      return 'Temporary password does not meet the required rules.';
+    }
+    return message.isEmpty ? 'User account could not be created.' : message;
+  }
+}
+
+class _CreateUserField extends StatelessWidget {
+  const _CreateUserField({required this.label, required this.child});
+
+  final String label;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.label),
+        const SizedBox(height: 6),
+        child,
+      ],
     );
   }
 }

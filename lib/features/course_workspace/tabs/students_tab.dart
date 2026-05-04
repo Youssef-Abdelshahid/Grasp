@@ -127,73 +127,67 @@ class _StudentsTabState extends State<StudentsTab> {
         final student = students[index];
         return Padding(
           padding: const EdgeInsets.only(bottom: 10),
-          child: Material(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(12),
-            child: InkWell(
-              onTap: () => showStudentActivitySheet(
-                context: context,
-                courseId: widget.courseId,
-                studentId: student.studentId,
-              ),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
               borderRadius: BorderRadius.circular(12),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundColor: AppColors.primaryLight,
-                      child: Text(
-                        UserUtils.initials(student.studentName),
-                        style: AppTextStyles.label.copyWith(
-                          color: AppColors.primary,
-                        ),
-                      ),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                CircleAvatar(
+                  radius: 20,
+                  backgroundColor: AppColors.primaryLight,
+                  child: Text(
+                    UserUtils.initials(student.studentName),
+                    style: AppTextStyles.label.copyWith(
+                      color: AppColors.primary,
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        student.studentName,
+                        style: AppTextStyles.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text(
+                        student.studentEmail,
+                        style: AppTextStyles.caption,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
                         children: [
                           Text(
-                            student.studentName,
-                            style: AppTextStyles.label,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            'Quizzes ${student.quizzesCompleted}/${student.totalQuizzes}',
+                            style: AppTextStyles.caption,
                           ),
                           Text(
-                            student.studentEmail,
+                            'Assignments ${student.assignmentsSubmitted}/${student.totalAssignments}',
                             style: AppTextStyles.caption,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 6),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
-                            children: [
-                              Text(
-                                'Quizzes ${student.quizzesCompleted}/${student.totalQuizzes}',
-                                style: AppTextStyles.caption,
-                              ),
-                              Text(
-                                'Assignments ${student.assignmentsSubmitted}/${student.totalAssignments}',
-                                style: AppTextStyles.caption,
-                              ),
-                              Text(
-                                'Latest: ${student.latestLabel}',
-                                style: AppTextStyles.caption,
-                              ),
-                            ],
+                          Text(
+                            'Latest: ${student.latestLabel}',
+                            style: AppTextStyles.caption,
                           ),
                         ],
                       ),
-                    ),
+                    ],
+                  ),
+                ),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     if (student.overdueCount > 0)
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -212,6 +206,19 @@ class _StudentsTabState extends State<StudentsTab> {
                           ),
                         ),
                       ),
+                    IconButton(
+                      tooltip: 'View activity',
+                      icon: const Icon(
+                        Icons.analytics_rounded,
+                        size: 18,
+                        color: AppColors.textSecondary,
+                      ),
+                      onPressed: () => showStudentActivitySheet(
+                        context: context,
+                        courseId: widget.courseId,
+                        studentId: student.studentId,
+                      ),
+                    ),
                     PopupMenuButton<String>(
                       onSelected: (value) {
                         if (value == 'remove') _unenroll(student);
@@ -222,7 +229,7 @@ class _StudentsTabState extends State<StudentsTab> {
                     ),
                   ],
                 ),
-              ),
+              ],
             ),
           ),
         );

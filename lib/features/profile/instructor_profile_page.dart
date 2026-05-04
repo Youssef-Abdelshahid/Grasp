@@ -24,9 +24,7 @@ class InstructorProfilePage extends StatefulWidget {
 class _InstructorProfilePageState extends State<InstructorProfilePage> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _departmentController = TextEditingController();
-  final _employeeIdController = TextEditingController();
-  final _bioController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   final _currentPassController = TextEditingController();
   final _newPassController = TextEditingController();
@@ -51,9 +49,7 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _departmentController.dispose();
-    _employeeIdController.dispose();
-    _bioController.dispose();
+    _phoneController.dispose();
     _currentPassController.dispose();
     _newPassController.dispose();
     _confirmPassController.dispose();
@@ -86,9 +82,7 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
           _didPopulate = true;
           _nameController.text = data.profile.name;
           _emailController.text = data.profile.email;
-          _departmentController.text = data.profile.department;
-          _employeeIdController.text = data.profile.employeeId;
-          _bioController.text = data.profile.bio;
+          _phoneController.text = data.profile.phone;
         }
 
         return Scaffold(
@@ -130,9 +124,7 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
                             _InstructorProfileForm(
                               nameController: _nameController,
                               emailController: _emailController,
-                              departmentController: _departmentController,
-                              employeeIdController: _employeeIdController,
-                              bioController: _bioController,
+                              phoneController: _phoneController,
                               isSaving: _savingProfile,
                               onSave: _saveProfile,
                             ),
@@ -171,9 +163,7 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
                       _InstructorProfileForm(
                         nameController: _nameController,
                         emailController: _emailController,
-                        departmentController: _departmentController,
-                        employeeIdController: _employeeIdController,
-                        bioController: _bioController,
+                        phoneController: _phoneController,
                         isSaving: _savingProfile,
                         onSave: _saveProfile,
                       ),
@@ -216,15 +206,24 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
   }
 
   Future<void> _saveProfile() async {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    if (name.isEmpty) {
+      _showMessage('Full name is required.', isError: true);
+      return;
+    }
+    if (!_isValidEmail(email)) {
+      _showMessage('Enter a valid email address.', isError: true);
+      return;
+    }
+
     setState(() => _savingProfile = true);
     try {
       await ProfileService.instance.updateProfile(
         role: AppRole.instructor,
-        fullName: _nameController.text,
-        email: _emailController.text,
-        department: _departmentController.text,
-        employeeId: _employeeIdController.text,
-        bio: _bioController.text,
+        fullName: name,
+        email: email,
+        phone: _phoneController.text,
       );
       _showMessage('Profile updated successfully.');
       _refresh();
@@ -300,6 +299,10 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
         backgroundColor: isError ? AppColors.error : AppColors.success,
       ),
     );
+  }
+
+  bool _isValidEmail(String value) {
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value);
   }
 }
 
@@ -387,28 +390,13 @@ class _InstructorHeader extends StatelessWidget {
             profile.email,
             style: AppTextStyles.caption.copyWith(color: Colors.white70),
           ),
-          if (profile.department.isNotEmpty) ...[
+          if (profile.phone.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(
-              profile.department,
+              profile.phone,
               style: AppTextStyles.caption.copyWith(color: Colors.white70),
             ),
           ],
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(100),
-            ),
-            child: Text(
-              'INSTRUCTOR',
-              style: AppTextStyles.overline.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
           const SizedBox(height: 20),
           Row(
             children: [
@@ -459,18 +447,14 @@ class _InstructorProfileForm extends StatelessWidget {
   const _InstructorProfileForm({
     required this.nameController,
     required this.emailController,
-    required this.departmentController,
-    required this.employeeIdController,
-    required this.bioController,
+    required this.phoneController,
     required this.isSaving,
     required this.onSave,
   });
 
   final TextEditingController nameController;
   final TextEditingController emailController;
-  final TextEditingController departmentController;
-  final TextEditingController employeeIdController;
-  final TextEditingController bioController;
+  final TextEditingController phoneController;
   final bool isSaving;
   final VoidCallback onSave;
 
@@ -490,11 +474,11 @@ class _InstructorProfileForm extends StatelessWidget {
             keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 14),
-          _Field(label: 'Department', controller: departmentController),
-          const SizedBox(height: 14),
-          _Field(label: 'Employee ID', controller: employeeIdController),
-          const SizedBox(height: 14),
-          _Field(label: 'Bio', controller: bioController, maxLines: 4),
+          _Field(
+            label: 'Phone Number',
+            controller: phoneController,
+            keyboardType: TextInputType.phone,
+          ),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
@@ -699,13 +683,11 @@ class _Field extends StatelessWidget {
     required this.label,
     required this.controller,
     this.keyboardType = TextInputType.text,
-    this.maxLines = 1,
   });
 
   final String label;
   final TextEditingController controller;
   final TextInputType keyboardType;
-  final int maxLines;
 
   @override
   Widget build(BuildContext context) {
@@ -717,7 +699,6 @@ class _Field extends StatelessWidget {
         TextField(
           controller: controller,
           keyboardType: keyboardType,
-          maxLines: maxLines,
           decoration: const InputDecoration(),
         ),
       ],

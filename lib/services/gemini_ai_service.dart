@@ -1053,13 +1053,11 @@ class GeminiAiService {
       );
     }
     if (user.role == AppRole.admin) return;
-    final rows = await _client
-        .from('courses')
-        .select('id')
-        .eq('id', courseId)
-        .eq('instructor_id', user.id)
-        .limit(1);
-    if ((rows as List<dynamic>).isEmpty) {
+    final isInstructor = await _client.rpc(
+      'is_course_instructor',
+      params: {'course_uuid': courseId},
+    );
+    if (isInstructor != true) {
       throw const GeminiAiException(
         'You can only generate for your own courses.',
       );

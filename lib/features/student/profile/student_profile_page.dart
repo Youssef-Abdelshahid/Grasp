@@ -24,9 +24,7 @@ class StudentProfilePage extends StatefulWidget {
 class _StudentProfilePageState extends State<StudentProfilePage> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _studentIdController = TextEditingController();
-  final _programController = TextEditingController();
-  final _yearController = TextEditingController();
+  final _phoneController = TextEditingController();
 
   final _currentPassController = TextEditingController();
   final _newPassController = TextEditingController();
@@ -51,9 +49,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _studentIdController.dispose();
-    _programController.dispose();
-    _yearController.dispose();
+    _phoneController.dispose();
     _currentPassController.dispose();
     _newPassController.dispose();
     _confirmPassController.dispose();
@@ -125,9 +121,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                             _ProfileFormCard(
                               nameController: _nameController,
                               emailController: _emailController,
-                              studentIdController: _studentIdController,
-                              programController: _programController,
-                              yearController: _yearController,
+                              phoneController: _phoneController,
                               isSaving: _savingProfile,
                               onSave: _saveProfile,
                             ),
@@ -166,9 +160,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                       _ProfileFormCard(
                         nameController: _nameController,
                         emailController: _emailController,
-                        studentIdController: _studentIdController,
-                        programController: _programController,
-                        yearController: _yearController,
+                        phoneController: _phoneController,
                         isSaving: _savingProfile,
                         onSave: _saveProfile,
                       ),
@@ -214,21 +206,28 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
     _didPopulate = true;
     _nameController.text = profile.name;
     _emailController.text = profile.email;
-    _studentIdController.text = profile.studentId;
-    _programController.text = profile.program;
-    _yearController.text = profile.academicYear;
+    _phoneController.text = profile.phone;
   }
 
   Future<void> _saveProfile() async {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    if (name.isEmpty) {
+      _showMessage('Full name is required.', isError: true);
+      return;
+    }
+    if (!_isValidEmail(email)) {
+      _showMessage('Enter a valid email address.', isError: true);
+      return;
+    }
+
     setState(() => _savingProfile = true);
     try {
       await ProfileService.instance.updateProfile(
         role: AppRole.student,
-        fullName: _nameController.text,
-        email: _emailController.text,
-        studentId: _studentIdController.text,
-        program: _programController.text,
-        academicYear: _yearController.text,
+        fullName: name,
+        email: email,
+        phone: _phoneController.text,
       );
       _showMessage('Profile updated successfully.');
       _refresh();
@@ -306,6 +305,10 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
         backgroundColor: isError ? AppColors.error : AppColors.success,
       ),
     );
+  }
+
+  bool _isValidEmail(String value) {
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value);
   }
 }
 
@@ -393,21 +396,13 @@ class _StudentProfileHeader extends StatelessWidget {
             profile.email,
             style: AppTextStyles.caption.copyWith(color: Colors.white70),
           ),
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(100),
+          if (profile.phone.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              profile.phone,
+              style: AppTextStyles.caption.copyWith(color: Colors.white70),
             ),
-            child: Text(
-              'STUDENT',
-              style: AppTextStyles.overline.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
+          ],
           const SizedBox(height: 20),
           Row(
             children: [
@@ -461,18 +456,14 @@ class _ProfileFormCard extends StatelessWidget {
   const _ProfileFormCard({
     required this.nameController,
     required this.emailController,
-    required this.studentIdController,
-    required this.programController,
-    required this.yearController,
+    required this.phoneController,
     required this.isSaving,
     required this.onSave,
   });
 
   final TextEditingController nameController;
   final TextEditingController emailController;
-  final TextEditingController studentIdController;
-  final TextEditingController programController;
-  final TextEditingController yearController;
+  final TextEditingController phoneController;
   final bool isSaving;
   final VoidCallback onSave;
 
@@ -492,11 +483,11 @@ class _ProfileFormCard extends StatelessWidget {
             keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 14),
-          _Field(label: 'Student ID', controller: studentIdController),
-          const SizedBox(height: 14),
-          _Field(label: 'Program', controller: programController),
-          const SizedBox(height: 14),
-          _Field(label: 'Academic Year', controller: yearController),
+          _Field(
+            label: 'Phone Number',
+            controller: phoneController,
+            keyboardType: TextInputType.phone,
+          ),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,

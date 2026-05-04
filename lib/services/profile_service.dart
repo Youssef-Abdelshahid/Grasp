@@ -30,12 +30,13 @@ class ProfileService {
     required AppRole role,
     required String fullName,
     required String email,
-    String studentId = '',
-    String program = '',
-    String academicYear = '',
-    String department = '',
-    String employeeId = '',
-    String bio = '',
+    String phone = '',
+    String? studentId,
+    String? program,
+    String? academicYear,
+    String? department,
+    String? employeeId,
+    String? bio,
   }) async {
     final userId = _client.auth.currentUser!.id;
     final currentEmail = _client.auth.currentUser?.email ?? '';
@@ -44,19 +45,34 @@ class ProfileService {
       await _client.auth.updateUser(UserAttributes(email: email.trim()));
     }
 
+    final updates = <String, dynamic>{
+      'full_name': fullName.trim(),
+      'email': email.trim(),
+      'phone': phone.trim(),
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    };
+    if (studentId != null) {
+      updates['student_id'] = studentId.trim();
+    }
+    if (program != null) {
+      updates['program'] = program.trim();
+    }
+    if (academicYear != null) {
+      updates['academic_year'] = academicYear.trim();
+    }
+    if (department != null) {
+      updates['department'] = department.trim();
+    }
+    if (employeeId != null) {
+      updates['employee_id'] = employeeId.trim();
+    }
+    if (bio != null) {
+      updates['bio'] = bio.trim();
+    }
+
     final response = await _client
         .from('profiles')
-        .update({
-          'full_name': fullName.trim(),
-          'email': email.trim(),
-          'student_id': studentId.trim(),
-          'program': program.trim(),
-          'academic_year': academicYear.trim(),
-          'department': department.trim(),
-          'employee_id': employeeId.trim(),
-          'bio': bio.trim(),
-          'updated_at': DateTime.now().toUtc().toIso8601String(),
-        })
+        .update(updates)
         .eq('id', userId)
         .select()
         .single();

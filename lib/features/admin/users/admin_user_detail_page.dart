@@ -39,9 +39,9 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
 
   Future<void> _updateUser({
     String? fullName,
+    String? email,
     AppRole? role,
     AdminAccountStatus? status,
-    String? department,
     String? phone,
   }) async {
     setState(() => _saving = true);
@@ -49,9 +49,9 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
       final updated = await AdminService.instance.updateUser(
         userId: widget.userId,
         fullName: fullName,
+        email: email,
         role: role,
         status: status,
-        department: department,
         phone: phone,
       );
       if (!mounted) {
@@ -299,18 +299,14 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
           const Divider(height: 20, color: AppColors.border),
           _InfoRow(label: 'Email Address', value: user.email),
           const Divider(height: 20, color: AppColors.border),
+          _InfoRow(
+            label: 'Phone Number',
+            value: user.phone.isEmpty ? 'Not set' : user.phone,
+          ),
+          const Divider(height: 20, color: AppColors.border),
           _InfoRow(label: 'Role', value: user.roleLabel),
           const Divider(height: 20, color: AppColors.border),
           _InfoRow(label: 'Account Status', value: user.statusLabel),
-          const Divider(height: 20, color: AppColors.border),
-          _InfoRow(label: 'Joined', value: user.joinedLabel),
-          const Divider(height: 20, color: AppColors.border),
-          _InfoRow(label: 'Last Active', value: user.lastActiveLabel),
-          const Divider(height: 20, color: AppColors.border),
-          _InfoRow(
-            label: 'Department',
-            value: user.department.isEmpty ? 'Not set' : user.department,
-          ),
         ],
       ),
     );
@@ -531,7 +527,7 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
           _ActionTile(
             icon: Icons.edit_rounded,
             label: 'Edit User',
-            subtitle: 'Update name, phone, department, role, or status',
+            subtitle: 'Update name, email, phone, role, or status',
             color: AppColors.primary,
             onTap: _saving ? null : _showEditUserSheet,
           ),
@@ -575,8 +571,8 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
   void _showEditUserSheet() {
     final user = _detail!.user;
     final nameCtrl = TextEditingController(text: user.name);
+    final emailCtrl = TextEditingController(text: user.email);
     final phoneCtrl = TextEditingController(text: user.phone);
-    final departmentCtrl = TextEditingController(text: user.department);
     var selectedRole = user.role;
     var selectedStatus = user.status;
 
@@ -605,14 +601,15 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
                 _SheetTextField(label: 'Full Name', controller: nameCtrl),
                 const SizedBox(height: 14),
                 _SheetTextField(
-                  label: 'Phone',
-                  controller: phoneCtrl,
-                  keyboardType: TextInputType.phone,
+                  label: 'Email Address',
+                  controller: emailCtrl,
+                  keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 14),
                 _SheetTextField(
-                  label: 'Department',
-                  controller: departmentCtrl,
+                  label: 'Phone Number',
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
                 ),
                 const SizedBox(height: 14),
                 Text('Role', style: AppTextStyles.label),
@@ -659,11 +656,27 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
                     Expanded(
                       child: ElevatedButton(
                         onPressed: () {
+                          final name = nameCtrl.text.trim();
+                          final email = emailCtrl.text.trim();
+                          if (name.isEmpty) {
+                            _showSnackBar(
+                              'Full name is required.',
+                              isError: true,
+                            );
+                            return;
+                          }
+                          if (!_isValidEmail(email)) {
+                            _showSnackBar(
+                              'Enter a valid email address.',
+                              isError: true,
+                            );
+                            return;
+                          }
                           Navigator.pop(ctx);
                           _updateUser(
-                            fullName: nameCtrl.text,
+                            fullName: name,
+                            email: email,
                             phone: phoneCtrl.text,
-                            department: departmentCtrl.text,
                             role: selectedRole,
                             status: selectedStatus,
                           );
@@ -721,6 +734,10 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
         ),
       ),
     );
+  }
+
+  bool _isValidEmail(String value) {
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value);
   }
 }
 

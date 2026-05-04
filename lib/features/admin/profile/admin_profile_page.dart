@@ -22,9 +22,11 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
   final _departmentController = TextEditingController();
   final _bioController = TextEditingController();
 
+  final _currentPassController = TextEditingController();
   final _newPassController = TextEditingController();
   final _confirmPassController = TextEditingController();
 
+  bool _obscureCurrent = true;
   bool _obscureNew = true;
   bool _obscureConfirm = true;
   bool _savingProfile = false;
@@ -45,6 +47,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
     _phoneController.dispose();
     _departmentController.dispose();
     _bioController.dispose();
+    _currentPassController.dispose();
     _newPassController.dispose();
     _confirmPassController.dispose();
     super.dispose();
@@ -98,32 +101,63 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
   }
 
   Future<void> _savePassword() async {
-    if (_newPassController.text != _confirmPassController.text) {
-      _showSnackBar('Passwords do not match', isError: true);
+    if (_currentPassController.text.trim().isEmpty) {
+      _showSnackBar('Current password is required.', isError: true);
       return;
     }
-    if (_newPassController.text.length < 6) {
-      _showSnackBar('Password must be at least 6 characters', isError: true);
+    if (_newPassController.text.trim().isEmpty) {
+      _showSnackBar('New password is required.', isError: true);
+      return;
+    }
+    if (_confirmPassController.text.trim().isEmpty) {
+      _showSnackBar('Confirm password is required.', isError: true);
+      return;
+    }
+    if (_newPassController.text != _confirmPassController.text) {
+      _showSnackBar('Passwords do not match.', isError: true);
+      return;
+    }
+    if (_newPassController.text.trim().length < 6) {
+      _showSnackBar('Password must be at least 6 characters.', isError: true);
       return;
     }
 
     setState(() => _savingPassword = true);
     try {
-      await AdminService.instance.updatePassword(_newPassController.text);
+      await AdminService.instance.updatePassword(
+        currentPassword: _currentPassController.text,
+        newPassword: _newPassController.text.trim(),
+      );
       if (!mounted) {
         return;
       }
       setState(() => _savingPassword = false);
+      _currentPassController.clear();
       _newPassController.clear();
       _confirmPassController.clear();
-      _showSnackBar('Password changed successfully');
+      _showSnackBar('Password updated successfully.');
     } catch (error) {
       if (!mounted) {
         return;
       }
       setState(() => _savingPassword = false);
-      _showSnackBar(error.toString(), isError: true);
+      _showSnackBar(_friendlyPasswordError(error), isError: true);
     }
+  }
+
+  String _friendlyPasswordError(Object error) {
+    final message = error
+        .toString()
+        .replaceFirst('AdminServiceException: ', '')
+        .replaceFirst('Exception: ', '');
+    if (message.toLowerCase().contains('invalid login') ||
+        message.toLowerCase().contains('incorrect')) {
+      return 'Current password is incorrect.';
+    }
+    if (message.toLowerCase().contains('password')) {
+      return message;
+    }
+    return 'Password could not be updated.';
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -419,6 +453,13 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
       iconBg: AppColors.violetLight,
       child: Column(
         children: [
+          _PasswordField(
+            label: 'Current Password',
+            controller: _currentPassController,
+            obscure: _obscureCurrent,
+            onToggle: () => setState(() => _obscureCurrent = !_obscureCurrent),
+          ),
+          const SizedBox(height: 14),
           _PasswordField(
             label: 'New Password',
             controller: _newPassController,

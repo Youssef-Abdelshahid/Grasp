@@ -9,6 +9,7 @@ class AdminCourseItem {
     required this.status,
     required this.instructorId,
     required this.instructorName,
+    this.instructors = const [],
     this.semester = '',
     this.maxStudents = 50,
     this.allowSelfEnrollment = false,
@@ -29,6 +30,7 @@ class AdminCourseItem {
   final String status;
   final String instructorId;
   final String instructorName;
+  final List<AdminCourseInstructor> instructors;
   final String semester;
   final int maxStudents;
   final bool allowSelfEnrollment;
@@ -43,8 +45,14 @@ class AdminCourseItem {
 
   String get statusLabel => _label(status);
   String get createdLabel => _date(createdAt);
+  String get instructorSummary {
+    if (instructors.isEmpty) return instructorName;
+    if (instructors.length == 1) return instructors.first.name;
+    return '${instructors.first.name} +${instructors.length - 1} more';
+  }
 
   factory AdminCourseItem.fromJson(Map<String, dynamic> json) {
+    final instructors = _adminCourseInstructors(json['instructors']);
     return AdminCourseItem(
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? '',
@@ -52,7 +60,10 @@ class AdminCourseItem {
       description: json['description'] as String? ?? '',
       status: json['status'] as String? ?? 'draft',
       instructorId: json['instructor_id'] as String? ?? '',
-      instructorName: json['instructor_name'] as String? ?? '',
+      instructorName: instructors.isNotEmpty
+          ? instructors.map((item) => item.name).join(', ')
+          : json['instructor_name'] as String? ?? '',
+      instructors: instructors,
       semester: json['semester'] as String? ?? '',
       maxStudents: (json['max_students'] as num? ?? 50).toInt(),
       allowSelfEnrollment: json['allow_self_enrollment'] as bool? ?? false,
@@ -64,6 +75,35 @@ class AdminCourseItem {
       announcementsCount: (json['announcements_count'] as num? ?? 0).toInt(),
       createdAt: _parse(json['created_at']),
       updatedAt: _parse(json['updated_at']),
+    );
+  }
+}
+
+class AdminCourseInstructor {
+  const AdminCourseInstructor({
+    required this.id,
+    required this.name,
+    required this.email,
+    this.role = 'instructor',
+    this.status = 'active',
+    this.isPrimary = false,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+  final String role;
+  final String status;
+  final bool isPrimary;
+
+  factory AdminCourseInstructor.fromJson(Map<String, dynamic> json) {
+    return AdminCourseInstructor(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? json['full_name'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      role: json['role'] as String? ?? 'instructor',
+      status: json['status'] as String? ?? 'active',
+      isPrimary: json['is_primary'] as bool? ?? false,
     );
   }
 }
@@ -282,6 +322,17 @@ List<Map<String, dynamic>> _jsonList(dynamic value) {
   return (value as List<dynamic>? ?? const [])
       .whereType<Map>()
       .map((item) => Map<String, dynamic>.from(item))
+      .toList();
+}
+
+List<AdminCourseInstructor> _adminCourseInstructors(dynamic value) {
+  return (value as List<dynamic>? ?? const [])
+      .whereType<Map>()
+      .map(
+        (item) =>
+            AdminCourseInstructor.fromJson(Map<String, dynamic>.from(item)),
+      )
+      .where((item) => item.id.isNotEmpty || item.name.isNotEmpty)
       .toList();
 }
 

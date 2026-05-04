@@ -195,7 +195,7 @@ class _StudentCourseCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    course.instructor,
+                    course.instructorSummary,
                     style: AppTextStyles.caption,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,

@@ -28,6 +28,7 @@ class AdminContentService {
     required String code,
     required String description,
     required String instructorId,
+    List<String>? instructorIds,
     required String status,
     required String semester,
     required int maxStudents,
@@ -42,6 +43,7 @@ class AdminContentService {
         'p_code': code,
         'p_description': description,
         'p_instructor_id': instructorId,
+        'p_instructor_ids': instructorIds ?? [instructorId],
         'p_status': status,
         'p_semester': semester,
         'p_max_students': maxStudents,
@@ -59,10 +61,30 @@ class AdminContentService {
   }
 
   Future<void> deleteCourseSafely(String courseId) async {
-    await _client.rpc(
-      'admin_delete_course_safe',
-      params: {'p_course_id': courseId},
-    );
+    try {
+      final materialPaths = await _courseMaterialStoragePaths(courseId);
+      final submissionPaths = await _courseSubmissionStoragePaths(courseId);
+
+      await _removeStorageObjects(
+        bucket: MaterialService.bucketName,
+        paths: materialPaths,
+      );
+      await _removeStorageObjects(
+        bucket: 'assignment-submissions',
+        paths: submissionPaths,
+      );
+
+      await _client.rpc(
+        'admin_delete_course_safe',
+        params: {'p_course_id': courseId},
+      );
+    } on PostgrestException catch (error) {
+      throw AdminContentServiceException(_friendlyCourseDeleteError(error));
+    } on StorageException {
+      throw const AdminContentServiceException(
+        'Course files could not be removed. Please try again.',
+      );
+    }
   }
 
   Future<void> logAdminAction({
@@ -100,6 +122,26 @@ class AdminContentService {
     );
   }
 
+  Future<void> addCourseInstructor({
+    required String courseId,
+    required String instructorId,
+  }) async {
+    await _client.rpc(
+      'admin_add_course_instructor',
+      params: {'p_course_id': courseId, 'p_instructor_id': instructorId},
+    );
+  }
+
+  Future<void> removeCourseInstructor({
+    required String courseId,
+    required String instructorId,
+  }) async {
+    await _client.rpc(
+      'admin_remove_course_instructor',
+      params: {'p_course_id': courseId, 'p_instructor_id': instructorId},
+    );
+  }
+
   Future<void> addCourseStudent({
     required String courseId,
     required String studentId,
@@ -107,6 +149,17 @@ class AdminContentService {
     await _client.rpc(
       'admin_add_course_student',
       params: {'p_course_id': courseId, 'p_student_id': studentId},
+    );
+  }
+
+  Future<void> addCourseStudents({
+    required String courseId,
+    required List<String> studentIds,
+  }) async {
+    if (studentIds.isEmpty) return;
+    await _client.rpc(
+      'admin_add_course_students',
+      params: {'p_course_id': courseId, 'p_student_ids': studentIds},
     );
   }
 
@@ -447,20 +500,108 @@ class AdminContentService {
     }
     return value;
   }
+
+  Future<List<String>> _courseMaterialStoragePaths(String courseId) async {
+    final rows = await _client
+        .from('materials')
+        .select('storage_path')
+        .eq('course_id', courseId);
+    return (rows as List<dynamic>)
+        .map((item) => (item as Map)['storage_path'] as String?)
+        .whereType<String>()
+        .map((path) => path.trim())
+        .where((path) => path.isNotEmpty)
+        .toSet()
+        .toList();
+  }
+
+  Future<List<String>> _courseSubmissionStoragePaths(String courseId) async {
+    final assignments = await _client
+        .from('assignments')
+        .select('id')
+        .eq('course_id', courseId);
+    final assignmentIds = (assignments as List<dynamic>)
+        .map((item) => (item as Map)['id'] as String?)
+        .whereType<String>()
+        .toList();
+    if (assignmentIds.isEmpty) {
+      return const [];
+    }
+
+    final rows = await _client
+        .from('submissions')
+        .select('storage_path')
+        .inFilter('assignment_id', assignmentIds);
+    return (rows as List<dynamic>)
+        .map((item) => (item as Map)['storage_path'] as String?)
+        .whereType<String>()
+        .map((path) => path.trim())
+        .where((path) => path.isNotEmpty)
+        .toSet()
+        .toList();
+  }
+
+  Future<void> _removeStorageObjects({
+    required String bucket,
+    required List<String> paths,
+  }) async {
+    if (paths.isEmpty) {
+      return;
+    }
+
+    for (var start = 0; start < paths.length; start += 100) {
+      final end = (start + 100).clamp(0, paths.length);
+      await _client.storage.from(bucket).remove(paths.sublist(start, end));
+    }
+  }
+
+  String _friendlyCourseDeleteError(PostgrestException error) {
+    final message = error.message.toLowerCase();
+    if (message.contains('admin')) {
+      return 'Admin access is required to delete courses.';
+    }
+    if (message.contains('not found')) {
+      return 'Course not found. It may have already been deleted.';
+    }
+    return 'Course could not be deleted. Please try again.';
+  }
+}
+
+class AdminContentServiceException implements Exception {
+  const AdminContentServiceException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 class AdminCourseMembers {
-  const AdminCourseMembers({this.instructor, required this.students});
+  const AdminCourseMembers({
+    this.instructor,
+    this.instructors = const [],
+    required this.students,
+  });
 
   final AdminUser? instructor;
+  final List<AdminUser> instructors;
   final List<AdminUser> students;
 
   factory AdminCourseMembers.fromJson(Map<String, dynamic> json) {
     final instructorJson = json['instructor'];
+    final legacyInstructor = instructorJson is Map
+        ? AdminUser.fromJson(Map<String, dynamic>.from(instructorJson))
+        : null;
+    final instructors = (json['instructors'] as List<dynamic>? ?? [])
+        .map(
+          (item) => AdminUser.fromJson(Map<String, dynamic>.from(item as Map)),
+        )
+        .toList();
     return AdminCourseMembers(
-      instructor: instructorJson is Map
-          ? AdminUser.fromJson(Map<String, dynamic>.from(instructorJson))
-          : null,
+      instructor: legacyInstructor,
+      instructors: instructors.isEmpty && legacyInstructor != null
+          ? [legacyInstructor]
+          : instructors,
       students: (json['students'] as List<dynamic>? ?? [])
           .map(
             (item) =>
