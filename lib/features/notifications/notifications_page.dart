@@ -1,21 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/file_utils.dart';
 import '../../models/notification_model.dart';
-import '../../services/notification_service.dart';
+import 'providers/notification_providers.dart';
 
-class NotificationsPage extends StatefulWidget {
+class NotificationsPage extends ConsumerStatefulWidget {
   const NotificationsPage({super.key});
 
   @override
-  State<NotificationsPage> createState() => _NotificationsPageState();
+  ConsumerState<NotificationsPage> createState() => _NotificationsPageState();
 }
 
-class _NotificationsPageState extends State<NotificationsPage> {
+class _NotificationsPageState extends ConsumerState<NotificationsPage> {
   int _selectedFilter = 0;
-  late Future<List<NotificationModel>> _notificationsFuture;
 
   static const _filters = [
     'All',
@@ -26,93 +26,95 @@ class _NotificationsPageState extends State<NotificationsPage> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _notificationsFuture = NotificationService.instance.getNotifications();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return FutureBuilder<List<NotificationModel>>(
-      future: _notificationsFuture,
-      builder: (context, snapshot) {
-        final notifications = snapshot.data ?? [];
-        final filtered = _filterNotifications(notifications);
-        final unreadCount = notifications.where((item) => !item.isRead).length;
+    final notificationsAsync = ref.watch(notificationsProvider);
 
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          appBar: AppBar(
-            backgroundColor: AppColors.surface,
-            leading: const BackButton(color: AppColors.textPrimary),
-            title: Row(
-              children: [
-                Text('Notifications', style: AppTextStyles.h2),
-                if (unreadCount > 0) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary,
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Text(
-                      '$unreadCount',
-                      style: AppTextStyles.caption.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                      ),
+    return notificationsAsync.when(
+      loading: () => _buildScaffold(
+        notifications: const [],
+        body: const Center(child: CircularProgressIndicator()),
+      ),
+      error: (_, _) =>
+          _buildScaffold(notifications: const [], body: _buildErrorState()),
+      data: (notifications) {
+        final filtered = _filterNotifications(notifications);
+        return _buildScaffold(
+          notifications: notifications,
+          body: filtered.isEmpty
+              ? _buildEmptyState()
+              : RefreshIndicator(
+                  onRefresh: _refresh,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    itemCount: filtered.length,
+                    separatorBuilder: (_, _) =>
+                        const Divider(height: 1, color: AppColors.border),
+                    itemBuilder: (_, index) => _NotificationTile(
+                      notification: filtered[index],
+                      onTap: () => _handleTap(filtered[index]),
                     ),
                   ),
-                ],
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: unreadCount == 0 ? null : _markAllRead,
+                ),
+        );
+      },
+    );
+  }
+
+  Widget _buildScaffold({
+    required List<NotificationModel> notifications,
+    required Widget body,
+  }) {
+    final unreadCount = notifications.where((item) => !item.isRead).length;
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.surface,
+        leading: const BackButton(color: AppColors.textPrimary),
+        title: Row(
+          children: [
+            Text('Notifications', style: AppTextStyles.h2),
+            if (unreadCount > 0) ...[
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(100),
+                ),
                 child: Text(
-                  'Mark all read',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.primary,
-                    fontWeight: FontWeight.w600,
+                  '$unreadCount',
+                  style: AppTextStyles.caption.copyWith(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
             ],
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(1),
-              child: Container(height: 1, color: AppColors.border),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: unreadCount == 0 ? null : _markAllRead,
+            child: Text(
+              'Mark all read',
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-          body: Column(
-            children: [
-              _buildFilters(unreadCount),
-              Expanded(
-                child: snapshot.connectionState != ConnectionState.done
-                    ? const Center(child: CircularProgressIndicator())
-                    : filtered.isEmpty
-                    ? _buildEmptyState()
-                    : RefreshIndicator(
-                        onRefresh: _refresh,
-                        child: ListView.separated(
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                          itemCount: filtered.length,
-                          separatorBuilder: (_, _) =>
-                              const Divider(height: 1, color: AppColors.border),
-                          itemBuilder: (_, index) => _NotificationTile(
-                            notification: filtered[index],
-                            onTap: () => _handleTap(filtered[index]),
-                          ),
-                        ),
-                      ),
-              ),
-            ],
-          ),
-        );
-      },
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(height: 1, color: AppColors.border),
+        ),
+      ),
+      body: Column(
+        children: [
+          _buildFilters(unreadCount),
+          Expanded(child: body),
+        ],
+      ),
     );
   }
 
@@ -218,6 +220,21 @@ class _NotificationsPageState extends State<NotificationsPage> {
     );
   }
 
+  Widget _buildErrorState() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.cloud_off_rounded, size: 40),
+          const SizedBox(height: 12),
+          Text('Unable to load notifications', style: AppTextStyles.h3),
+          const SizedBox(height: 12),
+          ElevatedButton(onPressed: _refresh, child: const Text('Retry')),
+        ],
+      ),
+    );
+  }
+
   List<NotificationModel> _filterNotifications(
     List<NotificationModel> notifications,
   ) {
@@ -243,21 +260,18 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> _handleTap(NotificationModel notification) async {
     if (!notification.isRead) {
-      await NotificationService.instance.markAsRead(notification.id);
-      await _refresh();
+      await ref
+          .read(notificationsProvider.notifier)
+          .markAsRead(notification.id);
     }
   }
 
   Future<void> _markAllRead() async {
-    await NotificationService.instance.markAllAsRead();
-    await _refresh();
+    await ref.read(notificationsProvider.notifier).markAllAsRead();
   }
 
   Future<void> _refresh() async {
-    setState(() {
-      _notificationsFuture = NotificationService.instance.getNotifications();
-    });
-    await _notificationsFuture;
+    await ref.read(notificationsProvider.notifier).refresh();
   }
 }
 

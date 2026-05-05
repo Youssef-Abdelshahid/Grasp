@@ -17,15 +17,26 @@ class InstructorSettingsPage extends StatefulWidget {
 class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
   late Future<UserModel> _future;
   bool _didPopulate = false;
+  Map<String, dynamic> _preferences = const {};
   bool _emailNotifications = true;
   bool _pushNotifications = true;
   bool _quizAlerts = true;
   bool _assignmentAlerts = true;
-  bool _studentActivity = true;
   bool _announcementAlerts = true;
   bool _deadlineReminders = true;
-  bool _compactView = false;
   bool _saving = false;
+  String _defaultQuizDifficulty = 'Medium';
+  int _defaultQuestionCount = 10;
+  final Set<String> _defaultQuestionTypes = {'MCQ', 'True/False'};
+  String _defaultAssignmentDifficulty = 'Medium';
+
+  static const _difficulties = ['Easy', 'Medium', 'Hard'];
+  static const _questionTypes = [
+    'MCQ',
+    'True/False',
+    'Short Answer',
+    'Matching',
+  ];
 
   @override
   void initState() {
@@ -54,10 +65,9 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
           _quizAlerts = prefs['quiz_submission_alerts'] as bool? ?? true;
           _assignmentAlerts =
               prefs['assignment_submission_alerts'] as bool? ?? true;
-          _studentActivity = prefs['student_activity'] as bool? ?? true;
           _announcementAlerts = prefs['announcement_alerts'] as bool? ?? true;
           _deadlineReminders = prefs['deadline_reminders'] as bool? ?? true;
-          _compactView = prefs['compact_view'] as bool? ?? false;
+          _preferences = Map<String, dynamic>.from(prefs);
         }
 
         return SingleChildScrollView(
@@ -83,13 +93,13 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(child: _appearanceSection()),
+                    Expanded(child: _generationDefaultsSection()),
                     const SizedBox(width: 20),
                     Expanded(child: _accountSection()),
                   ],
                 )
               else ...[
-                _appearanceSection(),
+                _generationDefaultsSection(),
                 const SizedBox(height: 20),
                 _accountSection(),
               ],
@@ -120,14 +130,13 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
   Future<void> _save() async {
     setState(() => _saving = true);
     await ProfileService.instance.updatePreferences({
+      ..._preferences,
       'email_notifications': _emailNotifications,
       'push_notifications': _pushNotifications,
       'quiz_submission_alerts': _quizAlerts,
       'assignment_submission_alerts': _assignmentAlerts,
-      'student_activity': _studentActivity,
       'announcement_alerts': _announcementAlerts,
       'deadline_reminders': _deadlineReminders,
-      'compact_view': _compactView,
     });
     if (!mounted) return;
     setState(() => _saving = false);
@@ -160,11 +169,6 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
         (value) => setState(() => _assignmentAlerts = value),
       ),
       _toggle(
-        'Student Activity',
-        _studentActivity,
-        (value) => setState(() => _studentActivity = value),
-      ),
-      _toggle(
         'Announcement Alerts',
         _announcementAlerts,
         (value) => setState(() => _announcementAlerts = value),
@@ -183,13 +187,51 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
     ],
   );
 
-  Widget _appearanceSection() => _SettingsSection(
-    title: 'Appearance',
+  Widget _generationDefaultsSection() => _SettingsSection(
+    title: 'Default AI Generation Preferences',
     children: [
-      _toggle(
-        'Compact View',
-        _compactView,
-        (value) => setState(() => _compactView = value),
+      _dropdown(
+        label: 'Default quiz difficulty',
+        value: _defaultQuizDifficulty,
+        values: _difficulties,
+        onChanged: (value) => setState(
+          () => _defaultQuizDifficulty = value ?? _defaultQuizDifficulty,
+        ),
+      ),
+      _questionCountControl(),
+      const SizedBox(height: 8),
+      Text('Default question types selected', style: AppTextStyles.label),
+      const SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: _questionTypes
+            .map(
+              (type) => FilterChip(
+                label: Text(type),
+                selected: _defaultQuestionTypes.contains(type),
+                onSelected: (selected) {
+                  setState(() {
+                    if (selected) {
+                      _defaultQuestionTypes.add(type);
+                    } else if (_defaultQuestionTypes.length > 1) {
+                      _defaultQuestionTypes.remove(type);
+                    }
+                  });
+                },
+              ),
+            )
+            .toList(),
+      ),
+      const SizedBox(height: 16),
+      _dropdown(
+        label: 'Default assignment difficulty',
+        value: _defaultAssignmentDifficulty,
+        values: _difficulties,
+        onChanged: (value) => setState(
+          () => _defaultAssignmentDifficulty =
+              value ?? _defaultAssignmentDifficulty,
+        ),
       ),
     ],
   );
@@ -212,6 +254,61 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
       onChanged: onChanged,
       contentPadding: EdgeInsets.zero,
       title: Text(label, style: AppTextStyles.label),
+    );
+  }
+
+  Widget _dropdown({
+    required String label,
+    required String value,
+    required List<String> values,
+    required ValueChanged<String?> onChanged,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DropdownButtonFormField<String>(
+        initialValue: value,
+        items: values
+            .map((item) => DropdownMenuItem(value: item, child: Text(item)))
+            .toList(),
+        onChanged: onChanged,
+        decoration: InputDecoration(labelText: label),
+      ),
+    );
+  }
+
+  Widget _questionCountControl() {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Default number of quiz questions',
+              style: AppTextStyles.label,
+            ),
+          ),
+          IconButton(
+            tooltip: 'Decrease',
+            onPressed: _defaultQuestionCount <= 1
+                ? null
+                : () => setState(() => _defaultQuestionCount--),
+            icon: const Icon(Icons.remove_rounded),
+          ),
+          SizedBox(
+            width: 48,
+            child: Text(
+              '$_defaultQuestionCount',
+              textAlign: TextAlign.center,
+              style: AppTextStyles.label,
+            ),
+          ),
+          IconButton(
+            tooltip: 'Increase',
+            onPressed: () => setState(() => _defaultQuestionCount++),
+            icon: const Icon(Icons.add_rounded),
+          ),
+        ],
+      ),
     );
   }
 }

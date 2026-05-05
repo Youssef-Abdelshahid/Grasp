@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
@@ -10,19 +11,19 @@ import '../features/courses/pages/courses_page.dart';
 import '../features/calendar/instructor_calendar_page.dart';
 import '../features/profile/instructor_settings_page.dart';
 import '../features/notifications/notifications_page.dart';
-import '../services/auth_service.dart';
+import '../features/auth/providers/auth_providers.dart';
 import 'app_sidebar.dart';
 
-class MainLayout extends StatefulWidget {
+class MainLayout extends ConsumerStatefulWidget {
   final int initialIndex;
 
   const MainLayout({super.key, this.initialIndex = 0});
 
   @override
-  State<MainLayout> createState() => _MainLayoutState();
+  ConsumerState<MainLayout> createState() => _MainLayoutState();
 }
 
-class _MainLayoutState extends State<MainLayout> {
+class _MainLayoutState extends ConsumerState<MainLayout> {
   late int _selectedIndex;
 
   static const _pageTitles = ['Dashboard', 'Courses', 'Calendar', 'Settings'];
@@ -60,7 +61,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final user = AuthService.instance.currentUser;
+    final user = ref.watch(currentUserProvider);
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
 
@@ -113,7 +114,7 @@ class _MainLayoutState extends State<MainLayout> {
   }
 
   AppBar _buildMobileAppBar() {
-    final user = AuthService.instance.currentUser;
+    final user = ref.watch(currentUserProvider);
     return AppBar(
       backgroundColor: AppColors.surface,
       title: Text(_pageTitles[_selectedIndex]),

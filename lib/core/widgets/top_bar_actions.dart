@@ -1,135 +1,87 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../services/notification_service.dart';
+import '../../features/notifications/providers/notification_providers.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
 
-class NotificationBadgeButton extends StatefulWidget {
+class NotificationBadgeButton extends ConsumerWidget {
   const NotificationBadgeButton({super.key, required this.onPressed});
 
   final FutureOr<void> Function() onPressed;
 
   @override
-  State<NotificationBadgeButton> createState() =>
-      _NotificationBadgeButtonState();
-}
-
-class _NotificationBadgeButtonState extends State<NotificationBadgeButton> {
-  late Future<int> _unreadFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _unreadFuture = NotificationService.instance.getUnreadCount();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<int>(
-      future: _unreadFuture,
-      builder: (context, snapshot) {
-        final unreadCount = snapshot.data ?? 0;
-        return MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: InkWell(
-            onTap: _handleTap,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref.watch(unreadNotificationsProvider).valueOrNull ?? 0;
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: InkWell(
+        onTap: () async {
+          await onPressed();
+          ref.read(unreadNotificationsProvider.notifier).refresh();
+        },
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: AppColors.background,
             borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: AppColors.background,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(
-                    Icons.notifications_outlined,
-                    color: AppColors.textSecondary,
-                    size: 20,
-                  ),
-                  if (unreadCount > 0)
-                    Positioned(
-                      right: -7,
-                      top: -8,
-                      child: _UnreadBadge(count: unreadCount),
-                    ),
-                ],
-              ),
-            ),
+            border: Border.all(color: AppColors.border),
           ),
-        );
-      },
-    );
-  }
-
-  Future<void> _handleTap() async {
-    await widget.onPressed();
-    if (!mounted) return;
-    setState(() {
-      _unreadFuture = NotificationService.instance.getUnreadCount();
-    });
-  }
-}
-
-class MobileNotificationBadgeButton extends StatefulWidget {
-  const MobileNotificationBadgeButton({super.key, required this.onPressed});
-
-  final FutureOr<void> Function() onPressed;
-
-  @override
-  State<MobileNotificationBadgeButton> createState() =>
-      _MobileNotificationBadgeButtonState();
-}
-
-class _MobileNotificationBadgeButtonState
-    extends State<MobileNotificationBadgeButton> {
-  late Future<int> _unreadFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _unreadFuture = NotificationService.instance.getUnreadCount();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<int>(
-      future: _unreadFuture,
-      builder: (context, snapshot) {
-        final unreadCount = snapshot.data ?? 0;
-        return IconButton(
-          icon: Stack(
+          child: Stack(
             clipBehavior: Clip.none,
             children: [
               const Icon(
                 Icons.notifications_outlined,
                 color: AppColors.textSecondary,
-                size: 22,
+                size: 20,
               ),
               if (unreadCount > 0)
                 Positioned(
-                  right: -8,
+                  right: -7,
                   top: -8,
                   child: _UnreadBadge(count: unreadCount),
                 ),
             ],
           ),
-          onPressed: _handleTap,
-        );
-      },
+        ),
+      ),
     );
   }
+}
 
-  Future<void> _handleTap() async {
-    await widget.onPressed();
-    if (!mounted) return;
-    setState(() {
-      _unreadFuture = NotificationService.instance.getUnreadCount();
-    });
+class MobileNotificationBadgeButton extends ConsumerWidget {
+  const MobileNotificationBadgeButton({super.key, required this.onPressed});
+
+  final FutureOr<void> Function() onPressed;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final unreadCount = ref.watch(unreadNotificationsProvider).valueOrNull ?? 0;
+    return IconButton(
+      icon: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          const Icon(
+            Icons.notifications_outlined,
+            color: AppColors.textSecondary,
+            size: 22,
+          ),
+          if (unreadCount > 0)
+            Positioned(
+              right: -8,
+              top: -8,
+              child: _UnreadBadge(count: unreadCount),
+            ),
+        ],
+      ),
+      onPressed: () async {
+        await onPressed();
+        ref.read(unreadNotificationsProvider.notifier).refresh();
+      },
+    );
   }
 }
 

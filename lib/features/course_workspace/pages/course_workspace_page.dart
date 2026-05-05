@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../models/course_model.dart';
 import '../../../services/course_service.dart';
+import '../../courses/providers/course_providers.dart';
 import '../../courses/pages/create_course_page.dart';
 import '../tabs/assignments_tab.dart';
 import '../tabs/materials_tab.dart';
@@ -11,7 +13,7 @@ import '../tabs/overview_tab.dart';
 import '../tabs/quizzes_tab.dart';
 import '../tabs/students_tab.dart';
 
-class CourseWorkspacePage extends StatefulWidget {
+class CourseWorkspacePage extends ConsumerStatefulWidget {
   const CourseWorkspacePage({
     super.key,
     required this.courseId,
@@ -24,13 +26,13 @@ class CourseWorkspacePage extends StatefulWidget {
   final Color accentColor;
 
   @override
-  State<CourseWorkspacePage> createState() => _CourseWorkspacePageState();
+  ConsumerState<CourseWorkspacePage> createState() =>
+      _CourseWorkspacePageState();
 }
 
-class _CourseWorkspacePageState extends State<CourseWorkspacePage>
+class _CourseWorkspacePageState extends ConsumerState<CourseWorkspacePage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  late Future<CourseModel> _courseFuture;
 
   static const _tabs = [
     (icon: Icons.dashboard_rounded, label: 'Overview'),
@@ -44,7 +46,6 @@ class _CourseWorkspacePageState extends State<CourseWorkspacePage>
   void initState() {
     super.initState();
     _tabController = TabController(length: _tabs.length, vsync: this);
-    _courseFuture = CourseService.instance.getCourseDetails(widget.courseId);
   }
 
   @override
@@ -56,75 +57,80 @@ class _CourseWorkspacePageState extends State<CourseWorkspacePage>
   @override
   Widget build(BuildContext context) {
     final fallbackCourse = widget.initialCourse;
+    final courseAsync = ref.watch(courseDetailsProvider(widget.courseId));
+    final course = courseAsync.valueOrNull ?? fallbackCourse;
 
-    return FutureBuilder<CourseModel>(
-      future: _courseFuture,
-      initialData: fallbackCourse,
-      builder: (context, snapshot) {
-        final course = snapshot.data;
-        if (course == null) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
+    if (course == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
-        return Scaffold(
-          backgroundColor: AppColors.background,
-          body: NestedScrollView(
-            headerSliverBuilder: (context, innerBoxIsScrolled) => [
-              SliverAppBar(
-                expandedHeight: 240,
-                floating: false,
-                pinned: true,
-                backgroundColor: AppColors.sidebarBg,
-                foregroundColor: Colors.white,
-                leading: IconButton(
-                  icon: const Icon(Icons.arrow_back_rounded),
-                  onPressed: () => Navigator.pop(context),
-                ),
-                actions: [
-                  IconButton(
-                    icon: const Icon(Icons.edit_rounded),
-                    onPressed: () => _editCourse(course),
-                    tooltip: 'Edit Course',
-                  ),
-                  PopupMenuButton<String>(
-                    onSelected: (value) {
-                      if (value == 'archive') {
-                        _archiveCourse(course);
-                      }
-                    },
-                    itemBuilder: (_) => const [
-                      PopupMenuItem(
-                        value: 'archive',
-                        child: Text('Archive Course'),
-                      ),
-                    ],
+    if (courseAsync.hasError && fallbackCourse == null) {
+      return Scaffold(
+        body: Center(
+          child: ElevatedButton(
+            onPressed: () =>
+                ref.invalidate(courseDetailsProvider(widget.courseId)),
+            child: const Text('Retry'),
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: NestedScrollView(
+        headerSliverBuilder: (context, innerBoxIsScrolled) => [
+          SliverAppBar(
+            expandedHeight: 240,
+            floating: false,
+            pinned: true,
+            backgroundColor: AppColors.sidebarBg,
+            foregroundColor: Colors.white,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_rounded),
+              onPressed: () => Navigator.pop(context),
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.edit_rounded),
+                onPressed: () => _editCourse(course),
+                tooltip: 'Edit Course',
+              ),
+              PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'archive') {
+                    _archiveCourse(course);
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(
+                    value: 'archive',
+                    child: Text('Archive Course'),
                   ),
                 ],
-                flexibleSpace: FlexibleSpaceBar(
-                  collapseMode: CollapseMode.pin,
-                  background: _buildCourseHeader(course),
-                ),
-                bottom: PreferredSize(
-                  preferredSize: const Size.fromHeight(46),
-                  child: _buildTabBar(),
-                ),
               ),
             ],
-            body: TabBarView(
-              controller: _tabController,
-              children: [
-                OverviewTab(course: course),
-                MaterialsTab(courseId: course.id),
-                QuizzesTab(courseId: course.id),
-                AssignmentsTab(courseId: course.id),
-                StudentsTab(courseId: course.id),
-              ],
+            flexibleSpace: FlexibleSpaceBar(
+              collapseMode: CollapseMode.pin,
+              background: _buildCourseHeader(course),
+            ),
+            bottom: PreferredSize(
+              preferredSize: const Size.fromHeight(46),
+              child: _buildTabBar(),
             ),
           ),
-        );
-      },
+        ],
+        body: TabBarView(
+          controller: _tabController,
+          children: [
+            OverviewTab(course: course),
+            MaterialsTab(courseId: course.id),
+            QuizzesTab(courseId: course.id),
+            AssignmentsTab(courseId: course.id),
+            StudentsTab(courseId: course.id),
+          ],
+        ),
+      ),
     );
   }
 
@@ -265,11 +271,8 @@ class _CourseWorkspacePageState extends State<CourseWorkspacePage>
       MaterialPageRoute(builder: (_) => CreateCoursePage(course: course)),
     );
     if (result != null) {
-      setState(() {
-        _courseFuture = CourseService.instance.getCourseDetails(
-          widget.courseId,
-        );
-      });
+      ref.invalidate(courseDetailsProvider(widget.courseId));
+      ref.invalidate(instructorCoursesProvider);
     }
   }
 

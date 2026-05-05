@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
@@ -7,125 +8,95 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/stat_card.dart';
 import '../../../models/dashboard_models.dart';
-import '../../../services/auth_service.dart';
-import '../../../services/dashboard_service.dart';
+import '../../auth/providers/auth_providers.dart';
 import '../../courses/pages/create_course_page.dart';
 import '../../courses/pages/courses_page.dart';
+import '../providers/dashboard_providers.dart';
 
-class InstructorDashboardPage extends StatefulWidget {
+class InstructorDashboardPage extends ConsumerWidget {
   const InstructorDashboardPage({super.key, this.onNavigateToTab});
 
   final ValueChanged<int>? onNavigateToTab;
 
   @override
-  State<InstructorDashboardPage> createState() =>
-      _InstructorDashboardPageState();
-}
-
-class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
-  late Future<InstructorDashboardSummary> _summaryFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _summaryFuture = DashboardService.instance.getInstructorSummary();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
-    final user = AuthService.instance.currentUser;
+    final user = ref.watch(currentUserProvider);
 
-    return FutureBuilder<InstructorDashboardSummary>(
-      future: _summaryFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return _DashboardErrorState(
-            onRetry: () {
-              setState(() {
-                _summaryFuture = DashboardService.instance
-                    .getInstructorSummary();
-              });
-            },
-          );
-        }
-
-        final summary = snapshot.data!;
-        final stats = [
-          (
-            label: 'Total Courses',
-            value: '${summary.coursesCount}',
-            icon: Icons.menu_book_rounded,
-            color: AppColors.primary,
-            bg: AppColors.primaryLight,
+    return ref
+        .watch(instructorDashboardProvider)
+        .when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, _) => _DashboardErrorState(
+            onRetry: () => ref.invalidate(instructorDashboardProvider),
           ),
-          (
-            label: 'Total Students',
-            value: '${summary.studentsCount}',
-            icon: Icons.people_rounded,
-            color: AppColors.cyan,
-            bg: AppColors.cyanLight,
-          ),
-          (
-            label: 'AI Pending',
-            value: '${summary.pendingAiDrafts}',
-            icon: Icons.auto_awesome_rounded,
-            color: AppColors.amber,
-            bg: AppColors.amberLight,
-          ),
-          (
-            label: 'Avg. Score',
-            value: '${summary.averageScore.toStringAsFixed(1)}%',
-            icon: Icons.insights_rounded,
-            color: AppColors.emerald,
-            bg: AppColors.emeraldLight,
-          ),
-        ];
-
-        return SingleChildScrollView(
-          padding: EdgeInsets.all(isWide ? 28 : 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildWelcome(
-                userName: user?.name ?? 'Instructor',
-                pendingAiDrafts: summary.pendingAiDrafts,
+          data: (summary) {
+            final stats = [
+              (
+                label: 'Total Courses',
+                value: '${summary.coursesCount}',
+                icon: Icons.menu_book_rounded,
+                color: AppColors.primary,
+                bg: AppColors.primaryLight,
               ),
-              const SizedBox(height: 24),
-              _buildStatsGrid(isWide, stats),
-              const SizedBox(height: 28),
-              _buildQuickActions(context, isWide),
-              const SizedBox(height: 28),
-              SectionHeader(
-                title: 'Recent Activity',
-                actionLabel: 'Refresh',
-                onAction: () {
-                  setState(() {
-                    _summaryFuture = DashboardService.instance
-                        .getInstructorSummary();
-                  });
-                },
+              (
+                label: 'Total Students',
+                value: '${summary.studentsCount}',
+                icon: Icons.people_rounded,
+                color: AppColors.cyan,
+                bg: AppColors.cyanLight,
               ),
-              const SizedBox(height: 16),
-              if (summary.recentActivity.isEmpty)
-                const EmptyState(
-                  icon: Icons.timeline_rounded,
-                  title: 'No activity yet',
-                  subtitle:
-                      'Create a course, enroll students, or upload materials to start seeing instructor activity.',
-                )
-              else
-                _buildActivityList(summary.recentActivity),
-            ],
-          ),
+              (
+                label: 'AI Pending',
+                value: '${summary.pendingAiDrafts}',
+                icon: Icons.auto_awesome_rounded,
+                color: AppColors.amber,
+                bg: AppColors.amberLight,
+              ),
+              (
+                label: 'Avg. Score',
+                value: '${summary.averageScore.toStringAsFixed(1)}%',
+                icon: Icons.insights_rounded,
+                color: AppColors.emerald,
+                bg: AppColors.emeraldLight,
+              ),
+            ];
+
+            return SingleChildScrollView(
+              padding: EdgeInsets.all(isWide ? 28 : 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildWelcome(
+                    userName: user?.name ?? 'Instructor',
+                    pendingAiDrafts: summary.pendingAiDrafts,
+                  ),
+                  const SizedBox(height: 24),
+                  _buildStatsGrid(isWide, stats),
+                  const SizedBox(height: 28),
+                  _buildQuickActions(context, isWide),
+                  const SizedBox(height: 28),
+                  SectionHeader(
+                    title: 'Recent Activity',
+                    actionLabel: 'Refresh',
+                    onAction: () => ref.invalidate(instructorDashboardProvider),
+                  ),
+                  const SizedBox(height: 16),
+                  if (summary.recentActivity.isEmpty)
+                    const EmptyState(
+                      icon: Icons.timeline_rounded,
+                      title: 'No activity yet',
+                      subtitle:
+                          'Create a course, enroll students, or upload materials to start seeing instructor activity.',
+                    )
+                  else
+                    _buildActivityList(summary.recentActivity),
+                ],
+              ),
+            );
+          },
         );
-      },
-    );
   }
 
   Widget _buildWelcome({
@@ -290,7 +261,7 @@ class _InstructorDashboardPageState extends State<InstructorDashboardPage> {
   }
 
   void _openCoursesTab(BuildContext context) {
-    final navigate = widget.onNavigateToTab;
+    final navigate = onNavigateToTab;
     if (navigate != null) {
       navigate(1);
       return;

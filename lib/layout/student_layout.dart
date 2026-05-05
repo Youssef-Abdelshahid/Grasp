@@ -1,28 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
 import '../core/widgets/top_bar_actions.dart';
 import '../routing/app_router.dart';
+import '../features/auth/providers/auth_providers.dart';
 import '../features/student/profile/student_profile_page.dart';
 import '../features/student/dashboard/student_dashboard_page.dart';
 import '../features/student/courses/student_courses_page.dart';
 import '../features/student/calendar/student_calendar_page.dart';
 import '../features/student/profile/student_settings_page.dart';
 import '../features/notifications/notifications_page.dart';
-import '../services/auth_service.dart';
 
-class StudentLayout extends StatefulWidget {
+class StudentLayout extends ConsumerStatefulWidget {
   final int initialIndex;
 
   const StudentLayout({super.key, this.initialIndex = 0});
 
   @override
-  State<StudentLayout> createState() => _StudentLayoutState();
+  ConsumerState<StudentLayout> createState() => _StudentLayoutState();
 }
 
-class _StudentLayoutState extends State<StudentLayout> {
+class _StudentLayoutState extends ConsumerState<StudentLayout> {
   late int _selectedIndex;
 
   static const _pageTitles = [
@@ -65,7 +66,7 @@ class _StudentLayoutState extends State<StudentLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final user = AuthService.instance.currentUser;
+    final user = ref.watch(currentUserProvider);
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
 
@@ -117,7 +118,7 @@ class _StudentLayoutState extends State<StudentLayout> {
   }
 
   AppBar _buildMobileAppBar() {
-    final user = AuthService.instance.currentUser;
+    final user = ref.watch(currentUserProvider);
     return AppBar(
       backgroundColor: AppColors.surface,
       title: Text(_pageTitles[_selectedIndex]),
@@ -140,7 +141,7 @@ class _StudentLayoutState extends State<StudentLayout> {
   }
 }
 
-class _StudentSidebar extends StatelessWidget {
+class _StudentSidebar extends ConsumerWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
   final VoidCallback onProfileTap;
@@ -158,7 +159,7 @@ class _StudentSidebar extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       width: AppConstants.sidebarWidth,
       color: AppColors.sidebarBg,
@@ -191,7 +192,7 @@ class _StudentSidebar extends StatelessWidget {
               ],
             ),
           ),
-          _buildBottomSection(context),
+          _buildBottomSection(context, ref),
         ],
       ),
     );
@@ -230,8 +231,8 @@ class _StudentSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomSection(BuildContext context) {
-    final user = AuthService.instance.currentUser;
+  Widget _buildBottomSection(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
     final name = user?.name ?? 'Student';
 
     return Container(
@@ -252,7 +253,7 @@ class _StudentSidebar extends StatelessWidget {
             label: 'Logout',
             isSelected: false,
             onTap: () async {
-              await AuthService.instance.logout();
+              await ref.read(authControllerProvider.notifier).logout();
               if (!context.mounted) {
                 return;
               }

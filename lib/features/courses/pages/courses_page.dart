@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/constants/app_constants.dart';
@@ -8,18 +9,17 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../models/course_model.dart';
 import '../../../services/course_service.dart';
 import '../../course_workspace/pages/course_workspace_page.dart';
+import '../providers/course_providers.dart';
 import 'create_course_page.dart';
 
-class CoursesPage extends StatefulWidget {
+class CoursesPage extends ConsumerStatefulWidget {
   const CoursesPage({super.key});
 
   @override
-  State<CoursesPage> createState() => _CoursesPageState();
+  ConsumerState<CoursesPage> createState() => _CoursesPageState();
 }
 
-class _CoursesPageState extends State<CoursesPage> {
-  late Future<List<CourseModel>> _coursesFuture;
-
+class _CoursesPageState extends ConsumerState<CoursesPage> {
   static const _courseColors = [
     AppColors.primary,
     AppColors.cyan,
@@ -30,52 +30,40 @@ class _CoursesPageState extends State<CoursesPage> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _coursesFuture = CourseService.instance.getInstructorCourses();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
     final padding = EdgeInsets.all(isWide ? 28 : 16);
 
-    return FutureBuilder<List<CourseModel>>(
-      future: _coursesFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return _ErrorState(onRetry: _refresh);
-        }
-
-        final courses = snapshot.data ?? [];
-        return SingleChildScrollView(
-          padding: padding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildHeader(context, isWide, courses.length),
-              const SizedBox(height: 20),
-              if (courses.isEmpty)
-                EmptyState(
-                  icon: Icons.menu_book_rounded,
-                  title: 'No courses yet',
-                  subtitle:
-                      'Create your first course to start adding materials, announcements, and student enrollments.',
-                  actionLabel: 'Create Course',
-                  onAction: () => _openCreate(context),
-                )
-              else
-                _buildList(context, isWide, courses),
-            ],
-          ),
+    return ref
+        .watch(instructorCoursesProvider)
+        .when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, _) => _ErrorState(onRetry: _refresh),
+          data: (courses) {
+            return SingleChildScrollView(
+              padding: padding,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context, isWide, courses.length),
+                  const SizedBox(height: 20),
+                  if (courses.isEmpty)
+                    EmptyState(
+                      icon: Icons.menu_book_rounded,
+                      title: 'No courses yet',
+                      subtitle:
+                          'Create your first course to start adding materials, announcements, and student enrollments.',
+                      actionLabel: 'Create Course',
+                      onAction: () => _openCreate(context),
+                    )
+                  else
+                    _buildList(context, isWide, courses),
+                ],
+              ),
+            );
+          },
         );
-      },
-    );
   }
 
   Widget _buildHeader(BuildContext context, bool isWide, int count) {
@@ -238,9 +226,7 @@ class _CoursesPageState extends State<CoursesPage> {
   }
 
   void _refresh() {
-    setState(() {
-      _coursesFuture = CourseService.instance.getInstructorCourses();
-    });
+    ref.invalidate(instructorCoursesProvider);
   }
 
   void _showMessage(String message) {

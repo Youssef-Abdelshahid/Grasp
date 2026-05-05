@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
+import '../features/auth/providers/auth_providers.dart';
 import '../routing/app_router.dart';
-import '../services/auth_service.dart';
 
-class AppSidebar extends StatelessWidget {
+class AppSidebar extends ConsumerWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
   final VoidCallback onProfileTap;
@@ -25,7 +26,7 @@ class AppSidebar extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       width: AppConstants.sidebarWidth,
       color: AppColors.sidebarBg,
@@ -58,7 +59,7 @@ class AppSidebar extends StatelessWidget {
               ],
             ),
           ),
-          _buildBottomSection(context),
+          _buildBottomSection(context, ref),
         ],
       ),
     );
@@ -97,8 +98,8 @@ class AppSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomSection(BuildContext context) {
-    final user = AuthService.instance.currentUser;
+  Widget _buildBottomSection(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
     final name = user?.name ?? 'Instructor';
     final initials = UserUtils.initials(name);
 
@@ -120,7 +121,7 @@ class AppSidebar extends StatelessWidget {
             label: 'Logout',
             isSelected: false,
             onTap: () async {
-              await AuthService.instance.logout();
+              await ref.read(authControllerProvider.notifier).logout();
               if (!context.mounted) {
                 return;
               }

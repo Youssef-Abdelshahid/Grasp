@@ -1,22 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/course_model.dart';
-import '../../../services/course_service.dart';
+import '../../courses/providers/course_providers.dart';
 import '../course_workspace/student_course_workspace_page.dart';
 
-class StudentCoursesPage extends StatefulWidget {
+class StudentCoursesPage extends ConsumerWidget {
   const StudentCoursesPage({super.key});
-
-  @override
-  State<StudentCoursesPage> createState() => _StudentCoursesPageState();
-}
-
-class _StudentCoursesPageState extends State<StudentCoursesPage> {
-  late Future<List<CourseModel>> _coursesFuture;
 
   static const _courseColors = [
     AppColors.primary,
@@ -27,56 +21,56 @@ class _StudentCoursesPageState extends State<StudentCoursesPage> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _coursesFuture = CourseService.instance.getStudentCourses();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
     final padding = EdgeInsets.all(isWide ? 28 : 16);
 
-    return FutureBuilder<List<CourseModel>>(
-      future: _coursesFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        final courses = snapshot.data ?? [];
-        return SingleChildScrollView(
-          padding: padding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Column(
+    return ref
+        .watch(studentCoursesProvider)
+        .when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, _) => Center(
+            child: EmptyState(
+              icon: Icons.cloud_off_rounded,
+              title: 'Unable to load courses',
+              subtitle: 'Please try again.',
+              actionLabel: 'Retry',
+              onAction: () => ref.invalidate(studentCoursesProvider),
+            ),
+          ),
+          data: (courses) {
+            return SingleChildScrollView(
+              padding: padding,
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('My Courses', style: AppTextStyles.h1),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${courses.length} enrolled courses this semester',
-                    style: AppTextStyles.bodySmall,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('My Courses', style: AppTextStyles.h1),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${courses.length} enrolled courses this semester',
+                        style: AppTextStyles.bodySmall,
+                      ),
+                    ],
                   ),
+                  const SizedBox(height: 20),
+                  if (courses.isEmpty)
+                    const EmptyState(
+                      icon: Icons.menu_book_rounded,
+                      title: 'No enrolled courses',
+                      subtitle:
+                          'Once an instructor enrolls you in a course, it will appear here.',
+                    )
+                  else
+                    _buildList(context, isWide, courses),
                 ],
               ),
-              const SizedBox(height: 20),
-              if (courses.isEmpty)
-                const EmptyState(
-                  icon: Icons.menu_book_rounded,
-                  title: 'No enrolled courses',
-                  subtitle:
-                      'Once an instructor enrolls you in a course, it will appear here.',
-                )
-              else
-                _buildList(context, isWide, courses),
-            ],
-          ),
+            );
+          },
         );
-      },
-    );
   }
 
   Widget _buildList(

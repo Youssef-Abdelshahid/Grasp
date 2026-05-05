@@ -1,20 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/app_role.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../routing/app_router.dart';
-import '../../../services/auth_service.dart';
+import '../providers/auth_providers.dart';
 
-class AuthPage extends StatefulWidget {
+class AuthPage extends ConsumerStatefulWidget {
   const AuthPage({super.key});
 
   @override
-  State<AuthPage> createState() => _AuthPageState();
+  ConsumerState<AuthPage> createState() => _AuthPageState();
 }
 
-class _AuthPageState extends State<AuthPage> {
+class _AuthPageState extends ConsumerState<AuthPage> {
   bool _isLogin = true;
   AppRole _selectedRole = AppRole.student;
   bool _obscurePassword = true;
@@ -153,7 +154,7 @@ class _AuthPageState extends State<AuthPage> {
   }
 
   Widget _buildForm() {
-    final auth = AuthService.instance;
+    final auth = ref.watch(authControllerProvider).valueOrNull;
 
     return Form(
       key: _formKey,
@@ -262,7 +263,7 @@ class _AuthPageState extends State<AuthPage> {
             ),
           ],
           const SizedBox(height: 24),
-          if (auth.lastError != null) ...[
+          if (auth?.lastError != null) ...[
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -274,7 +275,7 @@ class _AuthPageState extends State<AuthPage> {
                 ),
               ),
               child: Text(
-                auth.lastError!,
+                auth!.lastError!,
                 style: AppTextStyles.bodySmall.copyWith(color: AppColors.rose),
               ),
             ),
@@ -511,7 +512,7 @@ class _AuthPageState extends State<AuthPage> {
     }
 
     setState(() => _isSubmitting = true);
-    final auth = AuthService.instance;
+    final auth = ref.read(authControllerProvider.notifier);
 
     try {
       if (_isLogin) {
@@ -532,7 +533,7 @@ class _AuthPageState extends State<AuthPage> {
         return;
       }
 
-      final user = auth.currentUser;
+      final user = ref.read(currentUserProvider);
       if (user == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(

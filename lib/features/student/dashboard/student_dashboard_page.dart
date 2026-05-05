@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
@@ -7,53 +8,35 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/stat_card.dart';
 import '../../../models/dashboard_models.dart';
-import '../../../services/auth_service.dart';
-import '../../../services/dashboard_service.dart';
+import '../../auth/providers/auth_providers.dart';
+import '../../dashboard/providers/dashboard_providers.dart';
 import '../calendar/student_calendar_page.dart';
 import '../courses/student_courses_page.dart';
 
-class StudentDashboardPage extends StatefulWidget {
+class StudentDashboardPage extends ConsumerStatefulWidget {
   const StudentDashboardPage({super.key, this.onNavigateToTab});
 
   final ValueChanged<int>? onNavigateToTab;
 
   @override
-  State<StudentDashboardPage> createState() => _StudentDashboardPageState();
+  ConsumerState<StudentDashboardPage> createState() =>
+      _StudentDashboardPageState();
 }
 
-class _StudentDashboardPageState extends State<StudentDashboardPage> {
-  late Future<StudentDashboardSummary> _summaryFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _summaryFuture = DashboardService.instance.getStudentSummary();
-  }
-
+class _StudentDashboardPageState extends ConsumerState<StudentDashboardPage> {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
-    final user = AuthService.instance.currentUser;
+    final user = ref.watch(currentUserProvider);
+    final summaryAsync = ref.watch(studentDashboardProvider);
 
-    return FutureBuilder<StudentDashboardSummary>(
-      future: _summaryFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return _DashboardErrorState(
-            onRetry: () {
-              setState(() {
-                _summaryFuture = DashboardService.instance.getStudentSummary();
-              });
-            },
-          );
-        }
-
-        final summary = snapshot.data!;
+    return summaryAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, _) => _DashboardErrorState(
+        onRetry: () => ref.invalidate(studentDashboardProvider),
+      ),
+      data: (summary) {
         final stats = [
           (
             label: 'Enrolled Courses',
@@ -402,11 +385,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
         SectionHeader(
           title: 'Recent Announcements',
           actionLabel: 'Refresh',
-          onAction: () {
-            setState(() {
-              _summaryFuture = DashboardService.instance.getStudentSummary();
-            });
-          },
+          onAction: () => ref.invalidate(studentDashboardProvider),
         ),
         const SizedBox(height: 12),
         if (announcements.isEmpty)

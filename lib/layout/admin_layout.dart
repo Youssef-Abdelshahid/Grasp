@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
@@ -17,20 +18,20 @@ import '../features/admin/ai_controls/admin_ai_controls_page.dart';
 import '../features/admin/upload_limits/admin_upload_limits_page.dart';
 import '../features/admin/platform/admin_platform_page.dart';
 import '../features/admin/profile/admin_profile_page.dart';
+import '../features/auth/providers/auth_providers.dart';
 import '../features/notifications/notifications_page.dart';
 import '../routing/app_router.dart';
-import '../services/auth_service.dart';
 
-class AdminLayout extends StatefulWidget {
+class AdminLayout extends ConsumerStatefulWidget {
   final int initialIndex;
 
   const AdminLayout({super.key, this.initialIndex = 0});
 
   @override
-  State<AdminLayout> createState() => _AdminLayoutState();
+  ConsumerState<AdminLayout> createState() => _AdminLayoutState();
 }
 
-class _AdminLayoutState extends State<AdminLayout> {
+class _AdminLayoutState extends ConsumerState<AdminLayout> {
   late int _selectedIndex;
 
   static const _pageTitles = [
@@ -101,7 +102,7 @@ class _AdminLayoutState extends State<AdminLayout> {
 
   @override
   Widget build(BuildContext context) {
-    final user = AuthService.instance.currentUser;
+    final user = ref.watch(currentUserProvider);
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
 
@@ -153,7 +154,7 @@ class _AdminLayoutState extends State<AdminLayout> {
   }
 
   AppBar _buildMobileAppBar() {
-    final user = AuthService.instance.currentUser;
+    final user = ref.watch(currentUserProvider);
     return AppBar(
       backgroundColor: AppColors.surface,
       title: Text(_pageTitles[_selectedIndex]),
@@ -176,7 +177,7 @@ class _AdminLayoutState extends State<AdminLayout> {
   }
 }
 
-class _AdminSidebar extends StatelessWidget {
+class _AdminSidebar extends ConsumerWidget {
   final int selectedIndex;
   final ValueChanged<int> onItemSelected;
   final VoidCallback onProfileTap;
@@ -204,7 +205,7 @@ class _AdminSidebar extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       width: AppConstants.sidebarWidth,
       color: AppColors.sidebarBg,
@@ -238,7 +239,7 @@ class _AdminSidebar extends StatelessWidget {
               ],
             ),
           ),
-          _buildBottomSection(context),
+          _buildBottomSection(context, ref),
         ],
       ),
     );
@@ -306,8 +307,8 @@ class _AdminSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildBottomSection(BuildContext context) {
-    final user = AuthService.instance.currentUser;
+  Widget _buildBottomSection(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -321,7 +322,7 @@ class _AdminSidebar extends StatelessWidget {
             label: 'Logout',
             isSelected: false,
             onTap: () async {
-              await AuthService.instance.logout();
+              await ref.read(authControllerProvider.notifier).logout();
               if (!context.mounted) {
                 return;
               }

@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -9,93 +10,94 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../models/material_model.dart';
 import '../../../services/material_service.dart';
 import '../pages/material_details_page.dart';
+import '../providers/course_workspace_providers.dart';
 
-class MaterialsTab extends StatefulWidget {
+class MaterialsTab extends ConsumerStatefulWidget {
   const MaterialsTab({super.key, required this.courseId});
 
   final String courseId;
 
   @override
-  State<MaterialsTab> createState() => _MaterialsTabState();
+  ConsumerState<MaterialsTab> createState() => _MaterialsTabState();
 }
 
-class _MaterialsTabState extends State<MaterialsTab> {
-  late Future<List<MaterialModel>> _materialsFuture;
+class _MaterialsTabState extends ConsumerState<MaterialsTab> {
   bool _isUploading = false;
 
   @override
-  void initState() {
-    super.initState();
-    _materialsFuture = MaterialService.instance.getCourseMaterials(
-      widget.courseId,
+  Widget build(BuildContext context) {
+    final materialsAsync = ref.watch(courseMaterialsProvider(widget.courseId));
+    return materialsAsync.when(
+      loading: () => _buildContent(const [], isLoading: true),
+      error: (_, _) => _buildContent(const [], hasError: true),
+      data: (materials) => _buildContent(materials),
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<List<MaterialModel>>(
-      future: _materialsFuture,
-      builder: (context, snapshot) {
-        final materials = snapshot.data ?? [];
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildContent(
+    List<MaterialModel> materials, {
+    bool isLoading = false,
+    bool hasError = false,
+  }) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _UploadArea(isUploading: _isUploading, onTap: _pickAndUploadMaterial),
+          const SizedBox(height: 24),
+          Row(
             children: [
-              _UploadArea(
-                isUploading: _isUploading,
-                onTap: _pickAndUploadMaterial,
-              ),
-              const SizedBox(height: 24),
-              Row(
-                children: [
-                  Text('Uploaded Materials', style: AppTextStyles.h3),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 8,
-                      vertical: 3,
-                    ),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(100),
-                    ),
-                    child: Text(
-                      '${materials.length}',
-                      style: AppTextStyles.caption.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              if (snapshot.connectionState != ConnectionState.done)
-                const Center(child: CircularProgressIndicator())
-              else if (materials.isEmpty)
-                const EmptyState(
-                  icon: Icons.attach_file_rounded,
-                  title: 'No materials uploaded',
-                  subtitle:
-                      'Upload PDFs, slides, documents, or videos to build your course library.',
-                )
-              else
-                ...materials.map(
-                  (material) => Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: _MaterialCard(
-                      material: material,
-                      onOpen: () => _openMaterial(material),
-                      onEdit: () => _editMaterial(material),
-                      onDelete: () => _deleteMaterial(material),
-                    ),
+              Text('Uploaded Materials', style: AppTextStyles.h3),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(100),
+                ),
+                child: Text(
+                  '${materials.length}',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
+              ),
             ],
           ),
-        );
-      },
+          const SizedBox(height: 16),
+          if (isLoading)
+            const Center(child: CircularProgressIndicator())
+          else if (hasError)
+            EmptyState(
+              icon: Icons.cloud_off_rounded,
+              title: 'Unable to load materials',
+              subtitle: 'Please try again.',
+              actionLabel: 'Retry',
+              onAction: _refresh,
+            )
+          else if (materials.isEmpty)
+            const EmptyState(
+              icon: Icons.attach_file_rounded,
+              title: 'No materials uploaded',
+              subtitle:
+                  'Upload PDFs, slides, documents, or videos to build your course library.',
+            )
+          else
+            ...materials.map(
+              (material) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _MaterialCard(
+                  material: material,
+                  onOpen: () => _openMaterial(material),
+                  onEdit: () => _editMaterial(material),
+                  onDelete: () => _deleteMaterial(material),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -248,11 +250,7 @@ class _MaterialsTabState extends State<MaterialsTab> {
   }
 
   void _refresh() {
-    setState(() {
-      _materialsFuture = MaterialService.instance.getCourseMaterials(
-        widget.courseId,
-      );
-    });
+    ref.invalidate(courseMaterialsProvider(widget.courseId));
   }
 
   void _showMessage(String message) {

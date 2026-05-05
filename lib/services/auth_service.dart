@@ -54,6 +54,7 @@ class AuthService extends ChangeNotifier {
       if (_session == null) {
         _currentUser = null;
         _lastError = null;
+        _isInitializing = false;
         notifyListeners();
         return;
       }
@@ -121,6 +122,7 @@ class AuthService extends ChangeNotifier {
     if (!_supabaseInitialized) {
       _session = null;
       _currentUser = null;
+      _isInitializing = false;
       notifyListeners();
       return;
     }
@@ -128,6 +130,7 @@ class AuthService extends ChangeNotifier {
     await Supabase.instance.client.auth.signOut();
     _session = null;
     _currentUser = null;
+    _isInitializing = false;
     notifyListeners();
   }
 

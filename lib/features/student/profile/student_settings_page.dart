@@ -17,16 +17,17 @@ class StudentSettingsPage extends StatefulWidget {
 class _StudentSettingsPageState extends State<StudentSettingsPage> {
   late Future<UserModel> _future;
   bool _didPopulate = false;
+  Map<String, dynamic> _preferences = const {};
   bool _emailNotifications = true;
   bool _pushNotifications = true;
   bool _assignmentReminders = true;
   bool _quizReminders = true;
   bool _announcementAlerts = true;
-  bool _gradeAlerts = true;
   bool _deadlineReminder24h = true;
   bool _deadlineReminder1h = false;
   bool _studyReminders = true;
-  bool _compactView = false;
+  bool _weeklyStudySummary = true;
+  bool _showOverdueFirst = true;
   bool _saving = false;
 
   @override
@@ -62,27 +63,21 @@ class _StudentSettingsPageState extends State<StudentSettingsPage> {
                   children: [
                     Expanded(child: _notificationSection()),
                     const SizedBox(width: 20),
-                    Expanded(child: _reminderSection()),
+                    Expanded(child: _calendarReminderSection()),
                   ],
                 )
               else ...[
                 _notificationSection(),
                 const SizedBox(height: 20),
-                _reminderSection(),
+                _calendarReminderSection(),
               ],
               const SizedBox(height: 20),
               if (isWide)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(child: _appearanceSection()),
-                    const SizedBox(width: 20),
-                    Expanded(child: _accountSection()),
-                  ],
+                  children: [Expanded(child: _accountSection())],
                 )
               else ...[
-                _appearanceSection(),
-                const SizedBox(height: 20),
                 _accountSection(),
               ],
               const SizedBox(height: 20),
@@ -111,31 +106,31 @@ class _StudentSettingsPageState extends State<StudentSettingsPage> {
 
   void _apply(Map<String, dynamic> prefs) {
     _didPopulate = true;
+    _preferences = Map<String, dynamic>.from(prefs);
     _emailNotifications = prefs['email_notifications'] as bool? ?? true;
     _pushNotifications = prefs['push_notifications'] as bool? ?? true;
     _assignmentReminders = prefs['assignment_reminders'] as bool? ?? true;
     _quizReminders = prefs['quiz_reminders'] as bool? ?? true;
     _announcementAlerts = prefs['announcement_alerts'] as bool? ?? true;
-    _gradeAlerts = prefs['grade_alerts'] as bool? ?? true;
     _deadlineReminder24h = prefs['deadline_reminder_24h'] as bool? ?? true;
     _deadlineReminder1h = prefs['deadline_reminder_1h'] as bool? ?? false;
     _studyReminders = prefs['study_reminders'] as bool? ?? true;
-    _compactView = prefs['compact_view'] as bool? ?? false;
+    _weeklyStudySummary = prefs['weekly_study_summary'] as bool? ?? true;
+    _showOverdueFirst = prefs['show_overdue_first'] as bool? ?? true;
   }
 
   Future<void> _save() async {
     setState(() => _saving = true);
     await ProfileService.instance.updatePreferences({
+      ..._preferences,
       'email_notifications': _emailNotifications,
       'push_notifications': _pushNotifications,
       'assignment_reminders': _assignmentReminders,
       'quiz_reminders': _quizReminders,
       'announcement_alerts': _announcementAlerts,
-      'grade_alerts': _gradeAlerts,
       'deadline_reminder_24h': _deadlineReminder24h,
       'deadline_reminder_1h': _deadlineReminder1h,
       'study_reminders': _studyReminders,
-      'compact_view': _compactView,
     });
     if (!mounted) return;
     setState(() => _saving = false);
@@ -172,16 +167,11 @@ class _StudentSettingsPageState extends State<StudentSettingsPage> {
         _announcementAlerts,
         (value) => setState(() => _announcementAlerts = value),
       ),
-      _toggle(
-        'Grade Alerts',
-        _gradeAlerts,
-        (value) => setState(() => _gradeAlerts = value),
-      ),
     ],
   );
 
-  Widget _reminderSection() => _SettingsSection(
-    title: 'Reminder Preferences',
+  Widget _calendarReminderSection() => _SettingsSection(
+    title: 'Calendar / Reminder Preferences',
     children: [
       _toggle(
         '24-hour Deadline Reminder',
@@ -194,20 +184,19 @@ class _StudentSettingsPageState extends State<StudentSettingsPage> {
         (value) => setState(() => _deadlineReminder1h = value),
       ),
       _toggle(
-        'Study Reminders',
+        'Daily Study Reminder',
         _studyReminders,
         (value) => setState(() => _studyReminders = value),
       ),
-    ],
-  );
-
-  Widget _appearanceSection() => _SettingsSection(
-    title: 'Appearance',
-    children: [
       _toggle(
-        'Compact View',
-        _compactView,
-        (value) => setState(() => _compactView = value),
+        'Weekly Study Summary',
+        _weeklyStudySummary,
+        (value) => setState(() => _weeklyStudySummary = value),
+      ),
+      _toggle(
+        'Show Overdue Items First',
+        _showOverdueFirst,
+        (value) => setState(() => _showOverdueFirst = value),
       ),
     ],
   );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
@@ -7,8 +8,8 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../core/widgets/section_header.dart';
 import '../../../core/widgets/stat_card.dart';
 import '../../../models/dashboard_models.dart';
-import '../../../services/auth_service.dart';
-import '../../../services/dashboard_service.dart';
+import '../../auth/providers/auth_providers.dart';
+import '../../dashboard/providers/dashboard_providers.dart';
 import '../content/admin_announcements_page.dart';
 import '../content/admin_assessments_page.dart';
 import '../content/admin_courses_page.dart';
@@ -18,192 +19,172 @@ import '../content/admin_study_notes_page.dart';
 import '../profile/admin_profile_page.dart';
 import '../users/admin_users_page.dart';
 
-class AdminDashboardPage extends StatefulWidget {
+class AdminDashboardPage extends ConsumerWidget {
   const AdminDashboardPage({super.key, this.onNavigateToTab});
 
   final ValueChanged<int>? onNavigateToTab;
 
   @override
-  State<AdminDashboardPage> createState() => _AdminDashboardPageState();
-}
-
-class _AdminDashboardPageState extends State<AdminDashboardPage> {
-  late Future<AdminDashboardSummary> _summaryFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _summaryFuture = DashboardService.instance.getAdminSummary();
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
-    final user = AuthService.instance.currentUser;
+    final user = ref.watch(currentUserProvider);
 
-    return FutureBuilder<AdminDashboardSummary>(
-      future: _summaryFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return _DashboardErrorState(
-            onRetry: () {
-              setState(() {
-                _summaryFuture = DashboardService.instance.getAdminSummary();
-              });
-            },
-          );
-        }
-
-        final summary = snapshot.data!;
-        final stats = [
-          (
-            label: 'Total Users',
-            value: '${summary.totalUsers}',
-            icon: Icons.people_rounded,
-            color: AppColors.primary,
-            bg: AppColors.primaryLight,
+    return ref
+        .watch(adminDashboardProvider)
+        .when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (_, _) => _DashboardErrorState(
+            onRetry: () => ref.invalidate(adminDashboardProvider),
           ),
-          (
-            label: 'Students',
-            value: '${summary.studentsCount}',
-            icon: Icons.school_rounded,
-            color: AppColors.cyan,
-            bg: AppColors.cyanLight,
-          ),
-          (
-            label: 'Instructors',
-            value: '${summary.instructorsCount}',
-            icon: Icons.person_rounded,
-            color: AppColors.violet,
-            bg: AppColors.violetLight,
-          ),
-          (
-            label: 'Total Courses',
-            value: '${summary.totalCourses}',
-            icon: Icons.menu_book_rounded,
-            color: AppColors.emerald,
-            bg: AppColors.emeraldLight,
-          ),
-          (
-            label: 'Materials',
-            value: '${summary.totalMaterials}',
-            icon: Icons.description_rounded,
-            color: AppColors.amber,
-            bg: AppColors.amberLight,
-          ),
-          (
-            label: 'Assessments',
-            value: '${summary.totalQuizzes + summary.totalAssignments}',
-            icon: Icons.assignment_rounded,
-            color: AppColors.rose,
-            bg: AppColors.roseLight,
-          ),
-          (
-            label: 'Announcements',
-            value: '${summary.totalAnnouncements}',
-            icon: Icons.campaign_rounded,
-            color: AppColors.success,
-            bg: AppColors.successLight,
-          ),
-        ];
-
-        return SingleChildScrollView(
-          padding: EdgeInsets.all(isWide ? 28 : 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildWelcome(
-                userName: user?.name ?? 'Admin',
-                totalUsers: summary.totalUsers,
-                alertsCount: summary.recentActivityCount,
+          data: (summary) {
+            final stats = [
+              (
+                label: 'Total Users',
+                value: '${summary.totalUsers}',
+                icon: Icons.people_rounded,
+                color: AppColors.primary,
+                bg: AppColors.primaryLight,
               ),
-              const SizedBox(height: 24),
-              _buildStatsGrid(isWide, stats),
-              const SizedBox(height: 28),
-              _buildQuickActions(context, isWide),
-              const SizedBox(height: 28),
-              _buildAlerts(summary.alerts),
-              const SizedBox(height: 28),
-              if (isWide)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _buildRecentRegistrations(
-                        context,
-                        summary.recentRegistrations,
-                      ),
+              (
+                label: 'Students',
+                value: '${summary.studentsCount}',
+                icon: Icons.school_rounded,
+                color: AppColors.cyan,
+                bg: AppColors.cyanLight,
+              ),
+              (
+                label: 'Instructors',
+                value: '${summary.instructorsCount}',
+                icon: Icons.person_rounded,
+                color: AppColors.violet,
+                bg: AppColors.violetLight,
+              ),
+              (
+                label: 'Total Courses',
+                value: '${summary.totalCourses}',
+                icon: Icons.menu_book_rounded,
+                color: AppColors.emerald,
+                bg: AppColors.emeraldLight,
+              ),
+              (
+                label: 'Materials',
+                value: '${summary.totalMaterials}',
+                icon: Icons.description_rounded,
+                color: AppColors.amber,
+                bg: AppColors.amberLight,
+              ),
+              (
+                label: 'Assessments',
+                value: '${summary.totalQuizzes + summary.totalAssignments}',
+                icon: Icons.assignment_rounded,
+                color: AppColors.rose,
+                bg: AppColors.roseLight,
+              ),
+              (
+                label: 'Announcements',
+                value: '${summary.totalAnnouncements}',
+                icon: Icons.campaign_rounded,
+                color: AppColors.success,
+                bg: AppColors.successLight,
+              ),
+            ];
+
+            return SingleChildScrollView(
+              padding: EdgeInsets.all(isWide ? 28 : 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildWelcome(
+                    userName: user?.name ?? 'Admin',
+                    totalUsers: summary.totalUsers,
+                    alertsCount: summary.recentActivityCount,
+                  ),
+                  const SizedBox(height: 24),
+                  _buildStatsGrid(isWide, stats),
+                  const SizedBox(height: 28),
+                  _buildQuickActions(context, isWide),
+                  const SizedBox(height: 28),
+                  _buildAlerts(summary.alerts),
+                  const SizedBox(height: 28),
+                  if (isWide)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _buildRecentRegistrations(
+                            context,
+                            summary.recentRegistrations,
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: _buildSystemActivity(summary.systemActivity),
+                        ),
+                      ],
+                    )
+                  else ...[
+                    _buildRecentRegistrations(
+                      context,
+                      summary.recentRegistrations,
                     ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: _buildSystemActivity(summary.systemActivity),
+                    const SizedBox(height: 24),
+                    _buildSystemActivity(summary.systemActivity),
+                  ],
+                  const SizedBox(height: 28),
+                  if (isWide)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _buildActivityList(
+                            'Recent Courses',
+                            summary.recentCourses,
+                            Icons.menu_book_rounded,
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: _buildActivityList(
+                            'Recent Materials',
+                            summary.recentMaterials,
+                            Icons.description_rounded,
+                          ),
+                        ),
+                        const SizedBox(width: 20),
+                        Expanded(
+                          child: _buildActivityList(
+                            'Recent Assessments',
+                            summary.recentAssessments,
+                            Icons.assignment_rounded,
+                          ),
+                        ),
+                      ],
+                    )
+                  else ...[
+                    _buildActivityList(
+                      'Recent Courses',
+                      summary.recentCourses,
+                      Icons.menu_book_rounded,
+                    ),
+                    const SizedBox(height: 24),
+                    _buildActivityList(
+                      'Recent Materials',
+                      summary.recentMaterials,
+                      Icons.description_rounded,
+                    ),
+                    const SizedBox(height: 24),
+                    _buildActivityList(
+                      'Recent Assessments',
+                      summary.recentAssessments,
+                      Icons.assignment_rounded,
                     ),
                   ],
-                )
-              else ...[
-                _buildRecentRegistrations(context, summary.recentRegistrations),
-                const SizedBox(height: 24),
-                _buildSystemActivity(summary.systemActivity),
-              ],
-              const SizedBox(height: 28),
-              if (isWide)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: _buildActivityList(
-                        'Recent Courses',
-                        summary.recentCourses,
-                        Icons.menu_book_rounded,
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: _buildActivityList(
-                        'Recent Materials',
-                        summary.recentMaterials,
-                        Icons.description_rounded,
-                      ),
-                    ),
-                    const SizedBox(width: 20),
-                    Expanded(
-                      child: _buildActivityList(
-                        'Recent Assessments',
-                        summary.recentAssessments,
-                        Icons.assignment_rounded,
-                      ),
-                    ),
-                  ],
-                )
-              else ...[
-                _buildActivityList(
-                  'Recent Courses',
-                  summary.recentCourses,
-                  Icons.menu_book_rounded,
-                ),
-                const SizedBox(height: 24),
-                _buildActivityList(
-                  'Recent Materials',
-                  summary.recentMaterials,
-                  Icons.description_rounded,
-                ),
-                const SizedBox(height: 24),
-                _buildActivityList(
-                  'Recent Assessments',
-                  summary.recentAssessments,
-                  Icons.assignment_rounded,
-                ),
-              ],
-            ],
-          ),
+                ],
+              ),
+            );
+          },
         );
-      },
-    );
   }
 
   Widget _buildWelcome({
@@ -392,7 +373,7 @@ class _AdminDashboardPageState extends State<AdminDashboardPage> {
   }
 
   void _openAdminTab(BuildContext context, int index, Widget page) {
-    final navigate = widget.onNavigateToTab;
+    final navigate = onNavigateToTab;
     if (navigate != null) {
       navigate(index);
       return;

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/auth/app_role.dart';
 import '../../features/auth/pages/auth_page.dart';
+import '../../features/auth/providers/auth_providers.dart';
 import '../../routing/app_router.dart';
-import '../../services/auth_service.dart';
 
-class ProtectedPage extends StatelessWidget {
+class ProtectedPage extends ConsumerWidget {
   const ProtectedPage({
     super.key,
     required this.child,
@@ -16,58 +17,54 @@ class ProtectedPage extends StatelessWidget {
   final List<AppRole> allowedRoles;
 
   @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: AuthService.instance,
-      builder: (context, _) {
-        final auth = AuthService.instance;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final authValue = ref.watch(authControllerProvider);
+    final auth = authValue.valueOrNull;
 
-        if (auth.isInitializing) {
-          return const _ProtectedStateScaffold(
-            message: 'Checking your access...',
-            showSpinner: true,
+    if (authValue.isLoading || auth == null || auth.isInitializing) {
+      return const _ProtectedStateScaffold(
+        message: 'Checking your access...',
+        showSpinner: true,
+      );
+    }
+
+    if (!auth.isAuthenticated || auth.currentUser == null) {
+      return const AuthPage();
+    }
+
+    if (!auth.currentUser!.isActive) {
+      return _ProtectedStateScaffold(
+        message:
+            'Your account is ${auth.currentUser!.accountStatus}. Contact an administrator to restore access.',
+        onAction: () async {
+          await ref.read(authControllerProvider.notifier).logout();
+          if (!context.mounted) {
+            return;
+          }
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRouter.landing,
+            (_) => false,
           );
-        }
+        },
+        actionLabel: 'Sign Out',
+      );
+    }
 
-        if (!auth.isAuthenticated || auth.currentUser == null) {
-          return const AuthPage();
-        }
+    if (allowedRoles.isNotEmpty &&
+        !allowedRoles.contains(auth.currentUser!.role)) {
+      final route = AppRouter.defaultRouteForRole(auth.currentUser!.role);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
+      });
+      return const _ProtectedStateScaffold(
+        message: 'Redirecting you to your dashboard...',
+        showSpinner: true,
+      );
+    }
 
-        if (!auth.currentUser!.isActive) {
-          return _ProtectedStateScaffold(
-            message:
-                'Your account is ${auth.currentUser!.accountStatus}. Contact an administrator to restore access.',
-            onAction: () async {
-              await AuthService.instance.logout();
-              if (!context.mounted) {
-                return;
-              }
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRouter.landing,
-                (_) => false,
-              );
-            },
-            actionLabel: 'Sign Out',
-          );
-        }
-
-        if (allowedRoles.isNotEmpty &&
-            !allowedRoles.contains(auth.currentUser!.role)) {
-          final route = AppRouter.defaultRouteForRole(auth.currentUser!.role);
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!context.mounted) return;
-            Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
-          });
-          return const _ProtectedStateScaffold(
-            message: 'Redirecting you to your dashboard...',
-            showSpinner: true,
-          );
-        }
-
-        return child;
-      },
-    );
+    return child;
   }
 }
 
