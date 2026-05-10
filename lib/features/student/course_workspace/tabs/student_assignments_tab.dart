@@ -6,8 +6,10 @@ import '../../../../core/utils/file_utils.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../models/assignment_model.dart';
 import '../../../../models/submission_model.dart';
+import '../../../../models/user_settings_model.dart';
 import '../../../../services/assignment_service.dart';
 import '../../../../services/submission_service.dart';
+import '../../../../services/user_settings_service.dart';
 import '../../study/assignment_submission_page.dart';
 
 class StudentAssignmentsTab extends StatefulWidget {
@@ -85,6 +87,11 @@ class _StudentAssignmentsTabState extends State<StudentAssignmentsTab> {
     );
     final submissions = await SubmissionService.instance
         .getLatestAssignmentSubmissionsForCourse(widget.courseId);
+    final settings = await UserSettingsService.instance
+        .getCurrentSettingsOrNull();
+    if (settings is StudentSettings && settings.showOverdueFirst) {
+      assignments.sort(_compareAssignmentsWithOverdueFirst);
+    }
     return _StudentAssignmentData(assignments, submissions);
   }
 
@@ -113,6 +120,19 @@ class _StudentAssignmentsTabState extends State<StudentAssignmentsTab> {
       _future = future;
     });
   }
+}
+
+int _compareAssignmentsWithOverdueFirst(AssignmentModel a, AssignmentModel b) {
+  final now = DateTime.now();
+  final aOverdue = a.dueAt != null && a.dueAt!.isBefore(now);
+  final bOverdue = b.dueAt != null && b.dueAt!.isBefore(now);
+  if (aOverdue != bOverdue) return aOverdue ? -1 : 1;
+  final aDue = a.dueAt;
+  final bDue = b.dueAt;
+  if (aDue == null && bDue == null) return a.title.compareTo(b.title);
+  if (aDue == null) return 1;
+  if (bDue == null) return -1;
+  return aDue.compareTo(bDue);
 }
 
 class _AssignmentCard extends StatelessWidget {

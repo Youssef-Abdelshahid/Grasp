@@ -6,8 +6,10 @@ import '../../../../core/utils/file_utils.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../models/quiz_model.dart';
 import '../../../../models/submission_model.dart';
+import '../../../../models/user_settings_model.dart';
 import '../../../../services/quiz_service.dart';
 import '../../../../services/submission_service.dart';
+import '../../../../services/user_settings_service.dart';
 import '../../../activity/activity_sheets.dart';
 import '../../study/quiz_attempt_page.dart';
 
@@ -88,6 +90,11 @@ class _StudentQuizzesTabState extends State<StudentQuizzesTab> {
     );
     final submissions = await SubmissionService.instance
         .getLatestQuizAttemptsForCourse(widget.courseId);
+    final settings = await UserSettingsService.instance
+        .getCurrentSettingsOrNull();
+    if (settings is StudentSettings && settings.showOverdueFirst) {
+      quizzes.sort(_compareQuizzesWithOverdueFirst);
+    }
     return _StudentQuizData(quizzes, submissions);
   }
 
@@ -131,6 +138,19 @@ class _StudentQuizzesTabState extends State<StudentQuizzesTab> {
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
   }
+}
+
+int _compareQuizzesWithOverdueFirst(QuizModel a, QuizModel b) {
+  final now = DateTime.now();
+  final aOverdue = a.dueAt != null && a.dueAt!.isBefore(now);
+  final bOverdue = b.dueAt != null && b.dueAt!.isBefore(now);
+  if (aOverdue != bOverdue) return aOverdue ? -1 : 1;
+  final aDue = a.dueAt;
+  final bDue = b.dueAt;
+  if (aDue == null && bDue == null) return a.title.compareTo(b.title);
+  if (aDue == null) return 1;
+  if (bDue == null) return -1;
+  return aDue.compareTo(bDue);
 }
 
 class _QuizCard extends StatelessWidget {

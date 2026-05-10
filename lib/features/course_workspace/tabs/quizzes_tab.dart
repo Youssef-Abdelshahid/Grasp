@@ -7,9 +7,11 @@ import '../../../core/utils/file_utils.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/quiz_model.dart';
 import '../../../models/material_model.dart';
+import '../../../models/user_settings_model.dart';
 import '../../../services/gemini_ai_service.dart';
 import '../../../services/material_service.dart';
 import '../../../services/quiz_service.dart';
+import '../../../services/user_settings_service.dart';
 import '../../activity/activity_sheets.dart';
 import '../pages/quiz_builder_page.dart';
 
@@ -142,12 +144,15 @@ class _QuizzesTabState extends State<QuizzesTab> {
       final materials = await MaterialService.instance.getCourseMaterials(
         widget.courseId,
       );
+      final settings = await UserSettingsService.instance
+          .getCurrentSettingsOrNull();
       if (!mounted) return;
       final draft = await showDialog<AiQuizDraft>(
         context: context,
         builder: (_) => _GenerateQuizDialog(
           courseId: widget.courseId,
           materials: materials,
+          defaults: settings is InstructorSettings ? settings : null,
         ),
       );
       if (draft == null || !mounted) return;
@@ -454,10 +459,15 @@ class _DetailLine extends StatelessWidget {
 }
 
 class _GenerateQuizDialog extends StatefulWidget {
-  const _GenerateQuizDialog({required this.courseId, required this.materials});
+  const _GenerateQuizDialog({
+    required this.courseId,
+    required this.materials,
+    this.defaults,
+  });
 
   final String courseId;
   final List<MaterialModel> materials;
+  final InstructorSettings? defaults;
 
   @override
   State<_GenerateQuizDialog> createState() => _GenerateQuizDialogState();
@@ -477,6 +487,18 @@ class _GenerateQuizDialogState extends State<_GenerateQuizDialog> {
   bool _showAnswers = false;
   bool _showMarks = true;
   bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final defaults = widget.defaults;
+    if (defaults == null) return;
+    _difficulty = defaults.defaultQuizDifficulty;
+    _countCtrl.text = defaults.defaultQuestionCount.toString();
+    _types
+      ..clear()
+      ..addAll(defaults.defaultQuestionTypes.map(_questionTypeToUi));
+  }
 
   @override
   void dispose() {
@@ -694,7 +716,7 @@ class _GenerateQuizDialogState extends State<_GenerateQuizDialog> {
         materials: selected,
         prompt: _promptCtrl.text,
         questionCount: int.tryParse(_countCtrl.text) ?? 10,
-        questionTypes: _types.toList(),
+        questionTypes: _types.map(_questionTypeFromUi).toList(),
         difficulty: _difficulty,
         totalMarks: int.tryParse(_marksCtrl.text) ?? 100,
         timeLimitMinutes: int.tryParse(_minutesCtrl.text),
@@ -714,4 +736,12 @@ class _GenerateQuizDialogState extends State<_GenerateQuizDialog> {
       if (mounted) setState(() => _loading = false);
     }
   }
+}
+
+String _questionTypeToUi(String type) {
+  return type == 'True/False' ? 'True / False' : type;
+}
+
+String _questionTypeFromUi(String type) {
+  return type == 'True / False' ? 'True/False' : type;
 }

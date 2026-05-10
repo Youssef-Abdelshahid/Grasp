@@ -19,6 +19,7 @@ import '../../services/profile_service.dart';
 import '../../services/quiz_service.dart';
 import '../../services/study_note_service.dart';
 import '../../services/submission_service.dart';
+import '../../services/user_settings_service.dart';
 
 final authServiceProvider = Provider<AuthService>(
   (ref) => AuthService.instance,
@@ -76,4 +77,7 @@ final profileServiceProvider = Provider<ProfileService>(
 );
 final geminiAiServiceProvider = Provider<GeminiAiService>(
   (ref) => GeminiAiService.instance,
+);
+final userSettingsServiceProvider = Provider<UserSettingsService>(
+  (ref) => UserSettingsService.instance,
 );

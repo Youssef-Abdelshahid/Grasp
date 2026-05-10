@@ -5,6 +5,7 @@ import '../../core/auth/app_role.dart';
 import '../../features/auth/pages/auth_page.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../routing/app_router.dart';
+import 'logout_flow.dart';
 
 class ProtectedPage extends ConsumerWidget {
   const ProtectedPage({
@@ -36,17 +37,7 @@ class ProtectedPage extends ConsumerWidget {
       return _ProtectedStateScaffold(
         message:
             'Your account is ${auth.currentUser!.accountStatus}. Contact an administrator to restore access.',
-        onAction: () async {
-          await ref.read(authControllerProvider.notifier).logout();
-          if (!context.mounted) {
-            return;
-          }
-          Navigator.pushNamedAndRemoveUntil(
-            context,
-            AppRouter.landing,
-            (_) => false,
-          );
-        },
+        onAction: () => logoutAndReturnToAuthGate(context, ref),
         actionLabel: 'Sign Out',
       );
     }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/auth/pages/landing_page.dart';
 import '../../features/auth/providers/auth_providers.dart';
 import '../../routing/app_router.dart';
+import 'logout_flow.dart';
 
 class AuthGatePage extends ConsumerWidget {
   const AuthGatePage({super.key});
@@ -63,17 +64,7 @@ class _InactiveAccountScaffold extends ConsumerWidget {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: () async {
-                    await ref.read(authControllerProvider.notifier).logout();
-                    if (!context.mounted) {
-                      return;
-                    }
-                    Navigator.pushNamedAndRemoveUntil(
-                      context,
-                      AppRouter.landing,
-                      (_) => false,
-                    );
-                  },
+                  onPressed: () => logoutAndReturnToAuthGate(context, ref),
                   child: const Text('Sign Out'),
                 ),
               ],

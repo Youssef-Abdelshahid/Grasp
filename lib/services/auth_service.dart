@@ -19,6 +19,8 @@ class AuthService extends ChangeNotifier {
   bool _isInitializing = true;
   String? _lastError;
   bool _supabaseInitialized = false;
+  int _profileLoadVersion = 0;
+  LocalStorage? _localStorage;
 
   UserModel? get currentUser => _currentUser;
   Session? get session => _session;
@@ -40,9 +42,14 @@ class AuthService extends ChangeNotifier {
       return;
     }
 
+    _localStorage = SharedPreferencesLocalStorage(
+      persistSessionKey: _persistSessionKey,
+    );
+
     await Supabase.initialize(
       url: AppEnv.supabaseUrl,
       anonKey: AppEnv.supabaseAnonKey,
+      authOptions: FlutterAuthClientOptions(localStorage: _localStorage),
     );
 
     _supabaseInitialized = true;
@@ -50,20 +57,28 @@ class AuthService extends ChangeNotifier {
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((
       event,
     ) async {
-      _session = event.session;
-      if (_session == null) {
-        _currentUser = null;
-        _lastError = null;
+      try {
+        final session = event.session;
+        final loadVersion = ++_profileLoadVersion;
+        _session = session;
+        if (session == null) {
+          _currentUser = null;
+          _lastError = null;
+          _isInitializing = false;
+          notifyListeners();
+          return;
+        }
+
+        await _loadCurrentProfile(session, loadVersion);
+      } catch (error) {
+        _lastError = error.toString();
         _isInitializing = false;
         notifyListeners();
-        return;
       }
-
-      await _loadCurrentProfile();
     });
 
     if (_session != null) {
-      await _loadCurrentProfile();
+      await _loadCurrentProfile(_session!, ++_profileLoadVersion);
     } else {
       _isInitializing = false;
       notifyListeners();
@@ -88,7 +103,7 @@ class AuthService extends ChangeNotifier {
 
       _session = response.session;
       if (_session != null) {
-        await _loadCurrentProfile();
+        await _loadCurrentProfile(_session!, ++_profileLoadVersion);
       } else {
         _isInitializing = false;
         notifyListeners();
@@ -110,7 +125,9 @@ class AuthService extends ChangeNotifier {
         password: password,
       );
       _session = response.session;
-      await _loadCurrentProfile();
+      if (_session != null) {
+        await _loadCurrentProfile(_session!, ++_profileLoadVersion);
+      }
     } on AuthException catch (error) {
       _lastError = error.message;
       notifyListeners();
@@ -119,19 +136,27 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    if (!_supabaseInitialized) {
-      _session = null;
-      _currentUser = null;
-      _isInitializing = false;
-      notifyListeners();
-      return;
-    }
-
-    await Supabase.instance.client.auth.signOut();
+    _profileLoadVersion++;
     _session = null;
     _currentUser = null;
     _isInitializing = false;
+    _lastError = null;
     notifyListeners();
+
+    if (!_supabaseInitialized) {
+      return;
+    }
+
+    unawaited(_removePersistedSession());
+  }
+
+  Future<void> _removePersistedSession() async {
+    try {
+      await _localStorage?.removePersistedSession();
+    } catch (error) {
+      _lastError = error.toString();
+      notifyListeners();
+    }
   }
 
   bool hasRole(AppRole role) {
@@ -147,33 +172,46 @@ class AuthService extends ChangeNotifier {
   }
 
   Future<void> reloadProfile() async {
-    if (_session == null) {
+    final session = _session;
+    if (session == null) {
       return;
     }
-    await _loadCurrentProfile();
+    await _loadCurrentProfile(session, ++_profileLoadVersion);
   }
 
-  Future<void> _loadCurrentProfile() async {
+  Future<void> _loadCurrentProfile(Session session, int loadVersion) async {
+    if (loadVersion != _profileLoadVersion) {
+      return;
+    }
+
     _isInitializing = true;
     notifyListeners();
 
     try {
-      final userId = _session?.user.id;
-      if (userId == null) {
-        _currentUser = null;
-      } else {
-        final response = await Supabase.instance.client
-            .from('profiles')
-            .select()
-            .eq('id', userId)
-            .single();
-        _currentUser = UserModel.fromJson(Map<String, dynamic>.from(response));
+      final userId = session.user.id;
+      final response = await Supabase.instance.client
+          .from('profiles')
+          .select()
+          .eq('id', userId)
+          .single();
+      if (loadVersion != _profileLoadVersion ||
+          _session?.user.id != session.user.id) {
+        return;
       }
+      _currentUser = UserModel.fromJson(Map<String, dynamic>.from(response));
     } on PostgrestException catch (error) {
-      _lastError = error.message;
+      if (loadVersion == _profileLoadVersion) {
+        _lastError = error.message;
+      }
+    } catch (error) {
+      if (loadVersion == _profileLoadVersion) {
+        _lastError = error.toString();
+      }
     } finally {
-      _isInitializing = false;
-      notifyListeners();
+      if (loadVersion == _profileLoadVersion) {
+        _isInitializing = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -181,5 +219,10 @@ class AuthService extends ChangeNotifier {
   void dispose() {
     _authSubscription?.cancel();
     super.dispose();
+  }
+
+  String get _persistSessionKey {
+    final host = Uri.parse(AppEnv.supabaseUrl).host.split('.').first;
+    return 'sb-$host-auth-token';
   }
 }

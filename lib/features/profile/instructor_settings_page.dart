@@ -1,23 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_constants.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../models/user_model.dart';
-import '../../services/auth_service.dart';
-import '../../services/profile_service.dart';
+import '../../features/settings/providers/user_settings_provider.dart';
+import '../../models/user_settings_model.dart';
+import '../../widgets/auth/logout_flow.dart';
 
-class InstructorSettingsPage extends StatefulWidget {
+class InstructorSettingsPage extends ConsumerStatefulWidget {
   const InstructorSettingsPage({super.key});
 
   @override
-  State<InstructorSettingsPage> createState() => _InstructorSettingsPageState();
+  ConsumerState<InstructorSettingsPage> createState() =>
+      _InstructorSettingsPageState();
 }
 
-class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
-  late Future<UserModel> _future;
+class _InstructorSettingsPageState
+    extends ConsumerState<InstructorSettingsPage> {
   bool _didPopulate = false;
-  Map<String, dynamic> _preferences = const {};
   bool _emailNotifications = true;
   bool _pushNotifications = true;
   bool _quizAlerts = true;
@@ -39,35 +40,25 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _future = ProfileService.instance.getCurrentProfile();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
+    final settingsValue = ref.watch(userSettingsProvider);
 
-    return FutureBuilder<UserModel>(
-      future: _future,
-      builder: (context, snapshot) {
-        final profile = snapshot.data;
-        if (snapshot.connectionState != ConnectionState.done &&
-            profile == null) {
-          return const Center(child: CircularProgressIndicator());
+    return settingsValue.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, _) => _SettingsLoadError(
+        onRetry: () => ref.invalidate(userSettingsProvider),
+      ),
+      data: (envelope) {
+        final settings = envelope.settings;
+        if (settings is! InstructorSettings) {
+          return const _SettingsMessage(
+            message: 'Instructor settings are not available for this account.',
+          );
         }
-        if (profile != null && !_didPopulate) {
-          _didPopulate = true;
-          final prefs = profile.preferences;
-          _emailNotifications = prefs['email_notifications'] as bool? ?? true;
-          _pushNotifications = prefs['push_notifications'] as bool? ?? true;
-          _quizAlerts = prefs['quiz_submission_alerts'] as bool? ?? true;
-          _assignmentAlerts =
-              prefs['assignment_submission_alerts'] as bool? ?? true;
-          _announcementAlerts = prefs['announcement_alerts'] as bool? ?? true;
-          _deadlineReminders = prefs['deadline_reminders'] as bool? ?? true;
-          _preferences = Map<String, dynamic>.from(prefs);
+        if (!_didPopulate) {
+          _apply(settings);
         }
 
         return SingleChildScrollView(
@@ -127,22 +118,54 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
     );
   }
 
+  void _apply(InstructorSettings settings) {
+    _didPopulate = true;
+    _emailNotifications = settings.emailNotifications;
+    _pushNotifications = settings.pushNotifications;
+    _quizAlerts = settings.quizSubmissionAlerts;
+    _assignmentAlerts = settings.assignmentSubmissionAlerts;
+    _announcementAlerts = settings.announcementAlerts;
+    _deadlineReminders = settings.deadlineReminders;
+    _defaultQuizDifficulty = _displayDifficulty(settings.defaultQuizDifficulty);
+    _defaultQuestionCount = settings.defaultQuestionCount;
+    _defaultQuestionTypes
+      ..clear()
+      ..addAll(settings.defaultQuestionTypes);
+    _defaultAssignmentDifficulty = _displayDifficulty(
+      settings.defaultAssignmentDifficulty,
+    );
+  }
+
   Future<void> _save() async {
     setState(() => _saving = true);
-    await ProfileService.instance.updatePreferences({
-      ..._preferences,
-      'email_notifications': _emailNotifications,
-      'push_notifications': _pushNotifications,
-      'quiz_submission_alerts': _quizAlerts,
-      'assignment_submission_alerts': _assignmentAlerts,
-      'announcement_alerts': _announcementAlerts,
-      'deadline_reminders': _deadlineReminders,
-    });
+    await ref
+        .read(userSettingsProvider.notifier)
+        .save(
+          InstructorSettings(
+            emailNotifications: _emailNotifications,
+            pushNotifications: _pushNotifications,
+            quizSubmissionAlerts: _quizAlerts,
+            assignmentSubmissionAlerts: _assignmentAlerts,
+            announcementAlerts: _announcementAlerts,
+            deadlineReminders: _deadlineReminders,
+            defaultQuizDifficulty: _defaultQuizDifficulty.toLowerCase(),
+            defaultQuestionCount: _defaultQuestionCount,
+            defaultQuestionTypes: _defaultQuestionTypes.toList(),
+            defaultAssignmentDifficulty: _defaultAssignmentDifficulty
+                .toLowerCase(),
+          ),
+        );
     if (!mounted) return;
     setState(() => _saving = false);
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Settings saved.')));
+    final savedState = ref.read(userSettingsProvider);
+    final error = savedState.error;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          error == null ? 'Settings saved.' : _friendlyError(error),
+        ),
+      ),
+    );
   }
 
   Widget _notificationsSection() => _SettingsSection(
@@ -243,7 +266,7 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
         contentPadding: EdgeInsets.zero,
         leading: const Icon(Icons.logout_rounded, color: AppColors.error),
         title: const Text('Sign Out'),
-        onTap: () async => AuthService.instance.logout(),
+        onTap: () => logoutAndReturnToAuthGate(context, ref),
       ),
     ],
   );
@@ -304,10 +327,80 @@ class _InstructorSettingsPageState extends State<InstructorSettingsPage> {
           ),
           IconButton(
             tooltip: 'Increase',
-            onPressed: () => setState(() => _defaultQuestionCount++),
+            onPressed: _defaultQuestionCount >= 50
+                ? null
+                : () => setState(() => _defaultQuestionCount++),
             icon: const Icon(Icons.add_rounded),
           ),
         ],
+      ),
+    );
+  }
+}
+
+String _displayDifficulty(String value) {
+  final normalized = value.trim().toLowerCase();
+  switch (normalized) {
+    case 'easy':
+      return 'Easy';
+    case 'hard':
+      return 'Hard';
+    default:
+      return 'Medium';
+  }
+}
+
+String _friendlyError(Object error) {
+  final message = error.toString();
+  return message.replaceFirst('PostgrestException(message: ', '').split(',')[0];
+}
+
+class _SettingsLoadError extends StatelessWidget {
+  const _SettingsLoadError({required this.onRetry});
+
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_off_rounded, size: 40),
+            const SizedBox(height: 12),
+            Text(
+              'Unable to load settings.',
+              style: AppTextStyles.h3,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Please check your connection and try again.',
+              style: AppTextStyles.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SettingsMessage extends StatelessWidget {
+  const _SettingsMessage({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text(message, style: AppTextStyles.body),
       ),
     );
   }

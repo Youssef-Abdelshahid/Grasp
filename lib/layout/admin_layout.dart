@@ -20,7 +20,7 @@ import '../features/admin/platform/admin_platform_page.dart';
 import '../features/admin/profile/admin_profile_page.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/notifications/notifications_page.dart';
-import '../routing/app_router.dart';
+import '../widgets/auth/logout_flow.dart';
 
 class AdminLayout extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -321,17 +321,7 @@ class _AdminSidebar extends ConsumerWidget {
             icon: Icons.logout_rounded,
             label: 'Logout',
             isSelected: false,
-            onTap: () async {
-              await ref.read(authControllerProvider.notifier).logout();
-              if (!context.mounted) {
-                return;
-              }
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRouter.landing,
-                (_) => false,
-              );
-            },
+            onTap: () => logoutAndReturnToAuthGate(context, ref),
           ),
           const SizedBox(height: 8),
           MouseRegion(

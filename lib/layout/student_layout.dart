@@ -5,7 +5,6 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
 import '../core/widgets/top_bar_actions.dart';
-import '../routing/app_router.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/student/profile/student_profile_page.dart';
 import '../features/student/dashboard/student_dashboard_page.dart';
@@ -13,6 +12,7 @@ import '../features/student/courses/student_courses_page.dart';
 import '../features/student/calendar/student_calendar_page.dart';
 import '../features/student/profile/student_settings_page.dart';
 import '../features/notifications/notifications_page.dart';
+import '../widgets/auth/logout_flow.dart';
 
 class StudentLayout extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -252,17 +252,7 @@ class _StudentSidebar extends ConsumerWidget {
             icon: Icons.logout_rounded,
             label: 'Logout',
             isSelected: false,
-            onTap: () async {
-              await ref.read(authControllerProvider.notifier).logout();
-              if (!context.mounted) {
-                return;
-              }
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRouter.landing,
-                (_) => false,
-              );
-            },
+            onTap: () => logoutAndReturnToAuthGate(context, ref),
           ),
           const SizedBox(height: 8),
           MouseRegion(

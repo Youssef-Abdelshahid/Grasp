@@ -5,7 +5,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
 import '../features/auth/providers/auth_providers.dart';
-import '../routing/app_router.dart';
+import '../widgets/auth/logout_flow.dart';
 
 class AppSidebar extends ConsumerWidget {
   final int selectedIndex;
@@ -120,17 +120,7 @@ class AppSidebar extends ConsumerWidget {
             icon: Icons.logout_rounded,
             label: 'Logout',
             isSelected: false,
-            onTap: () async {
-              await ref.read(authControllerProvider.notifier).logout();
-              if (!context.mounted) {
-                return;
-              }
-              Navigator.pushNamedAndRemoveUntil(
-                context,
-                AppRouter.landing,
-                (_) => false,
-              );
-            },
+            onTap: () => logoutAndReturnToAuthGate(context, ref),
           ),
           const SizedBox(height: 8),
           MouseRegion(

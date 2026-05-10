@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
-import '../../../routing/app_router.dart';
+import '../../../widgets/auth/logout_flow.dart';
 
-class AdminPlatformPage extends StatefulWidget {
+class AdminPlatformPage extends ConsumerStatefulWidget {
   const AdminPlatformPage({super.key});
 
   @override
-  State<AdminPlatformPage> createState() => _AdminPlatformPageState();
+  ConsumerState<AdminPlatformPage> createState() => _AdminPlatformPageState();
 }
 
-class _AdminPlatformPageState extends State<AdminPlatformPage> {
+class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
   bool _registrationsOpen = true;
   bool _emailVerification = true;
   bool _adminApproval = false;
@@ -54,7 +55,8 @@ class _AdminPlatformPageState extends State<AdminPlatformPage> {
             style: isDangerous
                 ? ElevatedButton.styleFrom(
                     backgroundColor: AppColors.error,
-                    foregroundColor: Colors.white)
+                    foregroundColor: Colors.white,
+                  )
                 : null,
             child: const Text('Confirm'),
           ),
@@ -93,8 +95,7 @@ class _AdminPlatformPageState extends State<AdminPlatformPage> {
         ),
         backgroundColor: isError ? AppColors.error : AppColors.success,
         behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         duration: const Duration(seconds: 3),
         margin: const EdgeInsets.all(16),
       ),
@@ -266,12 +267,13 @@ class _AdminPlatformPageState extends State<AdminPlatformPage> {
           const SizedBox(height: 12),
           Text('Digest Frequency', style: AppTextStyles.label),
           const SizedBox(height: 4),
-          Text('How often to receive summary reports',
-              style: AppTextStyles.caption),
+          Text(
+            'How often to receive summary reports',
+            style: AppTextStyles.caption,
+          ),
           const SizedBox(height: 10),
           Container(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
             decoration: BoxDecoration(
               color: AppColors.background,
               borderRadius: BorderRadius.circular(10),
@@ -382,8 +384,7 @@ class _AdminPlatformPageState extends State<AdminPlatformPage> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border:
-            Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -393,15 +394,20 @@ class _AdminPlatformPageState extends State<AdminPlatformPage> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                    color: AppColors.errorLight,
-                    borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.warning_rounded,
-                    color: AppColors.error, size: 16),
+                  color: AppColors.errorLight,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.warning_rounded,
+                  color: AppColors.error,
+                  size: 16,
+                ),
               ),
               const SizedBox(width: 10),
-              Text('Danger Zone',
-                  style: AppTextStyles.h3
-                      .copyWith(color: AppColors.error)),
+              Text(
+                'Danger Zone',
+                style: AppTextStyles.h3.copyWith(color: AppColors.error),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -409,16 +415,14 @@ class _AdminPlatformPageState extends State<AdminPlatformPage> {
           const SizedBox(height: 16),
           _DangerTile(
             label: 'Reset All User Passwords',
-            subtitle:
-                'Force all users to reset their passwords on next login',
+            subtitle: 'Force all users to reset their passwords on next login',
             icon: Icons.lock_reset_rounded,
             onTap: () => _confirmAction(
               id: 'reset_passwords',
               title: 'Reset All Passwords',
               message:
                   'This will force all users to reset their password. This cannot be undone.',
-              successMessage:
-                  'Password reset emails sent to all users',
+              successMessage: 'Password reset emails sent to all users',
               isDangerous: true,
             ),
           ),
@@ -441,11 +445,7 @@ class _AdminPlatformPageState extends State<AdminPlatformPage> {
             label: 'Logout & Return to Landing',
             subtitle: 'End your admin session',
             icon: Icons.exit_to_app_rounded,
-            onTap: () => Navigator.pushNamedAndRemoveUntil(
-              context,
-              AppRouter.landing,
-              (_) => false,
-            ),
+            onTap: () => logoutAndReturnToAuthGate(context, ref),
           ),
         ],
       ),
@@ -475,16 +475,16 @@ class _DangerTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.error.withValues(alpha: 0.04),
           borderRadius: BorderRadius.circular(8),
-          border:
-              Border.all(color: AppColors.error.withValues(alpha: 0.15)),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.15)),
         ),
         child: Row(
           children: [
             Container(
               padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
-                  color: AppColors.errorLight,
-                  borderRadius: BorderRadius.circular(6)),
+                color: AppColors.errorLight,
+                borderRadius: BorderRadius.circular(6),
+              ),
               child: Icon(icon, size: 14, color: AppColors.error),
             ),
             const SizedBox(width: 12),
@@ -492,15 +492,19 @@ class _DangerTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: AppTextStyles.label
-                          .copyWith(color: AppColors.error)),
+                  Text(
+                    label,
+                    style: AppTextStyles.label.copyWith(color: AppColors.error),
+                  ),
                   Text(subtitle, style: AppTextStyles.caption),
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right_rounded,
-                size: 16, color: AppColors.textMuted),
+            const Icon(
+              Icons.chevron_right_rounded,
+              size: 16,
+              color: AppColors.textMuted,
+            ),
           ],
         ),
       ),
@@ -539,7 +543,9 @@ class _Section extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                    color: iconBg, borderRadius: BorderRadius.circular(8)),
+                  color: iconBg,
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 child: Icon(icon, color: iconColor, size: 16),
               ),
               const SizedBox(width: 10),
@@ -595,10 +601,10 @@ class _ToggleTile extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeThumbColor:
-                dangerColor ? AppColors.error : AppColors.primary,
-            activeTrackColor:
-                dangerColor ? AppColors.errorLight : AppColors.primaryLight,
+            activeThumbColor: dangerColor ? AppColors.error : AppColors.primary,
+            activeTrackColor: dangerColor
+                ? AppColors.errorLight
+                : AppColors.primaryLight,
           ),
         ],
       ),
@@ -642,13 +648,19 @@ class _SystemActionTile extends StatelessWidget {
           ? SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(
-                  strokeWidth: 2, color: color))
+              child: CircularProgressIndicator(strokeWidth: 2, color: color),
+            )
           : isDone
-              ? const Icon(Icons.check_circle_rounded,
-                  size: 18, color: AppColors.success)
-              : const Icon(Icons.chevron_right_rounded,
-                  size: 16, color: AppColors.textMuted),
+          ? const Icon(
+              Icons.check_circle_rounded,
+              size: 18,
+              color: AppColors.success,
+            )
+          : const Icon(
+              Icons.chevron_right_rounded,
+              size: 16,
+              color: AppColors.textMuted,
+            ),
       onTap: isLoading ? null : onTap,
     );
   }

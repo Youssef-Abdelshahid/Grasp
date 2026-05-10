@@ -7,9 +7,11 @@ import '../../../core/utils/file_utils.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/assignment_model.dart';
 import '../../../models/material_model.dart';
+import '../../../models/user_settings_model.dart';
 import '../../../services/assignment_service.dart';
 import '../../../services/gemini_ai_service.dart';
 import '../../../services/material_service.dart';
+import '../../../services/user_settings_service.dart';
 import '../../activity/activity_sheets.dart';
 import '../pages/assignment_builder_page.dart';
 
@@ -147,12 +149,15 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
       final materials = await MaterialService.instance.getCourseMaterials(
         widget.courseId,
       );
+      final settings = await UserSettingsService.instance
+          .getCurrentSettingsOrNull();
       if (!mounted) return;
       final draft = await showDialog<AiAssignmentDraft>(
         context: context,
         builder: (_) => _GenerateAssignmentDialog(
           courseId: widget.courseId,
           materials: materials,
+          defaults: settings is InstructorSettings ? settings : null,
         ),
       );
       if (draft == null || !mounted) return;
@@ -470,10 +475,12 @@ class _GenerateAssignmentDialog extends StatefulWidget {
   const _GenerateAssignmentDialog({
     required this.courseId,
     required this.materials,
+    this.defaults,
   });
 
   final String courseId;
   final List<MaterialModel> materials;
+  final InstructorSettings? defaults;
 
   @override
   State<_GenerateAssignmentDialog> createState() =>
@@ -490,6 +497,14 @@ class _GenerateAssignmentDialogState extends State<_GenerateAssignmentDialog> {
   bool _allMaterials = true;
   bool _includeRubric = true;
   bool _loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final defaults = widget.defaults;
+    if (defaults == null) return;
+    _difficulty = defaults.defaultAssignmentDifficulty;
+  }
 
   @override
   void dispose() {

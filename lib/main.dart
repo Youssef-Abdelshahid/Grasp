@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/theme/app_theme.dart';
+import 'routing/app_navigator.dart';
 import 'routing/app_router.dart';
 import 'services/auth_service.dart';
 
@@ -17,6 +18,7 @@ class GraspApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: rootNavigatorKey,
       title: 'Grasp',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,

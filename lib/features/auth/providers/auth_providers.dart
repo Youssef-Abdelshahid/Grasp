@@ -100,8 +100,6 @@ class AuthController extends AsyncNotifier<AuthSnapshot> {
   Future<void> logout() async {
     await ref.read(authServiceProvider).logout();
     state = AsyncData(_snapshotFromService());
-    ref.invalidate(currentUserProvider);
-    ref.invalidate(currentRoleProvider);
   }
 
   Future<void> reloadProfile() async {

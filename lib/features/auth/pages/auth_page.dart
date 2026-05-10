@@ -533,8 +533,17 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         return;
       }
 
-      final user = ref.read(currentUserProvider);
+      final user = ref.read(authControllerProvider).valueOrNull?.currentUser;
       if (user == null) {
+        if (_isLogin) {
+          Navigator.pushNamedAndRemoveUntil(
+            context,
+            AppRouter.authGate,
+            (_) => false,
+          );
+          return;
+        }
+
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
