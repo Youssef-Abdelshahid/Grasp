@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/activity_models.dart';
+import '../models/permissions_model.dart';
+import 'permissions_service.dart';
 import 'submission_service.dart';
 
 class ActivityService {
@@ -13,6 +15,9 @@ class ActivityService {
   Future<List<CourseStudentActivity>> getCourseStudentsActivity(
     String courseId,
   ) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.viewStudentActivity,
+    );
     final response = await _client.rpc(
       'get_course_students_activity',
       params: {'p_course_id': courseId},
@@ -30,6 +35,9 @@ class ActivityService {
     required String courseId,
     required String studentId,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.viewStudentActivity,
+    );
     final response = await _client.rpc(
       'get_student_course_activity',
       params: {'p_course_id': courseId, 'p_student_id': studentId},
@@ -40,6 +48,9 @@ class ActivityService {
   }
 
   Future<AssessmentActivity> getQuizActivity(String quizId) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.viewStudentActivity,
+    );
     final response = await _client.rpc(
       'get_quiz_activity',
       params: {'p_quiz_id': quizId},
@@ -50,6 +61,9 @@ class ActivityService {
   }
 
   Future<AssessmentActivity> getAssignmentActivity(String assignmentId) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.viewStudentActivity,
+    );
     final response = await _client.rpc(
       'get_assignment_activity',
       params: {'p_assignment_id': assignmentId},
@@ -60,6 +74,9 @@ class ActivityService {
   }
 
   Future<SubmissionDetail> getSubmissionDetail(String submissionId) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.viewStudentActivity,
+    );
     final response = await _client.rpc(
       'get_submission_detail',
       params: {'p_submission_id': submissionId},
@@ -88,6 +105,9 @@ class ActivityService {
     required bool feedbackVisible,
     bool attemptVisible = false,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.gradeStudentWork,
+    );
     final response = await _client.rpc(
       'grade_submission',
       params: {

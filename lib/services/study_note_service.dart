@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/study_note_model.dart';
+import '../models/permissions_model.dart';
+import 'permissions_service.dart';
 
 class StudyNoteService {
   StudyNoteService._();
@@ -49,6 +51,9 @@ class StudyNoteService {
     required List<String> materialIds,
     required String content,
   }) async {
+    await PermissionsService.instance.requireStudentPermission(
+      PermissionKeys.generateStudyNotes,
+    );
     final userId = _client.auth.currentUser!.id;
     final response = await _client
         .from('study_notes')

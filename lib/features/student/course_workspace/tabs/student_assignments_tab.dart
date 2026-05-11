@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -10,18 +11,21 @@ import '../../../../models/user_settings_model.dart';
 import '../../../../services/assignment_service.dart';
 import '../../../../services/submission_service.dart';
 import '../../../../services/user_settings_service.dart';
+import '../../../permissions/providers/permissions_provider.dart';
 import '../../study/assignment_submission_page.dart';
 
-class StudentAssignmentsTab extends StatefulWidget {
+class StudentAssignmentsTab extends ConsumerStatefulWidget {
   const StudentAssignmentsTab({super.key, required this.courseId});
 
   final String courseId;
 
   @override
-  State<StudentAssignmentsTab> createState() => _StudentAssignmentsTabState();
+  ConsumerState<StudentAssignmentsTab> createState() =>
+      _StudentAssignmentsTabState();
 }
 
-class _StudentAssignmentsTabState extends State<StudentAssignmentsTab> {
+class _StudentAssignmentsTabState
+    extends ConsumerState<StudentAssignmentsTab> {
   late Future<_StudentAssignmentData> _future;
 
   @override
@@ -38,6 +42,8 @@ class _StudentAssignmentsTabState extends State<StudentAssignmentsTab> {
         final data = snapshot.data ?? const _StudentAssignmentData([], {});
         final assignments = data.assignments;
         final submitted = data.latestSubmissions.length;
+        final canSubmitAssignments =
+            ref.watch(permissionsProvider).valueOrDefaults.submitAssignments;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -67,6 +73,7 @@ class _StudentAssignmentsTabState extends State<StudentAssignmentsTab> {
                     child: _AssignmentCard(
                       assignment: assignment,
                       submission: data.latestSubmissions[assignment.id],
+                      canSubmitAssignments: canSubmitAssignments,
                       onOpen: () => _openAssignment(
                         assignment,
                         data.latestSubmissions[assignment.id],
@@ -139,11 +146,13 @@ class _AssignmentCard extends StatelessWidget {
   const _AssignmentCard({
     required this.assignment,
     required this.submission,
+    required this.canSubmitAssignments,
     required this.onOpen,
   });
 
   final AssignmentModel assignment;
   final SubmissionModel? submission;
+  final bool canSubmitAssignments;
   final VoidCallback onOpen;
 
   @override
@@ -229,9 +238,13 @@ class _AssignmentCard extends StatelessWidget {
                   ),
                 ),
                 ElevatedButton.icon(
-                  onPressed: onOpen,
+                  onPressed: canSubmitAssignments ? onOpen : null,
                   icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                  label: const Text('View / Resubmit'),
+                  label: Text(
+                    canSubmitAssignments
+                        ? 'View / Resubmit'
+                        : 'Submission disabled',
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.emerald,
                     foregroundColor: Colors.white,
@@ -243,9 +256,13 @@ class _AssignmentCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: onOpen,
+                onPressed: canSubmitAssignments ? onOpen : null,
                 icon: const Icon(Icons.upload_rounded, size: 16),
-                label: const Text('Submit Assignment'),
+                label: Text(
+                  canSubmitAssignments
+                      ? 'Submit Assignment'
+                      : 'Submission disabled',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.emerald,
                   foregroundColor: Colors.white,

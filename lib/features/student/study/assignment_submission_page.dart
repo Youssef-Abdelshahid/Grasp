@@ -10,6 +10,7 @@ import '../../../models/assignment_model.dart';
 import '../../../models/assignment_rubric_item_model.dart';
 import '../../../models/submission_model.dart';
 import '../../../services/assignment_service.dart';
+import '../../../services/permissions_service.dart';
 import '../../../services/submission_service.dart';
 import '../../activity/activity_sheets.dart';
 
@@ -168,6 +169,8 @@ class _AssignmentSubmissionPageState extends State<AssignmentSubmissionPage> {
         _selectedFile = null;
       });
       _showMessage('Assignment submitted successfully.');
+    } on PermissionsException catch (error) {
+      _showMessage(error.message);
     } on PostgrestException catch (error) {
       _showMessage(error.message);
     } finally {

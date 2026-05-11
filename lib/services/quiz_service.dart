@@ -4,6 +4,8 @@ import 'package:path/path.dart' as p;
 
 import '../models/quiz_model.dart';
 import 'material_service.dart';
+import '../models/permissions_model.dart';
+import 'permissions_service.dart';
 
 class QuizService {
   QuizService._();
@@ -51,6 +53,9 @@ class QuizService {
     required bool allowRetakes,
     required bool showQuestionMarks,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.manageQuizzes,
+    );
     final userId = _client.auth.currentUser!.id;
     final response = await _client
         .from('quizzes')
@@ -92,6 +97,9 @@ class QuizService {
     required bool allowRetakes,
     required bool showQuestionMarks,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.manageQuizzes,
+    );
     try {
       final response = await _client
           .from('quizzes')
@@ -150,6 +158,9 @@ class QuizService {
     required String quizId,
     required bool isPublished,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.manageQuizzes,
+    );
     final response = await _client
         .from('quizzes')
         .update({
@@ -167,6 +178,9 @@ class QuizService {
   }
 
   Future<void> deleteQuiz(String quizId) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.manageQuizzes,
+    );
     await _client.from('quizzes').delete().eq('id', quizId);
   }
 
@@ -174,6 +188,9 @@ class QuizService {
     required String courseId,
     required PlatformFile file,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.manageQuizzes,
+    );
     final bytes = file.bytes;
     if (bytes == null) {
       throw const QuizException('Unable to read the selected image.');

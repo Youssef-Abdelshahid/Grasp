@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -10,17 +11,18 @@ import '../../../models/course_model.dart';
 import '../../../models/material_model.dart';
 import '../../../services/announcement_service.dart';
 import '../../../services/material_service.dart';
+import '../../permissions/providers/permissions_provider.dart';
 
-class OverviewTab extends StatefulWidget {
+class OverviewTab extends ConsumerStatefulWidget {
   const OverviewTab({super.key, required this.course});
 
   final CourseModel course;
 
   @override
-  State<OverviewTab> createState() => _OverviewTabState();
+  ConsumerState<OverviewTab> createState() => _OverviewTabState();
 }
 
-class _OverviewTabState extends State<OverviewTab> {
+class _OverviewTabState extends ConsumerState<OverviewTab> {
   late Future<List<MaterialModel>> _materialsFuture;
   late Future<List<AnnouncementModel>> _announcementsFuture;
 
@@ -143,13 +145,15 @@ class _OverviewTabState extends State<OverviewTab> {
       future: _announcementsFuture,
       builder: (context, snapshot) {
         final announcements = snapshot.data ?? [];
+        final canPost =
+            ref.watch(permissionsProvider).valueOrDefaults.postAnnouncements;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SectionHeader(
               title: 'Announcements',
-              actionLabel: 'Add',
-              onAction: _createAnnouncement,
+              actionLabel: canPost ? 'Add' : null,
+              onAction: canPost ? _createAnnouncement : null,
             ),
             const SizedBox(height: 12),
             if (snapshot.connectionState != ConnectionState.done)
@@ -212,25 +216,26 @@ class _OverviewTabState extends State<OverviewTab> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        PopupMenuButton<String>(
-                          onSelected: (value) {
-                            switch (value) {
-                              case 'edit':
-                                _editAnnouncement(item);
-                                break;
-                              case 'delete':
-                                _deleteAnnouncement(item);
-                                break;
-                            }
-                          },
-                          itemBuilder: (_) => const [
-                            PopupMenuItem(value: 'edit', child: Text('Edit')),
-                            PopupMenuItem(
-                              value: 'delete',
-                              child: Text('Delete'),
-                            ),
-                          ],
-                        ),
+                        if (canPost)
+                          PopupMenuButton<String>(
+                            onSelected: (value) {
+                              switch (value) {
+                                case 'edit':
+                                  _editAnnouncement(item);
+                                  break;
+                                case 'delete':
+                                  _deleteAnnouncement(item);
+                                  break;
+                              }
+                            },
+                            itemBuilder: (_) => const [
+                              PopupMenuItem(value: 'edit', child: Text('Edit')),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Delete'),
+                              ),
+                            ],
+                          ),
                       ],
                     ),
                   ),

@@ -1,75 +1,233 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../features/permissions/providers/permissions_provider.dart';
+import '../../../models/permissions_model.dart';
+import '../../../services/permissions_service.dart';
 
-class AdminPermissionsPage extends StatefulWidget {
+class AdminPermissionsPage extends ConsumerStatefulWidget {
   const AdminPermissionsPage({super.key});
 
   @override
-  State<AdminPermissionsPage> createState() => _AdminPermissionsPageState();
+  ConsumerState<AdminPermissionsPage> createState() =>
+      _AdminPermissionsPageState();
 }
 
-class _AdminPermissionsPageState extends State<AdminPermissionsPage> {
-  bool _studentCanDownload = true;
-  bool _studentCanMessage = false;
-  bool _studentCanRateCourse = true;
-  bool _studentCanViewPeers = false;
-  bool _studentCanShareContent = false;
+class _AdminPermissionsPageState
+    extends ConsumerState<AdminPermissionsPage> {
+  AppPermissions? _draft;
+  bool _hasLocalChanges = false;
+  bool _isSaving = false;
 
-  bool _instructorCanPublish = false;
-  bool _instructorCanViewAllStudents = false;
-  bool _instructorCanUseAi = true;
-  bool _instructorCanCreateCourses = true;
-  bool _instructorCanExportData = false;
-
-  bool _adminApprovalRequired = true;
-  bool _rolesLocked = false;
+  AppPermissions get _permissions => _draft ?? AppPermissions.defaults();
 
   @override
   Widget build(BuildContext context) {
+    final permissionsAsync = ref.watch(adminPermissionsProvider);
+    final loaded = permissionsAsync.valueOrNull;
+    if (loaded != null && !_hasLocalChanges && _draft != loaded) {
+      _draft = loaded;
+    }
+
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
 
+    if (permissionsAsync.isLoading && _draft == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (permissionsAsync.hasError && _draft == null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.lock_outline_rounded,
+                color: AppColors.error,
+                size: 36,
+              ),
+              const SizedBox(height: 12),
+              Text('Permissions unavailable', style: AppTextStyles.h3),
+              const SizedBox(height: 6),
+              Text(
+                _friendlyError(permissionsAsync.error),
+                style: AppTextStyles.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(adminPermissionsProvider),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(isWide ? 28 : 16),
-      child: isWide
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    children: [
-                      _buildStudentPermissions(),
-                      const SizedBox(height: 20),
-                      _buildInstructorPermissions(),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Expanded(
-                  child: Column(
-                    children: [
-                      _buildGlobalControls(),
-                      const SizedBox(height: 20),
-                      _buildRoleSummary(),
-                    ],
-                  ),
-                ),
-              ],
-            )
-          : Column(
-              children: [
-                _buildStudentPermissions(),
-                const SizedBox(height: 20),
-                _buildInstructorPermissions(),
-                const SizedBox(height: 20),
-                _buildGlobalControls(),
-                const SizedBox(height: 20),
-                _buildRoleSummary(),
-              ],
+      child: Column(
+        children: [
+          if (permissionsAsync.hasError)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _ErrorBanner(message: _friendlyError(permissionsAsync.error)),
             ),
+          isWide
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _buildStudentPermissions(),
+                          const SizedBox(height: 20),
+                          _buildInstructorPermissions(),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _buildGlobalControls(),
+                          const SizedBox(height: 20),
+                          _buildRoleSummary(),
+                          const SizedBox(height: 20),
+                          _buildActions(),
+                        ],
+                      ),
+                    ),
+                  ],
+                )
+              : Column(
+                  children: [
+                    _buildStudentPermissions(),
+                    const SizedBox(height: 20),
+                    _buildInstructorPermissions(),
+                    const SizedBox(height: 20),
+                    _buildGlobalControls(),
+                    const SizedBox(height: 20),
+                    _buildRoleSummary(),
+                    const SizedBox(height: 20),
+                    _buildActions(),
+                  ],
+                ),
+        ],
+      ),
     );
+  }
+
+  Widget _buildActions() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              _hasLocalChanges
+                  ? 'You have unsaved permission changes.'
+                  : 'Permissions are up to date.',
+              style: AppTextStyles.bodySmall,
+            ),
+          ),
+          TextButton(
+            onPressed: _isSaving ? null : _reset,
+            child: const Text('Reset'),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: !_hasLocalChanges || _isSaving ? null : _save,
+            icon: _isSaving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save_rounded, size: 16),
+            label: Text(_isSaving ? 'Saving...' : 'Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    try {
+      final saved = await ref
+          .read(adminPermissionsProvider.notifier)
+          .save(_permissions);
+      setState(() {
+        _draft = saved;
+        _hasLocalChanges = false;
+      });
+      _showMessage('Permissions saved.');
+    } on PermissionsException catch (error) {
+      _showMessage(error.message, isError: true);
+    } catch (_) {
+      _showMessage('Unable to save permissions right now.', isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  Future<void> _reset() async {
+    setState(() => _isSaving = true);
+    try {
+      final saved = await ref.read(adminPermissionsProvider.notifier).reset();
+      setState(() {
+        _draft = saved;
+        _hasLocalChanges = false;
+      });
+      _showMessage('Permissions reset to defaults.');
+    } on PermissionsException catch (error) {
+      _showMessage(error.message, isError: true);
+    } catch (_) {
+      _showMessage('Unable to reset permissions right now.', isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
+    }
+  }
+
+  void _setPermission(String key, bool value) {
+    setState(() {
+      _draft = _permissions.copyWithKey(key, value);
+      _hasLocalChanges = true;
+    });
+  }
+
+  void _showMessage(String message, {bool isError = false}) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.error : null,
+      ),
+    );
+  }
+
+  String _friendlyError(Object? error) {
+    if (error is PermissionsException) {
+      return error.message;
+    }
+    return 'Unable to load permissions right now. Please try again.';
   }
 
   Widget _buildStudentPermissions() {
@@ -82,33 +240,47 @@ class _AdminPermissionsPageState extends State<AdminPermissionsPage> {
         children: [
           _ToggleTile(
             label: 'Download Materials',
-            subtitle: 'Students can download lecture files and resources',
-            value: _studentCanDownload,
-            onChanged: (v) => setState(() => _studentCanDownload = v),
+            subtitle: 'Allow students to download/open course material files',
+            value: _permissions.downloadMaterials,
+            onChanged: (v) =>
+                _setPermission(PermissionKeys.downloadMaterials, v),
           ),
           _ToggleTile(
-            label: 'Message Instructors',
-            subtitle: 'Direct messaging between students and instructors',
-            value: _studentCanMessage,
-            onChanged: (v) => setState(() => _studentCanMessage = v),
+            label: 'Take Quizzes',
+            subtitle: 'Allow students to start published quizzes',
+            value: _permissions.takeQuizzes,
+            onChanged: (v) => _setPermission(PermissionKeys.takeQuizzes, v),
           ),
           _ToggleTile(
-            label: 'Rate Courses',
-            subtitle: 'Students can leave ratings and written feedback',
-            value: _studentCanRateCourse,
-            onChanged: (v) => setState(() => _studentCanRateCourse = v),
+            label: 'Submit Assignments',
+            subtitle: 'Allow students to submit assignment work',
+            value: _permissions.submitAssignments,
+            onChanged: (v) =>
+                _setPermission(PermissionKeys.submitAssignments, v),
           ),
           _ToggleTile(
-            label: 'View Peer Profiles',
-            subtitle: 'Browse other enrolled students in the same course',
-            value: _studentCanViewPeers,
-            onChanged: (v) => setState(() => _studentCanViewPeers = v),
+            label: 'Generate Flashcards',
+            subtitle:
+                'Allow students to generate AI flashcards from course materials',
+            value: _permissions.generateFlashcards,
+            onChanged: (v) =>
+                _setPermission(PermissionKeys.generateFlashcards, v),
           ),
           _ToggleTile(
-            label: 'Share Content',
-            subtitle: 'Students can share resources with classmates',
-            value: _studentCanShareContent,
-            onChanged: (v) => setState(() => _studentCanShareContent = v),
+            label: 'Generate Study Notes',
+            subtitle:
+                'Allow students to generate AI revision sheets/study notes',
+            value: _permissions.generateStudyNotes,
+            onChanged: (v) =>
+                _setPermission(PermissionKeys.generateStudyNotes, v),
+          ),
+          _ToggleTile(
+            label: 'View Course Student List',
+            subtitle:
+                'Allow students to see the read-only list of classmates in a course',
+            value: _permissions.viewCourseStudentList,
+            onChanged: (v) =>
+                _setPermission(PermissionKeys.viewCourseStudentList, v),
           ),
         ],
       ),
@@ -125,38 +297,68 @@ class _AdminPermissionsPageState extends State<AdminPermissionsPage> {
         children: [
           _ToggleTile(
             label: 'Create Courses',
-            subtitle: 'Instructors can create and structure new courses',
-            value: _instructorCanCreateCourses,
-            onChanged: (v) =>
-                setState(() => _instructorCanCreateCourses = v),
+            subtitle: 'Allow instructors to create new courses',
+            value: _permissions.createCourses,
+            onChanged: (v) => _setPermission(PermissionKeys.createCourses, v),
           ),
           _ToggleTile(
-            label: 'Publish Without Review',
-            subtitle: 'Bypass admin approval for course content publishing',
-            value: _instructorCanPublish,
-            onChanged: (v) => setState(() => _instructorCanPublish = v),
-            dangerColor: true,
+            label: 'Upload Materials',
+            subtitle: 'Allow instructors to upload course materials',
+            value: _permissions.uploadMaterials,
+            onChanged: (v) => _setPermission(PermissionKeys.uploadMaterials, v),
           ),
           _ToggleTile(
-            label: 'Use AI Generation Tools',
-            subtitle: 'Quizzes, assignments, and content generation',
-            value: _instructorCanUseAi,
-            onChanged: (v) => setState(() => _instructorCanUseAi = v),
-          ),
-          _ToggleTile(
-            label: 'View All Student Data',
+            label: 'Manage Quizzes',
             subtitle:
-                'Access analytics beyond personally enrolled students',
-            value: _instructorCanViewAllStudents,
-            onChanged: (v) =>
-                setState(() => _instructorCanViewAllStudents = v),
+                'Allow instructors to create, edit, delete, and publish quizzes',
+            value: _permissions.manageQuizzes,
+            onChanged: (v) => _setPermission(PermissionKeys.manageQuizzes, v),
           ),
           _ToggleTile(
-            label: 'Export Data',
-            subtitle: 'Download course rosters and analytics reports',
-            value: _instructorCanExportData,
+            label: 'Manage Assignments',
+            subtitle:
+                'Allow instructors to create, edit, delete, and publish assignments',
+            value: _permissions.manageAssignments,
             onChanged: (v) =>
-                setState(() => _instructorCanExportData = v),
+                _setPermission(PermissionKeys.manageAssignments, v),
+          ),
+          _ToggleTile(
+            label: 'Post Announcements',
+            subtitle:
+                'Allow instructors to create and manage course announcements',
+            value: _permissions.postAnnouncements,
+            onChanged: (v) =>
+                _setPermission(PermissionKeys.postAnnouncements, v),
+          ),
+          _ToggleTile(
+            label: 'Use AI Quiz Generation',
+            subtitle: 'Allow instructors to generate quizzes using AI',
+            value: _permissions.useAiQuizGeneration,
+            onChanged: (v) =>
+                _setPermission(PermissionKeys.useAiQuizGeneration, v),
+          ),
+          _ToggleTile(
+            label: 'Use AI Assignment Generation',
+            subtitle: 'Allow instructors to generate assignments using AI',
+            value: _permissions.useAiAssignmentGeneration,
+            onChanged: (v) =>
+                _setPermission(PermissionKeys.useAiAssignmentGeneration, v),
+          ),
+          _ToggleTile(
+            label: 'Grade Student Work',
+            subtitle:
+                'Allow instructors to grade quiz attempts and assignment submissions',
+            value: _permissions.gradeStudentWork,
+            onChanged: (v) =>
+                _setPermission(PermissionKeys.gradeStudentWork, v),
+          ),
+          _ToggleTile(
+            label: 'View Student Activity',
+            subtitle:
+                'Allow instructors to view student activity, submissions, and attempts in their courses',
+            value: _permissions.viewStudentActivity,
+            onChanged: (v) =>
+                _setPermission(PermissionKeys.viewStudentActivity, v),
           ),
         ],
       ),
@@ -172,19 +374,41 @@ class _AdminPermissionsPageState extends State<AdminPermissionsPage> {
       child: Column(
         children: [
           _ToggleTile(
-            label: 'Admin Approval for Role Changes',
+            label: 'Allow Public Student Registration',
             subtitle:
-                'Require admin sign-off when users request role upgrades',
-            value: _adminApprovalRequired,
-            onChanged: (v) => setState(() => _adminApprovalRequired = v),
+                'Allow students to create their own accounts from registration',
+            value: _permissions.allowPublicStudentRegistration,
+            onChanged: (v) =>
+                _setPermission(PermissionKeys.allowPublicStudentRegistration, v),
           ),
           _ToggleTile(
-            label: 'Lock Role Assignments',
+            label: 'Allow Public Instructor Registration',
             subtitle:
-                'Prevent automated or self-service role changes',
-            value: _rolesLocked,
-            onChanged: (v) => setState(() => _rolesLocked = v),
-            dangerColor: true,
+                'Allow instructors to create their own accounts from registration',
+            value: _permissions.allowPublicInstructorRegistration,
+            onChanged: (v) => _setPermission(
+              PermissionKeys.allowPublicInstructorRegistration,
+              v,
+            ),
+          ),
+          _ToggleTile(
+            label: 'Allow Instructors to Create Courses',
+            subtitle: 'Globally allow instructors to create courses',
+            value: _permissions.allowInstructorsToCreateCourses,
+            onChanged: (v) => _setPermission(
+              PermissionKeys.allowInstructorsToCreateCourses,
+              v,
+            ),
+          ),
+          _ToggleTile(
+            label: 'Require Review Before AI Content Is Published',
+            subtitle:
+                'AI-generated quizzes and assignments must be reviewed before students can access them',
+            value: _permissions.requireReviewBeforeAiContentPublished,
+            onChanged: (v) => _setPermission(
+              PermissionKeys.requireReviewBeforeAiContentPublished,
+              v,
+            ),
           ),
         ],
       ),
@@ -192,20 +416,8 @@ class _AdminPermissionsPageState extends State<AdminPermissionsPage> {
   }
 
   Widget _buildRoleSummary() {
-    final studentOn = [
-      _studentCanDownload,
-      _studentCanMessage,
-      _studentCanRateCourse,
-      _studentCanViewPeers,
-      _studentCanShareContent
-    ].where((v) => v).length;
-    final instructorOn = [
-      _instructorCanPublish,
-      _instructorCanViewAllStudents,
-      _instructorCanUseAi,
-      _instructorCanCreateCourses,
-      _instructorCanExportData
-    ].where((v) => v).length;
+    final studentOn = _permissions.enabledStudentCount;
+    final instructorOn = _permissions.enabledInstructorCount;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -225,7 +437,7 @@ class _AdminPermissionsPageState extends State<AdminPermissionsPage> {
             bg: AppColors.cyanLight,
             role: 'Students',
             enabled: studentOn,
-            total: 5,
+            total: 6,
           ),
           const SizedBox(height: 12),
           _SummaryRow(
@@ -234,7 +446,7 @@ class _AdminPermissionsPageState extends State<AdminPermissionsPage> {
             bg: AppColors.violetLight,
             role: 'Instructors',
             enabled: instructorOn,
-            total: 5,
+            total: 9,
           ),
         ],
       ),
@@ -295,6 +507,29 @@ class _SummaryRow extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.errorLight,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        message,
+        style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+      ),
     );
   }
 }

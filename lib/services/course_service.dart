@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/course_model.dart';
+import 'permissions_service.dart';
 
 class CourseService {
   CourseService._();
@@ -98,6 +99,7 @@ class CourseService {
     required bool allowSelfEnrollment,
     required bool isVisible,
   }) async {
+    await PermissionsService.instance.requireInstructorCourseCreation();
     final userId = _client.auth.currentUser!.id;
     final response = await _client
         .from('courses')

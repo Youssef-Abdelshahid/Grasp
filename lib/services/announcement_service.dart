@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/announcement_model.dart';
+import '../models/permissions_model.dart';
+import 'permissions_service.dart';
 
 class AnnouncementService {
   AnnouncementService._();
@@ -34,6 +36,9 @@ class AnnouncementService {
     required String body,
     bool isPinned = false,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.postAnnouncements,
+    );
     final userId = _client.auth.currentUser!.id;
     final response = await _client
         .from('announcements')
@@ -56,6 +61,9 @@ class AnnouncementService {
     required String body,
     required bool isPinned,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.postAnnouncements,
+    );
     final response = await _client
         .from('announcements')
         .update({
@@ -72,6 +80,9 @@ class AnnouncementService {
   }
 
   Future<void> deleteAnnouncement(String announcementId) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.postAnnouncements,
+    );
     await _client.from('announcements').delete().eq('id', announcementId);
   }
 }

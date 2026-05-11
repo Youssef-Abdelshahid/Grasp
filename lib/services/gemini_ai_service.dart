@@ -10,10 +10,12 @@ import '../core/config/app_env.dart';
 import '../models/assignment_model.dart';
 import '../models/flashcard_model.dart';
 import '../models/material_model.dart';
+import '../models/permissions_model.dart';
 import '../models/quiz_model.dart';
 import '../models/quiz_question_model.dart';
 import 'auth_service.dart';
 import 'material_service.dart';
+import 'permissions_service.dart';
 
 class GeminiAiService {
   GeminiAiService._();
@@ -56,7 +58,10 @@ class GeminiAiService {
     required bool showCorrectAnswers,
     required bool showQuestionMarks,
   }) async {
-    await _ensureCanGenerate(courseId);
+    await _ensureCanGenerate(
+      courseId,
+      PermissionKeys.useAiQuizGeneration,
+    );
     final cleanMaterials = _requireMaterials(materials);
     final normalizedTypes = _normalizeQuestionTypes(questionTypes);
     final safeQuestionCount = questionCount.clamp(1, 30).toInt();
@@ -136,7 +141,10 @@ class GeminiAiService {
     required bool includeRubric,
     required DateTime? deadline,
   }) async {
-    await _ensureCanGenerate(courseId);
+    await _ensureCanGenerate(
+      courseId,
+      PermissionKeys.useAiAssignmentGeneration,
+    );
     final cleanMaterials = _requireMaterials(materials);
     final safeTaskCount = taskCount.clamp(1, 20).toInt();
     final safeMarks = marks.clamp(1, 500).toInt();
@@ -326,7 +334,10 @@ class GeminiAiService {
     String existingQuizContext = '',
     String? quizId,
   }) async {
-    await _ensureCanGenerate(courseId);
+    await _ensureCanGenerate(
+      courseId,
+      PermissionKeys.useAiQuizGeneration,
+    );
     final normalizedType = _normalizeQuestionTypes([type]).first;
     final scopedMaterials = materials.isNotEmpty
         ? materials
@@ -1045,7 +1056,7 @@ class GeminiAiService {
     return null;
   }
 
-  Future<void> _ensureCanGenerate(String courseId) async {
+  Future<void> _ensureCanGenerate(String courseId, String permissionKey) async {
     final user = AuthService.instance.currentUser;
     if (user == null || user.role == AppRole.student) {
       throw const GeminiAiException(
@@ -1053,6 +1064,13 @@ class GeminiAiService {
       );
     }
     if (user.role == AppRole.admin) return;
+    try {
+      await PermissionsService.instance.requireInstructorPermission(
+        permissionKey,
+      );
+    } on PermissionsException catch (error) {
+      throw GeminiAiException(error.message);
+    }
     final isInstructor = await _client.rpc(
       'is_course_instructor',
       params: {'course_uuid': courseId},
@@ -1068,6 +1086,13 @@ class GeminiAiService {
     final user = AuthService.instance.currentUser;
     if (user == null || user.role != AppRole.student) {
       throw const GeminiAiException('Only students can generate flashcards.');
+    }
+    try {
+      await PermissionsService.instance.requireStudentPermission(
+        PermissionKeys.generateFlashcards,
+      );
+    } on PermissionsException catch (error) {
+      throw GeminiAiException(error.message);
     }
     final rows = await _client
         .from('enrollments')
@@ -1087,6 +1112,13 @@ class GeminiAiService {
     final user = AuthService.instance.currentUser;
     if (user == null || user.role != AppRole.student) {
       throw const GeminiAiException('Only students can generate study notes.');
+    }
+    try {
+      await PermissionsService.instance.requireStudentPermission(
+        PermissionKeys.generateStudyNotes,
+      );
+    } on PermissionsException catch (error) {
+      throw GeminiAiException(error.message);
     }
     final rows = await _client
         .from('enrollments')

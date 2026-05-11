@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/auth/app_role.dart';
 import '../core/config/app_env.dart';
 import '../models/user_model.dart';
+import 'permissions_service.dart';
 
 class AuthService extends ChangeNotifier {
   AuthService._();
@@ -95,6 +96,18 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final registrationPermissions = await PermissionsService.instance
+          .getPublicRegistrationPermissions();
+      if (role == AppRole.student && !registrationPermissions.student) {
+        throw AuthException(
+          'Student registration is currently disabled.',
+        );
+      }
+      if (role == AppRole.instructor && !registrationPermissions.instructor) {
+        throw AuthException(
+          'Instructor registration is currently disabled.',
+        );
+      }
       final response = await Supabase.instance.client.auth.signUp(
         email: email.trim(),
         password: password,

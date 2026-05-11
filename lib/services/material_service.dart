@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/utils/file_utils.dart';
 import '../models/material_model.dart';
+import '../models/permissions_model.dart';
+import 'permissions_service.dart';
 
 class MaterialService {
   MaterialService._();
@@ -47,6 +49,9 @@ class MaterialService {
     String? title,
     String description = '',
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.uploadMaterials,
+    );
     final bytes = await _readFileBytes(file);
     final fileName = file.name;
     final extension = FileUtils.fileExtension(fileName).toLowerCase();
@@ -93,6 +98,9 @@ class MaterialService {
     required String title,
     required String description,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.uploadMaterials,
+    );
     final response = await _client
         .from('materials')
         .update({
@@ -108,6 +116,9 @@ class MaterialService {
   }
 
   Future<void> deleteMaterial(MaterialModel material) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.uploadMaterials,
+    );
     if (material.storagePath != null && material.storagePath!.isNotEmpty) {
       await _client.storage.from(bucketName).remove([material.storagePath!]);
     }
@@ -115,6 +126,9 @@ class MaterialService {
   }
 
   Future<String?> createSignedUrl(MaterialModel material) async {
+    await PermissionsService.instance.requireStudentPermission(
+      PermissionKeys.downloadMaterials,
+    );
     final path = material.storagePath;
     if (path == null || path.isEmpty) {
       return null;

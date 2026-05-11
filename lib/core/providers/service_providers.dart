@@ -15,6 +15,7 @@ import '../../services/flashcard_service.dart';
 import '../../services/gemini_ai_service.dart';
 import '../../services/material_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/permissions_service.dart';
 import '../../services/profile_service.dart';
 import '../../services/quiz_service.dart';
 import '../../services/study_note_service.dart';
@@ -50,6 +51,9 @@ final announcementServiceProvider = Provider<AnnouncementService>(
 );
 final notificationServiceProvider = Provider<NotificationService>(
   (ref) => NotificationService.instance,
+);
+final permissionsServiceProvider = Provider<PermissionsService>(
+  (ref) => PermissionsService.instance,
 );
 final flashcardServiceProvider = Provider<FlashcardService>(
   (ref) => FlashcardService.instance,

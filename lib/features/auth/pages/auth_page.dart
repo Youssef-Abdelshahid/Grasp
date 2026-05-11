@@ -5,6 +5,7 @@ import '../../../core/auth/app_role.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../features/permissions/providers/permissions_provider.dart';
 import '../../../routing/app_router.dart';
 import '../providers/auth_providers.dart';
 
@@ -27,6 +28,14 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   final _confirmController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(
+      () => ref.invalidate(publicRegistrationPermissionsProvider),
+    );
+  }
 
   @override
   void dispose() {
@@ -373,7 +382,44 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }
 
   Widget _buildRoleSelector() {
-    final roles = [AppRole.student, AppRole.instructor];
+    final registrationPermissionsAsync = ref.watch(
+      publicRegistrationPermissionsProvider,
+    );
+    final registrationPermissions = registrationPermissionsAsync.valueOrNull;
+
+    if (registrationPermissionsAsync.isLoading &&
+        registrationPermissions == null) {
+      return Row(
+        children: [
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 10),
+          Text(
+            'Loading registration options...',
+            style: AppTextStyles.bodySmall,
+          ),
+        ],
+      );
+    }
+
+    final roles = [
+      if (registrationPermissions?.student ?? true) AppRole.student,
+      if (registrationPermissions?.instructor ?? false) AppRole.instructor,
+    ];
+
+    if (!roles.contains(_selectedRole) && roles.isNotEmpty) {
+      _selectedRole = roles.first;
+    }
+
+    if (roles.isEmpty) {
+      return Text(
+        'Public registration is currently disabled.',
+        style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

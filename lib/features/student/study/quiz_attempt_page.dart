@@ -10,6 +10,7 @@ import '../../../models/quiz_model.dart';
 import '../../../models/quiz_question_model.dart';
 import '../../../models/submission_model.dart';
 import '../../../services/quiz_service.dart';
+import '../../../services/permissions_service.dart';
 import '../../../services/submission_service.dart';
 
 class QuizAttemptPage extends StatefulWidget {
@@ -239,6 +240,8 @@ class _QuizAttemptPageState extends State<QuizAttemptPage> {
       }
       setState(() => _submission = submission);
     } on SubmissionException catch (error) {
+      _showMessage(error.message);
+    } on PermissionsException catch (error) {
       _showMessage(error.message);
     } on PostgrestException catch (error) {
       _showMessage(error.message);

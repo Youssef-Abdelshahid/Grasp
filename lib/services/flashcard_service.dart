@@ -1,6 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/flashcard_model.dart';
+import '../models/permissions_model.dart';
+import 'permissions_service.dart';
 
 class FlashcardService {
   FlashcardService._();
@@ -109,6 +111,9 @@ class FlashcardService {
     required List<String> materialIds,
     required List<FlashcardItem> cards,
   }) async {
+    await PermissionsService.instance.requireStudentPermission(
+      PermissionKeys.generateFlashcards,
+    );
     final userId = _client.auth.currentUser!.id;
     final response = await _client
         .from('flashcard_sets')

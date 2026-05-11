@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../models/course_model.dart';
 import '../../courses/providers/course_providers.dart';
+import '../../permissions/providers/permissions_provider.dart';
 import 'tabs/student_announcements_tab.dart';
 import 'tabs/student_assignments_tab.dart';
 import 'tabs/student_flashcards_tab.dart';
@@ -32,11 +33,8 @@ class StudentCourseWorkspacePage extends ConsumerStatefulWidget {
 }
 
 class _StudentCourseWorkspacePageState
-    extends ConsumerState<StudentCourseWorkspacePage>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  static const _tabs = [
+    extends ConsumerState<StudentCourseWorkspacePage> {
+  static const _baseTabs = [
     (icon: Icons.dashboard_rounded, label: 'Overview'),
     (icon: Icons.attach_file_rounded, label: 'Materials'),
     (icon: Icons.style_rounded, label: 'Flashcards'),
@@ -48,21 +46,16 @@ class _StudentCourseWorkspacePageState
   ];
 
   @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final courseAsync = ref.watch(courseDetailsProvider(widget.courseId));
     final course = courseAsync.valueOrNull ?? widget.initialCourse;
+    final permissions = ref.watch(permissionsProvider).valueOrDefaults;
+    final tabs = _baseTabs
+        .where(
+          (tab) =>
+              tab.label != 'Students' || permissions.viewCourseStudentList,
+        )
+        .toList();
 
     if (course == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
@@ -80,45 +73,61 @@ class _StudentCourseWorkspacePageState
       );
     }
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverAppBar(
-            expandedHeight: 240,
-            floating: false,
-            pinned: true,
-            backgroundColor: AppColors.sidebarBg,
-            foregroundColor: Colors.white,
-            leading: IconButton(
-              icon: const Icon(Icons.arrow_back_rounded),
-              onPressed: () => Navigator.pop(context),
+    return DefaultTabController(
+      length: tabs.length,
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: NestedScrollView(
+          headerSliverBuilder: (context, innerBoxIsScrolled) => [
+            SliverAppBar(
+              expandedHeight: 240,
+              floating: false,
+              pinned: true,
+              backgroundColor: AppColors.sidebarBg,
+              foregroundColor: Colors.white,
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back_rounded),
+                onPressed: () => Navigator.pop(context),
+              ),
+              flexibleSpace: FlexibleSpaceBar(
+                collapseMode: CollapseMode.pin,
+                background: _buildCourseHeader(course),
+              ),
+              bottom: PreferredSize(
+                preferredSize: const Size.fromHeight(46),
+                child: _buildTabBar(tabs),
+              ),
             ),
-            flexibleSpace: FlexibleSpaceBar(
-              collapseMode: CollapseMode.pin,
-              background: _buildCourseHeader(course),
-            ),
-            bottom: PreferredSize(
-              preferredSize: const Size.fromHeight(46),
-              child: _buildTabBar(),
-            ),
-          ),
-        ],
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            StudentOverviewTab(course: course),
-            StudentMaterialsTab(courseId: course.id),
-            StudentFlashcardsTab(courseId: course.id),
-            StudentStudyNotesTab(courseId: course.id),
-            StudentQuizzesTab(courseId: course.id),
-            StudentAssignmentsTab(courseId: course.id),
-            StudentStudentsTab(courseId: course.id),
-            StudentAnnouncementsTab(courseId: course.id),
           ],
+          body: TabBarView(
+            children: tabs
+                .map((tab) => _buildTabView(tab.label, course))
+                .toList(),
+          ),
         ),
       ),
     );
+  }
+
+  Widget _buildTabView(String label, CourseModel course) {
+    switch (label) {
+      case 'Overview':
+        return StudentOverviewTab(course: course);
+      case 'Materials':
+        return StudentMaterialsTab(courseId: course.id);
+      case 'Flashcards':
+        return StudentFlashcardsTab(courseId: course.id);
+      case 'Notes':
+        return StudentStudyNotesTab(courseId: course.id);
+      case 'Quizzes':
+        return StudentQuizzesTab(courseId: course.id);
+      case 'Assignments':
+        return StudentAssignmentsTab(courseId: course.id);
+      case 'Students':
+        return StudentStudentsTab(courseId: course.id);
+      default:
+        return StudentAnnouncementsTab(courseId: course.id);
+    }
   }
 
   Widget _buildCourseHeader(CourseModel course) {
@@ -212,11 +221,10 @@ class _StudentCourseWorkspacePageState
     );
   }
 
-  Widget _buildTabBar() {
+  Widget _buildTabBar(List<({IconData icon, String label})> tabs) {
     return Container(
       color: AppColors.sidebarBg,
       child: TabBar(
-        controller: _tabController,
         isScrollable: true,
         tabAlignment: TabAlignment.start,
         indicatorColor: Colors.white,
@@ -228,7 +236,7 @@ class _StudentCourseWorkspacePageState
           fontSize: 13,
           fontWeight: FontWeight.w400,
         ),
-        tabs: _tabs
+        tabs: tabs
             .map(
               (tab) => Tab(
                 child: Row(

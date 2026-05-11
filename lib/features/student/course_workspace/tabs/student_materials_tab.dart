@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -6,18 +7,19 @@ import '../../../../core/utils/file_utils.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../models/material_model.dart';
 import '../../../../services/material_service.dart';
+import '../../../permissions/providers/permissions_provider.dart';
 import '../../study/material_study_page.dart';
 
-class StudentMaterialsTab extends StatefulWidget {
+class StudentMaterialsTab extends ConsumerStatefulWidget {
   const StudentMaterialsTab({super.key, required this.courseId});
 
   final String courseId;
 
   @override
-  State<StudentMaterialsTab> createState() => _StudentMaterialsTabState();
+  ConsumerState<StudentMaterialsTab> createState() => _StudentMaterialsTabState();
 }
 
-class _StudentMaterialsTabState extends State<StudentMaterialsTab> {
+class _StudentMaterialsTabState extends ConsumerState<StudentMaterialsTab> {
   late Future<List<MaterialModel>> _materialsFuture;
 
   @override
@@ -34,6 +36,8 @@ class _StudentMaterialsTabState extends State<StudentMaterialsTab> {
       future: _materialsFuture,
       builder: (context, snapshot) {
         final materials = snapshot.data ?? [];
+        final canDownload =
+            ref.watch(permissionsProvider).valueOrDefaults.downloadMaterials;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -76,7 +80,10 @@ class _StudentMaterialsTabState extends State<StudentMaterialsTab> {
                 ...materials.map(
                   (material) => Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: _StudentMaterialCard(material: material),
+                    child: _StudentMaterialCard(
+                      material: material,
+                      canOpen: canDownload,
+                    ),
                   ),
                 ),
             ],
@@ -88,9 +95,10 @@ class _StudentMaterialsTabState extends State<StudentMaterialsTab> {
 }
 
 class _StudentMaterialCard extends StatelessWidget {
-  const _StudentMaterialCard({required this.material});
+  const _StudentMaterialCard({required this.material, required this.canOpen});
 
   final MaterialModel material;
+  final bool canOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -101,12 +109,20 @@ class _StudentMaterialCard extends StatelessWidget {
       color: AppColors.surface,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MaterialStudyPage(material: material),
-          ),
-        ),
+        onTap: canOpen
+            ? () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MaterialStudyPage(material: material),
+                  ),
+                )
+            : () => ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'You do not currently have permission to perform this action.',
+                    ),
+                  ),
+                ),
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.all(16),
@@ -144,6 +160,15 @@ class _StudentMaterialCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (!canOpen) ...[
+                const SizedBox(width: 8),
+                Text(
+                  'Disabled',
+                  style: AppTextStyles.caption.copyWith(
+                    color: AppColors.textMuted,
+                  ),
+                ),
+              ],
             ],
           ),
         ),

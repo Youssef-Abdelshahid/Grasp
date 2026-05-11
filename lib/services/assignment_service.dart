@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/assignment_model.dart';
 import 'material_service.dart';
+import '../models/permissions_model.dart';
+import 'permissions_service.dart';
 
 class AssignmentService {
   AssignmentService._();
@@ -51,6 +53,9 @@ class AssignmentService {
     required List<Map<String, dynamic>> rubric,
     required List<Map<String, dynamic>> attachments,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.manageAssignments,
+    );
     final userId = _client.auth.currentUser!.id;
     final response = await _client
         .from('assignments')
@@ -86,6 +91,9 @@ class AssignmentService {
     required List<Map<String, dynamic>> rubric,
     required List<Map<String, dynamic>> attachments,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.manageAssignments,
+    );
     try {
       final response = await _client
           .from('assignments')
@@ -142,6 +150,9 @@ class AssignmentService {
     required String assignmentId,
     required bool isPublished,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.manageAssignments,
+    );
     final response = await _client
         .from('assignments')
         .update({
@@ -159,6 +170,9 @@ class AssignmentService {
   }
 
   Future<void> deleteAssignment(String assignmentId) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.manageAssignments,
+    );
     await _client.from('assignments').delete().eq('id', assignmentId);
   }
 
@@ -166,6 +180,9 @@ class AssignmentService {
     required String courseId,
     required PlatformFile file,
   }) async {
+    await PermissionsService.instance.requireInstructorPermission(
+      PermissionKeys.manageAssignments,
+    );
     final bytes = await _readFileBytes(file);
     final objectPath =
         '$courseId/assignment-attachments/${DateTime.now().millisecondsSinceEpoch}_${p.basename(file.name)}';

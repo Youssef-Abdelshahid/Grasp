@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -9,17 +10,18 @@ import '../../../../models/study_note_model.dart';
 import '../../../../services/gemini_ai_service.dart';
 import '../../../../services/material_service.dart';
 import '../../../../services/study_note_service.dart';
+import '../../../permissions/providers/permissions_provider.dart';
 
-class StudentStudyNotesTab extends StatefulWidget {
+class StudentStudyNotesTab extends ConsumerStatefulWidget {
   const StudentStudyNotesTab({super.key, required this.courseId});
 
   final String courseId;
 
   @override
-  State<StudentStudyNotesTab> createState() => _StudentStudyNotesTabState();
+  ConsumerState<StudentStudyNotesTab> createState() => _StudentStudyNotesTabState();
 }
 
-class _StudentStudyNotesTabState extends State<StudentStudyNotesTab> {
+class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
   late Future<_StudyNotesTabData> _future;
 
   @override
@@ -34,6 +36,8 @@ class _StudentStudyNotesTabState extends State<StudentStudyNotesTab> {
       future: _future,
       builder: (context, snapshot) {
         final data = snapshot.data ?? const _StudyNotesTabData([], []);
+        final canGenerate =
+            ref.watch(permissionsProvider).valueOrDefaults.generateStudyNotes;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -42,13 +46,15 @@ class _StudentStudyNotesTabState extends State<StudentStudyNotesTab> {
               Row(
                 children: [
                   Expanded(child: Text('Study Notes', style: AppTextStyles.h2)),
-                  ElevatedButton.icon(
-                    onPressed: snapshot.connectionState == ConnectionState.done
-                        ? () => _openGenerateDialog(data.materials)
-                        : null,
-                    icon: const Icon(Icons.auto_awesome_rounded, size: 16),
-                    label: const Text('Generate'),
-                  ),
+                  if (canGenerate)
+                    ElevatedButton.icon(
+                      onPressed:
+                          snapshot.connectionState == ConnectionState.done
+                          ? () => _openGenerateDialog(data.materials)
+                          : null,
+                      icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                      label: const Text('Generate'),
+                    ),
                 ],
               ),
               const SizedBox(height: 4),

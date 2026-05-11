@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
@@ -11,18 +12,19 @@ import '../../../../services/quiz_service.dart';
 import '../../../../services/submission_service.dart';
 import '../../../../services/user_settings_service.dart';
 import '../../../activity/activity_sheets.dart';
+import '../../../permissions/providers/permissions_provider.dart';
 import '../../study/quiz_attempt_page.dart';
 
-class StudentQuizzesTab extends StatefulWidget {
+class StudentQuizzesTab extends ConsumerStatefulWidget {
   const StudentQuizzesTab({super.key, required this.courseId});
 
   final String courseId;
 
   @override
-  State<StudentQuizzesTab> createState() => _StudentQuizzesTabState();
+  ConsumerState<StudentQuizzesTab> createState() => _StudentQuizzesTabState();
 }
 
-class _StudentQuizzesTabState extends State<StudentQuizzesTab> {
+class _StudentQuizzesTabState extends ConsumerState<StudentQuizzesTab> {
   late Future<_StudentQuizData> _future;
 
   @override
@@ -39,6 +41,8 @@ class _StudentQuizzesTabState extends State<StudentQuizzesTab> {
         final data = snapshot.data ?? const _StudentQuizData([], {});
         final quizzes = data.quizzes;
         final completed = data.latestSubmissions.length;
+        final canTakeQuizzes =
+            ref.watch(permissionsProvider).valueOrDefaults.takeQuizzes;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
@@ -68,6 +72,7 @@ class _StudentQuizzesTabState extends State<StudentQuizzesTab> {
                     child: _QuizCard(
                       quiz: quiz,
                       submission: data.latestSubmissions[quiz.id],
+                      canTakeQuizzes: canTakeQuizzes,
                       onStart: () =>
                           _startQuiz(quiz, data.latestSubmissions[quiz.id]),
                       onViewAttempt: () => _showAttemptDetails(
@@ -157,12 +162,14 @@ class _QuizCard extends StatelessWidget {
   const _QuizCard({
     required this.quiz,
     required this.submission,
+    required this.canTakeQuizzes,
     required this.onStart,
     required this.onViewAttempt,
   });
 
   final QuizModel quiz;
   final SubmissionModel? submission;
+  final bool canTakeQuizzes;
   final VoidCallback onStart;
   final VoidCallback onViewAttempt;
 
@@ -269,10 +276,16 @@ class _QuizCard extends StatelessWidget {
                   child: const Text('View Attempt'),
                 ),
                 ElevatedButton.icon(
-                  onPressed: quiz.allowRetakes ? onStart : null,
+                  onPressed: quiz.allowRetakes && canTakeQuizzes
+                      ? onStart
+                      : null,
                   icon: const Icon(Icons.refresh_rounded, size: 16),
                   label: Text(
-                    quiz.allowRetakes ? 'Retake' : 'Already submitted',
+                    !canTakeQuizzes
+                        ? 'Quiz taking disabled'
+                        : quiz.allowRetakes
+                        ? 'Retake'
+                        : 'Already submitted',
                   ),
                 ),
               ],
@@ -281,9 +294,11 @@ class _QuizCard extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: onStart,
+                onPressed: canTakeQuizzes ? onStart : null,
                 icon: const Icon(Icons.play_arrow_rounded, size: 16),
-                label: const Text('Start Quiz'),
+                label: Text(
+                  canTakeQuizzes ? 'Start Quiz' : 'Quiz taking disabled',
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.violet,
                   foregroundColor: Colors.white,

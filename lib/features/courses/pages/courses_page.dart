@@ -9,6 +9,7 @@ import '../../../core/widgets/empty_state.dart';
 import '../../../models/course_model.dart';
 import '../../../services/course_service.dart';
 import '../../course_workspace/pages/course_workspace_page.dart';
+import '../../permissions/providers/permissions_provider.dart';
 import '../providers/course_providers.dart';
 import 'create_course_page.dart';
 
@@ -34,6 +35,8 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
     final padding = EdgeInsets.all(isWide ? 28 : 16);
+    final canCreate =
+        ref.watch(permissionsProvider).valueOrDefaults.canInstructorCreateCourses;
 
     return ref
         .watch(instructorCoursesProvider)
@@ -46,16 +49,17 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(context, isWide, courses.length),
+                  _buildHeader(context, isWide, courses.length, canCreate),
                   const SizedBox(height: 20),
                   if (courses.isEmpty)
                     EmptyState(
                       icon: Icons.menu_book_rounded,
                       title: 'No courses yet',
-                      subtitle:
-                          'Create your first course to start adding materials, announcements, and student enrollments.',
-                      actionLabel: 'Create Course',
-                      onAction: () => _openCreate(context),
+                      subtitle: canCreate
+                          ? 'Create your first course to start adding materials, announcements, and student enrollments.'
+                          : 'Course creation is currently disabled for instructors.',
+                      actionLabel: canCreate ? 'Create Course' : null,
+                      onAction: canCreate ? () => _openCreate(context) : null,
                     )
                   else
                     _buildList(context, isWide, courses),
@@ -66,7 +70,12 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
         );
   }
 
-  Widget _buildHeader(BuildContext context, bool isWide, int count) {
+  Widget _buildHeader(
+    BuildContext context,
+    bool isWide,
+    int count,
+    bool canCreate,
+  ) {
     return Row(
       children: [
         Expanded(
@@ -85,12 +94,12 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
         const SizedBox(width: 12),
         isWide
             ? ElevatedButton.icon(
-                onPressed: () => _openCreate(context),
+                onPressed: canCreate ? () => _openCreate(context) : null,
                 icon: const Icon(Icons.add_rounded, size: 18),
                 label: const Text('Create Course'),
               )
             : ElevatedButton(
-                onPressed: () => _openCreate(context),
+                onPressed: canCreate ? () => _openCreate(context) : null,
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 14,

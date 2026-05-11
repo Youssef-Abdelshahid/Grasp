@@ -6,6 +6,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/file_utils.dart';
 import '../../../models/material_model.dart';
 import '../../../services/material_service.dart';
+import '../../../services/permissions_service.dart';
 
 class MaterialStudyPage extends StatefulWidget {
   const MaterialStudyPage({super.key, required this.material});
@@ -174,6 +175,8 @@ class _MaterialStudyPageState extends State<MaterialStudyPage> {
       if (!launched) {
         _showMessage('Unable to open the file.');
       }
+    } on PermissionsException catch (error) {
+      _showMessage(error.message);
     } finally {
       if (mounted) {
         setState(() => _isOpening = false);

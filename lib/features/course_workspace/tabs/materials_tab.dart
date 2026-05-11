@@ -9,6 +9,7 @@ import '../../../core/utils/file_utils.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/material_model.dart';
 import '../../../services/material_service.dart';
+import '../../permissions/providers/permissions_provider.dart';
 import '../pages/material_details_page.dart';
 import '../providers/course_workspace_providers.dart';
 
@@ -27,15 +28,18 @@ class _MaterialsTabState extends ConsumerState<MaterialsTab> {
   @override
   Widget build(BuildContext context) {
     final materialsAsync = ref.watch(courseMaterialsProvider(widget.courseId));
+    final canUpload =
+        ref.watch(permissionsProvider).valueOrDefaults.uploadMaterials;
     return materialsAsync.when(
-      loading: () => _buildContent(const [], isLoading: true),
-      error: (_, _) => _buildContent(const [], hasError: true),
-      data: (materials) => _buildContent(materials),
+      loading: () => _buildContent(const [], canUpload, isLoading: true),
+      error: (_, _) => _buildContent(const [], canUpload, hasError: true),
+      data: (materials) => _buildContent(materials, canUpload),
     );
   }
 
   Widget _buildContent(
-    List<MaterialModel> materials, {
+    List<MaterialModel> materials,
+    bool canUpload, {
     bool isLoading = false,
     bool hasError = false,
   }) {
@@ -44,8 +48,13 @@ class _MaterialsTabState extends ConsumerState<MaterialsTab> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _UploadArea(isUploading: _isUploading, onTap: _pickAndUploadMaterial),
-          const SizedBox(height: 24),
+          if (canUpload) ...[
+            _UploadArea(
+              isUploading: _isUploading,
+              onTap: _pickAndUploadMaterial,
+            ),
+            const SizedBox(height: 24),
+          ],
           Row(
             children: [
               Text('Uploaded Materials', style: AppTextStyles.h3),
@@ -91,8 +100,8 @@ class _MaterialsTabState extends ConsumerState<MaterialsTab> {
                 child: _MaterialCard(
                   material: material,
                   onOpen: () => _openMaterial(material),
-                  onEdit: () => _editMaterial(material),
-                  onDelete: () => _deleteMaterial(material),
+                  onEdit: canUpload ? () => _editMaterial(material) : null,
+                  onDelete: canUpload ? () => _deleteMaterial(material) : null,
                 ),
               ),
             ),
@@ -270,8 +279,8 @@ class _MaterialCard extends StatelessWidget {
 
   final MaterialModel material;
   final VoidCallback onOpen;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -336,17 +345,19 @@ class _MaterialCard extends StatelessWidget {
                       onOpen();
                       break;
                     case 'edit':
-                      onEdit();
+                      onEdit?.call();
                       break;
                     case 'delete':
-                      onDelete();
+                      onDelete?.call();
                       break;
                   }
                 },
-                itemBuilder: (_) => const [
-                  PopupMenuItem(value: 'open', child: Text('Open')),
-                  PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(value: 'delete', child: Text('Delete')),
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'open', child: Text('Open')),
+                  if (onEdit != null)
+                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  if (onDelete != null)
+                    const PopupMenuItem(value: 'delete', child: Text('Delete')),
                 ],
               ),
             ],

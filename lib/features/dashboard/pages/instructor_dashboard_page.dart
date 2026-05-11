@@ -11,6 +11,7 @@ import '../../../models/dashboard_models.dart';
 import '../../auth/providers/auth_providers.dart';
 import '../../courses/pages/create_course_page.dart';
 import '../../courses/pages/courses_page.dart';
+import '../../permissions/providers/permissions_provider.dart';
 import '../providers/dashboard_providers.dart';
 
 class InstructorDashboardPage extends ConsumerWidget {
@@ -23,6 +24,7 @@ class InstructorDashboardPage extends ConsumerWidget {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
     final user = ref.watch(currentUserProvider);
+    final permissions = ref.watch(permissionsProvider).valueOrDefaults;
 
     return ref
         .watch(instructorDashboardProvider)
@@ -75,7 +77,7 @@ class InstructorDashboardPage extends ConsumerWidget {
                   const SizedBox(height: 24),
                   _buildStatsGrid(isWide, stats),
                   const SizedBox(height: 28),
-                  _buildQuickActions(context, isWide),
+                  _buildQuickActions(context, isWide, permissions),
                   const SizedBox(height: 28),
                   SectionHeader(
                     title: 'Recent Activity',
@@ -181,46 +183,55 @@ class InstructorDashboardPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickActions(BuildContext context, bool isWide) {
+  Widget _buildQuickActions(
+    BuildContext context,
+    bool isWide,
+    dynamic permissions,
+  ) {
     final actions = [
-      (
-        icon: Icons.add_circle_rounded,
-        label: 'Create Course',
-        color: AppColors.primary,
-        bg: AppColors.primaryLight,
-        onTap: () => Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => const CreateCoursePage()),
+      if (permissions.canInstructorCreateCourses)
+        (
+          icon: Icons.add_circle_rounded,
+          label: 'Create Course',
+          color: AppColors.primary,
+          bg: AppColors.primaryLight,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CreateCoursePage()),
+          ),
         ),
-      ),
-      (
-        icon: Icons.quiz_rounded,
-        label: 'Create Quiz',
-        color: AppColors.violet,
-        bg: AppColors.violetLight,
-        onTap: () => _openCoursesTab(context),
-      ),
-      (
-        icon: Icons.assignment_rounded,
-        label: 'Create Assignment',
-        color: AppColors.emerald,
-        bg: AppColors.emeraldLight,
-        onTap: () => _openCoursesTab(context),
-      ),
-      (
-        icon: Icons.upload_file_rounded,
-        label: 'Upload Material',
-        color: AppColors.amber,
-        bg: AppColors.amberLight,
-        onTap: () => _openCoursesTab(context),
-      ),
-      (
-        icon: Icons.campaign_rounded,
-        label: 'Post Announcement',
-        color: AppColors.rose,
-        bg: AppColors.roseLight,
-        onTap: () => _openCoursesTab(context),
-      ),
+      if (permissions.manageQuizzes)
+        (
+          icon: Icons.quiz_rounded,
+          label: 'Create Quiz',
+          color: AppColors.violet,
+          bg: AppColors.violetLight,
+          onTap: () => _openCoursesTab(context),
+        ),
+      if (permissions.manageAssignments)
+        (
+          icon: Icons.assignment_rounded,
+          label: 'Create Assignment',
+          color: AppColors.emerald,
+          bg: AppColors.emeraldLight,
+          onTap: () => _openCoursesTab(context),
+        ),
+      if (permissions.uploadMaterials)
+        (
+          icon: Icons.upload_file_rounded,
+          label: 'Upload Material',
+          color: AppColors.amber,
+          bg: AppColors.amberLight,
+          onTap: () => _openCoursesTab(context),
+        ),
+      if (permissions.postAnnouncements)
+        (
+          icon: Icons.campaign_rounded,
+          label: 'Post Announcement',
+          color: AppColors.rose,
+          bg: AppColors.roseLight,
+          onTap: () => _openCoursesTab(context),
+        ),
       (
         icon: Icons.menu_book_rounded,
         label: 'Courses',

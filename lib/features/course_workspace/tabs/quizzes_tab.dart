@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -13,18 +14,19 @@ import '../../../services/material_service.dart';
 import '../../../services/quiz_service.dart';
 import '../../../services/user_settings_service.dart';
 import '../../activity/activity_sheets.dart';
+import '../../permissions/providers/permissions_provider.dart';
 import '../pages/quiz_builder_page.dart';
 
-class QuizzesTab extends StatefulWidget {
+class QuizzesTab extends ConsumerStatefulWidget {
   const QuizzesTab({super.key, required this.courseId});
 
   final String courseId;
 
   @override
-  State<QuizzesTab> createState() => _QuizzesTabState();
+  ConsumerState<QuizzesTab> createState() => _QuizzesTabState();
 }
 
-class _QuizzesTabState extends State<QuizzesTab> {
+class _QuizzesTabState extends ConsumerState<QuizzesTab> {
   late Future<List<QuizModel>> _quizzesFuture;
 
   @override
@@ -39,12 +41,17 @@ class _QuizzesTabState extends State<QuizzesTab> {
       future: _quizzesFuture,
       builder: (context, snapshot) {
         final quizzes = snapshot.data ?? [];
+        final permissions = ref.watch(permissionsProvider).valueOrDefaults;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(quizzes.length),
+              _buildHeader(
+                quizzes.length,
+                canManage: permissions.manageQuizzes,
+                canUseAi: permissions.useAiQuizGeneration,
+              ),
               const SizedBox(height: 20),
               if (snapshot.connectionState != ConnectionState.done)
                 const Center(child: CircularProgressIndicator())
@@ -62,9 +69,15 @@ class _QuizzesTabState extends State<QuizzesTab> {
                     child: _QuizCard(
                       quiz: quiz,
                       onTap: () => _showQuizDetails(quiz),
-                      onEdit: () => _openBuilder(quiz: quiz),
-                      onTogglePublished: () => _togglePublished(quiz),
-                      onDelete: () => _deleteQuiz(quiz),
+                      onEdit: permissions.manageQuizzes
+                          ? () => _openBuilder(quiz: quiz)
+                          : null,
+                      onTogglePublished: permissions.manageQuizzes
+                          ? () => _togglePublished(quiz)
+                          : null,
+                      onDelete: permissions.manageQuizzes
+                          ? () => _deleteQuiz(quiz)
+                          : null,
                     ),
                   ),
                 ),
@@ -75,7 +88,11 @@ class _QuizzesTabState extends State<QuizzesTab> {
     );
   }
 
-  Widget _buildHeader(int count) {
+  Widget _buildHeader(
+    int count, {
+    required bool canManage,
+    required bool canUseAi,
+  }) {
     return LayoutBuilder(
       builder: (_, constraints) {
         final isNarrow = constraints.maxWidth < 480;
@@ -92,12 +109,12 @@ class _QuizzesTabState extends State<QuizzesTab> {
         );
 
         final createButton = ElevatedButton.icon(
-          onPressed: () => _openBuilder(),
+          onPressed: canManage ? () => _openBuilder() : null,
           icon: const Icon(Icons.add_rounded, size: 16),
           label: const Text('Create Quiz'),
         );
         final generateButton = OutlinedButton.icon(
-          onPressed: _generateQuiz,
+          onPressed: canUseAi && canManage ? _generateQuiz : null,
           icon: const Icon(Icons.auto_awesome_rounded, size: 16),
           label: const Text('Generate Quiz'),
         );
@@ -108,9 +125,12 @@ class _QuizzesTabState extends State<QuizzesTab> {
             children: [
               titleBlock,
               const SizedBox(height: 12),
-              SizedBox(width: double.infinity, child: generateButton),
-              const SizedBox(height: 8),
-              SizedBox(width: double.infinity, child: createButton),
+              if (canUseAi && canManage) ...[
+                SizedBox(width: double.infinity, child: generateButton),
+                const SizedBox(height: 8),
+              ],
+              if (canManage)
+                SizedBox(width: double.infinity, child: createButton),
             ],
           );
         }
@@ -118,9 +138,11 @@ class _QuizzesTabState extends State<QuizzesTab> {
         return Row(
           children: [
             Expanded(child: titleBlock),
-            generateButton,
-            const SizedBox(width: 8),
-            createButton,
+            if (canUseAi && canManage) ...[
+              generateButton,
+              const SizedBox(width: 8),
+            ],
+            if (canManage) createButton,
           ],
         );
       },
@@ -215,6 +237,7 @@ class _QuizzesTabState extends State<QuizzesTab> {
   }
 
   Future<void> _showQuizDetails(QuizModel quiz) async {
+    final permissions = ref.read(permissionsProvider).valueOrDefaults;
     final details = await QuizService.instance.getQuizDetails(quiz.id);
     if (!mounted) {
       return;
@@ -263,7 +286,8 @@ class _QuizzesTabState extends State<QuizzesTab> {
                   const SizedBox(height: 4),
                   Text(details.instructions, style: AppTextStyles.bodySmall),
                 ],
-                AssessmentActivityPanel(assessmentId: details.id, isQuiz: true),
+                if (permissions.viewStudentActivity)
+                  AssessmentActivityPanel(assessmentId: details.id, isQuiz: true),
               ],
             ),
           ),
@@ -273,13 +297,14 @@ class _QuizzesTabState extends State<QuizzesTab> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _openBuilder(quiz: details);
-            },
-            child: const Text('Edit'),
-          ),
+          if (permissions.manageQuizzes)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _openBuilder(quiz: details);
+              },
+              child: const Text('Edit'),
+            ),
         ],
       ),
     );
@@ -309,9 +334,9 @@ class _QuizCard extends StatelessWidget {
 
   final QuizModel quiz;
   final VoidCallback onTap;
-  final VoidCallback onEdit;
-  final VoidCallback onTogglePublished;
-  final VoidCallback onDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onTogglePublished;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -400,28 +425,31 @@ class _QuizCard extends StatelessWidget {
                 onSelected: (value) {
                   switch (value) {
                     case 'edit':
-                      onEdit();
+                      onEdit?.call();
                       break;
                     case 'toggle':
-                      onTogglePublished();
+                      onTogglePublished?.call();
                       break;
                     case 'delete':
-                      onDelete();
+                      onDelete?.call();
                       break;
                   }
                 },
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(
-                    value: 'toggle',
-                    child: Text(
-                      quiz.isPublished ? 'Unpublish' : 'Accept & Publish',
+                  if (onEdit != null)
+                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  if (onTogglePublished != null)
+                    PopupMenuItem(
+                      value: 'toggle',
+                      child: Text(
+                        quiz.isPublished ? 'Unpublish' : 'Accept & Publish',
+                      ),
                     ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Text(quiz.isPublished ? 'Delete' : 'Reject Draft'),
-                  ),
+                  if (onDelete != null)
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text(quiz.isPublished ? 'Delete' : 'Reject Draft'),
+                    ),
                 ],
               ),
             ],

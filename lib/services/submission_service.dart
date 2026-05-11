@@ -5,9 +5,11 @@ import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/assignment_model.dart';
+import '../models/permissions_model.dart';
 import '../models/quiz_model.dart';
 import '../models/quiz_question_model.dart';
 import '../models/submission_model.dart';
+import 'permissions_service.dart';
 
 class SubmissionService {
   SubmissionService._();
@@ -121,6 +123,9 @@ class SubmissionService {
     required Map<int, dynamic> answers,
     required int elapsedSeconds,
   }) async {
+    await PermissionsService.instance.requireStudentPermission(
+      PermissionKeys.takeQuizzes,
+    );
     if (!quiz.allowRetakes) {
       final existing = await _client
           .from('submissions')
@@ -243,6 +248,9 @@ class SubmissionService {
     String textAnswer = '',
     PlatformFile? file,
   }) async {
+    await PermissionsService.instance.requireStudentPermission(
+      PermissionKeys.submitAssignments,
+    );
     final userId = _client.auth.currentUser!.id;
     final attempts = await _client
         .from('submissions')

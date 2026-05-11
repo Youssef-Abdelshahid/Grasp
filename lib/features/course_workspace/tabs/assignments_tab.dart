@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -13,18 +14,19 @@ import '../../../services/gemini_ai_service.dart';
 import '../../../services/material_service.dart';
 import '../../../services/user_settings_service.dart';
 import '../../activity/activity_sheets.dart';
+import '../../permissions/providers/permissions_provider.dart';
 import '../pages/assignment_builder_page.dart';
 
-class AssignmentsTab extends StatefulWidget {
+class AssignmentsTab extends ConsumerStatefulWidget {
   const AssignmentsTab({super.key, required this.courseId});
 
   final String courseId;
 
   @override
-  State<AssignmentsTab> createState() => _AssignmentsTabState();
+  ConsumerState<AssignmentsTab> createState() => _AssignmentsTabState();
 }
 
-class _AssignmentsTabState extends State<AssignmentsTab> {
+class _AssignmentsTabState extends ConsumerState<AssignmentsTab> {
   late Future<List<AssignmentModel>> _assignmentsFuture;
 
   @override
@@ -41,12 +43,17 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
       future: _assignmentsFuture,
       builder: (context, snapshot) {
         final assignments = snapshot.data ?? [];
+        final permissions = ref.watch(permissionsProvider).valueOrDefaults;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(assignments.length),
+              _buildHeader(
+                assignments.length,
+                canManage: permissions.manageAssignments,
+                canUseAi: permissions.useAiAssignmentGeneration,
+              ),
               const SizedBox(height: 20),
               if (snapshot.connectionState != ConnectionState.done)
                 const Center(child: CircularProgressIndicator())
@@ -64,9 +71,15 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
                     child: _AssignmentCard(
                       assignment: assignment,
                       onTap: () => _showAssignmentDetails(assignment),
-                      onEdit: () => _openBuilder(assignment: assignment),
-                      onTogglePublished: () => _togglePublished(assignment),
-                      onDelete: () => _deleteAssignment(assignment),
+                      onEdit: permissions.manageAssignments
+                          ? () => _openBuilder(assignment: assignment)
+                          : null,
+                      onTogglePublished: permissions.manageAssignments
+                          ? () => _togglePublished(assignment)
+                          : null,
+                      onDelete: permissions.manageAssignments
+                          ? () => _deleteAssignment(assignment)
+                          : null,
                     ),
                   ),
                 ),
@@ -77,7 +90,11 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
     );
   }
 
-  Widget _buildHeader(int count) {
+  Widget _buildHeader(
+    int count, {
+    required bool canManage,
+    required bool canUseAi,
+  }) {
     return LayoutBuilder(
       builder: (_, constraints) {
         final isNarrow = constraints.maxWidth < 480;
@@ -94,12 +111,12 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
         );
 
         final createButton = ElevatedButton.icon(
-          onPressed: () => _openBuilder(),
+          onPressed: canManage ? () => _openBuilder() : null,
           icon: const Icon(Icons.add_rounded, size: 16),
           label: const Text('Create Assignment'),
         );
         final generateButton = OutlinedButton.icon(
-          onPressed: _generateAssignment,
+          onPressed: canUseAi && canManage ? _generateAssignment : null,
           icon: const Icon(Icons.auto_awesome_rounded, size: 16),
           label: const Text('Generate Assignment'),
         );
@@ -110,9 +127,12 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
             children: [
               titleBlock,
               const SizedBox(height: 12),
-              SizedBox(width: double.infinity, child: generateButton),
-              const SizedBox(height: 8),
-              SizedBox(width: double.infinity, child: createButton),
+              if (canUseAi && canManage) ...[
+                SizedBox(width: double.infinity, child: generateButton),
+                const SizedBox(height: 8),
+              ],
+              if (canManage)
+                SizedBox(width: double.infinity, child: createButton),
             ],
           );
         }
@@ -120,9 +140,11 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
         return Row(
           children: [
             Expanded(child: titleBlock),
-            generateButton,
-            const SizedBox(width: 8),
-            createButton,
+            if (canUseAi && canManage) ...[
+              generateButton,
+              const SizedBox(width: 8),
+            ],
+            if (canManage) createButton,
           ],
         );
       },
@@ -220,6 +242,7 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
   }
 
   Future<void> _showAssignmentDetails(AssignmentModel assignment) async {
+    final permissions = ref.read(permissionsProvider).valueOrDefaults;
     final details = await AssignmentService.instance.getAssignmentDetails(
       assignment.id,
     );
@@ -268,10 +291,11 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
                     style: AppTextStyles.bodySmall,
                   ),
                 ],
-                AssessmentActivityPanel(
-                  assessmentId: details.id,
-                  isQuiz: false,
-                ),
+                if (permissions.viewStudentActivity)
+                  AssessmentActivityPanel(
+                    assessmentId: details.id,
+                    isQuiz: false,
+                  ),
               ],
             ),
           ),
@@ -281,13 +305,14 @@ class _AssignmentsTabState extends State<AssignmentsTab> {
             onPressed: () => Navigator.pop(context),
             child: const Text('Close'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _openBuilder(assignment: details);
-            },
-            child: const Text('Edit'),
-          ),
+          if (permissions.manageAssignments)
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _openBuilder(assignment: details);
+              },
+              child: const Text('Edit'),
+            ),
         ],
       ),
     );
@@ -319,9 +344,9 @@ class _AssignmentCard extends StatelessWidget {
 
   final AssignmentModel assignment;
   final VoidCallback onTap;
-  final VoidCallback onEdit;
-  final VoidCallback onTogglePublished;
-  final VoidCallback onDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onTogglePublished;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -411,30 +436,35 @@ class _AssignmentCard extends StatelessWidget {
                 onSelected: (value) {
                   switch (value) {
                     case 'edit':
-                      onEdit();
+                      onEdit?.call();
                       break;
                     case 'toggle':
-                      onTogglePublished();
+                      onTogglePublished?.call();
                       break;
                     case 'delete':
-                      onDelete();
+                      onDelete?.call();
                       break;
                   }
                 },
                 itemBuilder: (_) => [
-                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                  PopupMenuItem(
-                    value: 'toggle',
-                    child: Text(
-                      assignment.isPublished ? 'Unpublish' : 'Accept & Publish',
+                  if (onEdit != null)
+                    const PopupMenuItem(value: 'edit', child: Text('Edit')),
+                  if (onTogglePublished != null)
+                    PopupMenuItem(
+                      value: 'toggle',
+                      child: Text(
+                        assignment.isPublished
+                            ? 'Unpublish'
+                            : 'Accept & Publish',
+                      ),
                     ),
-                  ),
-                  PopupMenuItem(
-                    value: 'delete',
-                    child: Text(
-                      assignment.isPublished ? 'Delete' : 'Reject Draft',
+                  if (onDelete != null)
+                    PopupMenuItem(
+                      value: 'delete',
+                      child: Text(
+                        assignment.isPublished ? 'Delete' : 'Reject Draft',
+                      ),
                     ),
-                  ),
                 ],
               ),
             ],
