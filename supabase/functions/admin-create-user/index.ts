@@ -90,6 +90,14 @@ Deno.serve(async (req) => {
     return json({ error: validationError }, 400);
   }
 
+  const { error: platformError } = await userClient.rpc(
+    "ensure_admin_user_creation_allowed",
+    { p_password: password },
+  );
+  if (platformError) {
+    return json({ error: friendlyPlatformError(platformError.message) }, 403);
+  }
+
   let { data: existingProfile } = await service
     .from("profiles")
     .select("id, deleted_at")
@@ -235,6 +243,20 @@ function friendlyAuthError(message = ""): string {
   }
   if (lower.includes("email")) {
     return "Enter a valid email address.";
+  }
+  return "User account could not be created.";
+}
+
+function friendlyPlatformError(message = ""): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("admin user creation")) {
+    return "Admin user creation is currently disabled.";
+  }
+  if (lower.includes("password")) {
+    return message;
+  }
+  if (lower.includes("admin")) {
+    return "Admin access required.";
   }
   return "User account could not be created.";
 }

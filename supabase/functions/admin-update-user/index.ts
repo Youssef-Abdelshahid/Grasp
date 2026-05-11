@@ -105,6 +105,14 @@ Deno.serve(async (req) => {
     return json({ error: "You cannot disable your own admin account." }, 403);
   }
 
+  const { error: platformError } = await userClient.rpc(
+    "ensure_admin_user_update_allowed",
+    { p_user_id: userId, p_role: role, p_status: status },
+  );
+  if (platformError) {
+    return json({ error: friendlyPlatformError(platformError.message) }, 403);
+  }
+
   const { data: duplicateProfile } = await service
     .from("profiles")
     .select("id")
@@ -198,6 +206,17 @@ function friendlyAuthError(message = ""): string {
   }
   if (lower.includes("email")) {
     return "Enter a valid email address.";
+  }
+  return "User profile could not be updated.";
+}
+
+function friendlyPlatformError(message = ""): string {
+  const lower = message.toLowerCase();
+  if (lower.includes("at least one active admin")) {
+    return "At least one active admin account must remain.";
+  }
+  if (lower.includes("admin access")) {
+    return "Admin access required.";
   }
   return "User profile could not be updated.";
 }

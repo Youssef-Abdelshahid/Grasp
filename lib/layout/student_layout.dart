@@ -6,6 +6,7 @@ import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
 import '../core/widgets/top_bar_actions.dart';
 import '../features/auth/providers/auth_providers.dart';
+import '../features/platform_settings/providers/platform_settings_provider.dart';
 import '../features/student/profile/student_profile_page.dart';
 import '../features/student/dashboard/student_dashboard_page.dart';
 import '../features/student/courses/student_courses_page.dart';
@@ -165,7 +166,7 @@ class _StudentSidebar extends ConsumerWidget {
       color: AppColors.sidebarBg,
       child: Column(
         children: [
-          _buildLogo(),
+          _buildLogo(ref),
           const SizedBox(height: 8),
           Expanded(
             child: ListView(
@@ -198,7 +199,11 @@ class _StudentSidebar extends ConsumerWidget {
     );
   }
 
-  Widget _buildLogo() {
+  Widget _buildLogo(WidgetRef ref) {
+    final platformName = ref
+        .watch(platformSettingsProvider)
+        .valueOrDefaults
+        .platformName;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       decoration: const BoxDecoration(
@@ -220,7 +225,7 @@ class _StudentSidebar extends ConsumerWidget {
           ),
           const SizedBox(width: 10),
           Text(
-            AppConstants.appName,
+            platformName,
             style: AppTextStyles.h3.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w700,

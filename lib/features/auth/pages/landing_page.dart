@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../features/platform_settings/providers/platform_settings_provider.dart';
 import '../../../routing/app_router.dart';
 
 class LandingPage extends StatelessWidget {
@@ -25,12 +27,15 @@ class LandingPage extends StatelessWidget {
   }
 }
 
-class _NavBar extends StatelessWidget {
+class _NavBar extends ConsumerWidget {
   final BuildContext parentContext;
   const _NavBar(this.parentContext);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(publicPlatformSettingsProvider).valueOrNull;
+    final platformName = settings?.platformName ?? AppConstants.appName;
+    final registrationEnabled = settings?.landingPageRegistration ?? true;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: const BoxDecoration(
@@ -53,7 +58,7 @@ class _NavBar extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            AppConstants.appName,
+            platformName,
             style: AppTextStyles.h3.copyWith(color: AppColors.primary),
           ),
           const Spacer(),
@@ -65,29 +70,36 @@ class _NavBar extends StatelessWidget {
             child: const Text('Sign In'),
           ),
           const SizedBox(width: 6),
-          ElevatedButton(
-            onPressed: () => Navigator.pushNamed(parentContext, AppRouter.auth),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              textStyle: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+          if (registrationEnabled) ...[
+            const SizedBox(width: 6),
+            ElevatedButton(
+              onPressed: () =>
+                  Navigator.pushNamed(parentContext, AppRouter.auth),
+              style: ElevatedButton.styleFrom(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                textStyle: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                ),
               ),
+              child: const Text('Get Started'),
             ),
-            child: const Text('Get Started'),
-          ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _Hero extends StatelessWidget {
+class _Hero extends ConsumerWidget {
   final BuildContext parentContext;
   const _Hero(this.parentContext);
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final settings = ref.watch(publicPlatformSettingsProvider).valueOrNull;
+    final registrationEnabled = settings?.landingPageRegistration ?? true;
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
 
@@ -157,24 +169,25 @@ class _Hero extends StatelessWidget {
             runSpacing: 10,
             alignment: WrapAlignment.center,
             children: [
-              ElevatedButton(
-                onPressed: () =>
-                    Navigator.pushNamed(parentContext, AppRouter.auth),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 22,
-                    vertical: 14,
+              if (registrationEnabled)
+                ElevatedButton(
+                  onPressed: () =>
+                      Navigator.pushNamed(parentContext, AppRouter.auth),
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 22,
+                      vertical: 14,
+                    ),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text('Get Started Free'),
+                      SizedBox(width: 8),
+                      Icon(Icons.arrow_forward_rounded, size: 16),
+                    ],
                   ),
                 ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Get Started Free'),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward_rounded, size: 16),
-                  ],
-                ),
-              ),
               OutlinedButton(
                 onPressed: () =>
                     Navigator.pushNamed(parentContext, AppRouter.auth),

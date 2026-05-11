@@ -8,6 +8,7 @@ import '../core/auth/app_role.dart';
 import '../core/config/app_env.dart';
 import '../models/user_model.dart';
 import 'permissions_service.dart';
+import 'platform_settings_service.dart';
 
 class AuthService extends ChangeNotifier {
   AuthService._();
@@ -96,6 +97,19 @@ class AuthService extends ChangeNotifier {
     notifyListeners();
 
     try {
+      final platformSettings =
+          await PlatformSettingsService.instance.getPublicSettings();
+      if (!platformSettings.landingPageRegistration) {
+        throw const AuthException(
+          PlatformSettingsService.publicRegistrationDisabledMessage,
+        );
+      }
+      final passwordError = PlatformSettingsService.instance
+          .strongPasswordError(password, platformSettings);
+      if (passwordError != null) {
+        throw AuthException(passwordError);
+      }
+
       final registrationPermissions = await PermissionsService.instance
           .getPublicRegistrationPermissions();
       if (role == AppRole.student && !registrationPermissions.student) {
@@ -202,6 +216,18 @@ class AuthService extends ChangeNotifier {
 
     try {
       final userId = session.user.id;
+      final platformSettings =
+          await PlatformSettingsService.instance.getEffectiveSettings();
+      if (PlatformSettingsService.instance.sessionWasInvalidated(
+        accessToken: session.accessToken,
+        invalidatedAt: platformSettings.platformSessionInvalidatedAt,
+      )) {
+        await logout();
+        _lastError = PlatformSettingsService.forceLogoutMessage;
+        notifyListeners();
+        return;
+      }
+
       final response = await Supabase.instance.client
           .from('profiles')
           .select()

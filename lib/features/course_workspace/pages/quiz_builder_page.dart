@@ -1,5 +1,6 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -11,8 +12,9 @@ import '../../../models/material_model.dart';
 import '../../../services/gemini_ai_service.dart';
 import '../../../services/material_service.dart';
 import '../../../services/quiz_service.dart';
+import '../../ai_controls/providers/ai_controls_provider.dart';
 
-class QuizBuilderPage extends StatefulWidget {
+class QuizBuilderPage extends ConsumerStatefulWidget {
   const QuizBuilderPage({
     super.key,
     required this.courseId,
@@ -25,10 +27,10 @@ class QuizBuilderPage extends StatefulWidget {
   final AiQuizDraft? aiDraft;
 
   @override
-  State<QuizBuilderPage> createState() => _QuizBuilderPageState();
+  ConsumerState<QuizBuilderPage> createState() => _QuizBuilderPageState();
 }
 
-class _QuizBuilderPageState extends State<QuizBuilderPage> {
+class _QuizBuilderPageState extends ConsumerState<QuizBuilderPage> {
   final _formKey = GlobalKey<FormState>();
   final _titleCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
@@ -394,11 +396,15 @@ class _QuizBuilderPageState extends State<QuizBuilderPage> {
                 icon: const Icon(Icons.add_rounded, size: 16),
                 label: const Text('Add Question'),
               ),
-              ElevatedButton.icon(
-                onPressed: _isSaving ? null : _generateQuestion,
-                icon: const Icon(Icons.auto_awesome_rounded, size: 16),
-                label: const Text('Generate Question'),
-              ),
+              if (ref
+                  .watch(aiControlsProvider)
+                  .valueOrDefaults
+                  .canGenerateSingleQuestion)
+                ElevatedButton.icon(
+                  onPressed: _isSaving ? null : _generateQuestion,
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                  label: const Text('Generate Question'),
+                ),
             ],
           ),
         ],

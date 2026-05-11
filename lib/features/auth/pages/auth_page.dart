@@ -6,6 +6,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../features/permissions/providers/permissions_provider.dart';
+import '../../../features/platform_settings/providers/platform_settings_provider.dart';
 import '../../../routing/app_router.dart';
 import '../providers/auth_providers.dart';
 
@@ -32,9 +33,10 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-      () => ref.invalidate(publicRegistrationPermissionsProvider),
-    );
+    Future.microtask(() {
+      ref.invalidate(publicRegistrationPermissionsProvider);
+      ref.invalidate(publicPlatformSettingsProvider);
+    });
   }
 
   @override
@@ -76,6 +78,11 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }
 
   Widget _buildSidePanel() {
+    final platformName = ref
+        .watch(publicPlatformSettingsProvider)
+        .valueOrNull
+        ?.platformName ??
+        AppConstants.appName;
     return Expanded(
       child: Container(
         decoration: const BoxDecoration(
@@ -106,7 +113,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    AppConstants.appName,
+                    platformName,
                     style: AppTextStyles.h3.copyWith(color: Colors.white),
                   ),
                 ],
@@ -242,8 +249,21 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               if (value == null || value.isEmpty) {
                 return 'Please enter your password.';
               }
-              if (!_isLogin && value.length < 8) {
-                return 'Password must be at least 8 characters.';
+              if (!_isLogin) {
+                final settings =
+                    ref.read(publicPlatformSettingsProvider).valueOrNull;
+                final requireStrong = settings?.requireStrongPasswords ?? true;
+                if (requireStrong) {
+                  if (value.length < 8 ||
+                      !RegExp('[A-Z]').hasMatch(value) ||
+                      !RegExp('[a-z]').hasMatch(value) ||
+                      !RegExp('[0-9]').hasMatch(value) ||
+                      !RegExp(r'[^A-Za-z0-9]').hasMatch(value)) {
+                    return 'Use uppercase, lowercase, number, and special character.';
+                  }
+                } else if (value.length < 6) {
+                  return 'Password must be at least 6 characters.';
+                }
               }
               return null;
             },
@@ -334,6 +354,16 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }
 
   Widget _buildToggle() {
+    final publicSettings = ref.watch(publicPlatformSettingsProvider).valueOrNull;
+    final registrationEnabled =
+        publicSettings?.landingPageRegistration ?? true;
+    final labels = registrationEnabled ? ['Sign In', 'Register'] : ['Sign In'];
+    if (!registrationEnabled && !_isLogin) {
+      Future.microtask(() {
+        if (mounted) setState(() => _isLogin = true);
+      });
+    }
+
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
@@ -342,7 +372,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
-        children: ['Sign In', 'Register'].map((label) {
+        children: labels.map((label) {
           final isActive = (label == 'Sign In') == _isLogin;
           return Expanded(
             child: GestureDetector(
@@ -382,6 +412,29 @@ class _AuthPageState extends ConsumerState<AuthPage> {
   }
 
   Widget _buildRoleSelector() {
+    final publicSettingsAsync = ref.watch(publicPlatformSettingsProvider);
+    final publicSettings = publicSettingsAsync.valueOrNull;
+    if (publicSettingsAsync.isLoading && publicSettings == null) {
+      return Row(
+        children: [
+          const SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 10),
+          Text('Loading registration options...', style: AppTextStyles.bodySmall),
+        ],
+      );
+    }
+
+    if (publicSettings?.landingPageRegistration == false) {
+      return Text(
+        'Public registration is currently disabled.',
+        style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+      );
+    }
+
     final registrationPermissionsAsync = ref.watch(
       publicRegistrationPermissionsProvider,
     );

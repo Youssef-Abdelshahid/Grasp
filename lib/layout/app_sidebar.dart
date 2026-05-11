@@ -5,6 +5,7 @@ import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
 import '../features/auth/providers/auth_providers.dart';
+import '../features/platform_settings/providers/platform_settings_provider.dart';
 import '../widgets/auth/logout_flow.dart';
 
 class AppSidebar extends ConsumerWidget {
@@ -32,7 +33,7 @@ class AppSidebar extends ConsumerWidget {
       color: AppColors.sidebarBg,
       child: Column(
         children: [
-          _buildLogo(),
+          _buildLogo(ref),
           const SizedBox(height: 8),
           Expanded(
             child: ListView(
@@ -65,7 +66,11 @@ class AppSidebar extends ConsumerWidget {
     );
   }
 
-  Widget _buildLogo() {
+  Widget _buildLogo(WidgetRef ref) {
+    final platformName = ref
+        .watch(platformSettingsProvider)
+        .valueOrDefaults
+        .platformName;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       decoration: const BoxDecoration(
@@ -87,7 +92,7 @@ class AppSidebar extends ConsumerWidget {
           ),
           const SizedBox(width: 10),
           Text(
-            AppConstants.appName,
+            platformName,
             style: AppTextStyles.h3.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w700,

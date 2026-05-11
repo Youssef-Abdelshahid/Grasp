@@ -3,9 +3,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:path/path.dart' as p;
 
 import '../models/quiz_model.dart';
+import '../models/upload_limits_model.dart';
 import 'material_service.dart';
 import '../models/permissions_model.dart';
 import 'permissions_service.dart';
+import 'upload_limits_service.dart';
 
 class QuizService {
   QuizService._();
@@ -191,6 +193,11 @@ class QuizService {
     await PermissionsService.instance.requireInstructorPermission(
       PermissionKeys.manageQuizzes,
     );
+    await UploadLimitsService.instance.validateUpload(
+      source: UploadSources.questionImage,
+      file: file,
+      courseId: courseId,
+    );
     final bytes = file.bytes;
     if (bytes == null) {
       throw const QuizException('Unable to read the selected image.');
@@ -209,6 +216,14 @@ class QuizService {
             upsert: false,
           ),
         );
+    await UploadLimitsService.instance.recordUploadMetadata(
+      bucket: MaterialService.bucketName,
+      source: UploadSources.questionImage,
+      file: file,
+      mimeType: _guessImageMime(file.extension ?? ''),
+      storagePath: objectPath,
+      courseId: courseId,
+    );
     return {'image_path': objectPath, 'image_name': file.name};
   }
 
@@ -226,10 +241,6 @@ class QuizService {
       case 'jpg':
       case 'jpeg':
         return 'image/jpeg';
-      case 'gif':
-        return 'image/gif';
-      case 'webp':
-        return 'image/webp';
       default:
         return 'application/octet-stream';
     }

@@ -4,6 +4,7 @@ import '../core/auth/app_role.dart';
 import '../models/admin_models.dart';
 import '../models/dashboard_models.dart';
 import 'auth_service.dart';
+import 'platform_settings_service.dart';
 
 class AdminService {
   AdminService._();
@@ -35,7 +36,38 @@ class AdminService {
         .map(
           (item) => AdminUser.fromJson(Map<String, dynamic>.from(item as Map)),
         )
-        .toList();
+        .toList()
+      ..sort(await _adminListSortComparator());
+  }
+
+  Future<int Function(AdminUser a, AdminUser b)> _adminListSortComparator()
+      async {
+    final settings =
+        await PlatformSettingsService.instance.getEffectiveSettings();
+    int byOldest(AdminUser a, AdminUser b) {
+      return _createdAtOrEpoch(a).compareTo(_createdAtOrEpoch(b));
+    }
+
+    int byNewest(AdminUser a, AdminUser b) {
+      return _createdAtOrEpoch(b).compareTo(_createdAtOrEpoch(a));
+    }
+
+    int byName(AdminUser a, AdminUser b) {
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    }
+
+    switch (settings.defaultListSorting) {
+      case 'oldest_first':
+        return byOldest;
+      case 'a_z':
+        return byName;
+      default:
+        return byNewest;
+    }
+  }
+
+  DateTime _createdAtOrEpoch(AdminUser user) {
+    return user.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
   }
 
   Future<AdminUserDetail> getUserDetail(String userId) async {
@@ -174,6 +206,19 @@ class AdminService {
     required String currentPassword,
     required String newPassword,
   }) async {
+    final settings = await PlatformSettingsService.instance
+        .getEffectiveSettings();
+    if (!settings.allowPasswordChange) {
+      throw const AdminServiceException(
+        PlatformSettingsService.passwordChangeDisabledMessage,
+      );
+    }
+    final passwordError = PlatformSettingsService.instance
+        .strongPasswordError(newPassword, settings);
+    if (passwordError != null) {
+      throw AdminServiceException(passwordError);
+    }
+
     final email = _client.auth.currentUser?.email?.trim() ?? '';
     if (email.isEmpty) {
       throw const AdminServiceException('Admin session could not be verified.');
@@ -189,9 +234,16 @@ class AdminService {
     }
 
     try {
+      await PlatformSettingsService.instance.ensurePasswordChangeAllowed(
+        newPassword,
+      );
       await _client.auth.updateUser(UserAttributes(password: newPassword));
     } on AuthException {
       throw const AdminServiceException('Password could not be updated.');
+    }
+
+    if (settings.requireReloginAfterPasswordChange) {
+      await AuthService.instance.logout();
     }
   }
 

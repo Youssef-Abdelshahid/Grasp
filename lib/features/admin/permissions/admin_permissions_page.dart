@@ -259,22 +259,6 @@ class _AdminPermissionsPageState
                 _setPermission(PermissionKeys.submitAssignments, v),
           ),
           _ToggleTile(
-            label: 'Generate Flashcards',
-            subtitle:
-                'Allow students to generate AI flashcards from course materials',
-            value: _permissions.generateFlashcards,
-            onChanged: (v) =>
-                _setPermission(PermissionKeys.generateFlashcards, v),
-          ),
-          _ToggleTile(
-            label: 'Generate Study Notes',
-            subtitle:
-                'Allow students to generate AI revision sheets/study notes',
-            value: _permissions.generateStudyNotes,
-            onChanged: (v) =>
-                _setPermission(PermissionKeys.generateStudyNotes, v),
-          ),
-          _ToggleTile(
             label: 'View Course Student List',
             subtitle:
                 'Allow students to see the read-only list of classmates in a course',
@@ -416,7 +400,12 @@ class _AdminPermissionsPageState
   }
 
   Widget _buildRoleSummary() {
-    final studentOn = _permissions.enabledStudentCount;
+    final studentOn = [
+      _permissions.downloadMaterials,
+      _permissions.takeQuizzes,
+      _permissions.submitAssignments,
+      _permissions.viewCourseStudentList,
+    ].where((value) => value).length;
     final instructorOn = _permissions.enabledInstructorCount;
 
     return Container(
@@ -437,7 +426,7 @@ class _AdminPermissionsPageState
             bg: AppColors.cyanLight,
             role: 'Students',
             enabled: studentOn,
-            total: 6,
+            total: 4,
           ),
           const SizedBox(height: 12),
           _SummaryRow(

@@ -9,7 +9,9 @@ import '../models/permissions_model.dart';
 import '../models/quiz_model.dart';
 import '../models/quiz_question_model.dart';
 import '../models/submission_model.dart';
+import '../models/upload_limits_model.dart';
 import 'permissions_service.dart';
+import 'upload_limits_service.dart';
 
 class SubmissionService {
   SubmissionService._();
@@ -263,6 +265,10 @@ class SubmissionService {
     int? fileSizeBytes;
 
     if (file != null) {
+      await UploadLimitsService.instance.validateUpload(
+        source: UploadSources.assignmentSubmission,
+        file: file,
+      );
       final bytes = await _readFileBytes(file);
       fileName = file.name;
       fileSizeBytes = file.size;
@@ -297,7 +303,21 @@ class SubmissionService {
         .select()
         .single();
 
-    return SubmissionModel.fromJson(Map<String, dynamic>.from(response));
+    final submission = SubmissionModel.fromJson(
+      Map<String, dynamic>.from(response),
+    );
+    if (file != null && storagePath != null) {
+      await UploadLimitsService.instance.recordUploadMetadata(
+        bucket: assignmentBucketName,
+        source: UploadSources.assignmentSubmission,
+        file: file,
+        mimeType: _guessMime(file.extension ?? ''),
+        storagePath: storagePath,
+        assignmentId: assignment.id,
+        submissionId: submission.id,
+      );
+    }
+    return submission;
   }
 
   Future<String?> createSubmissionFileUrl(SubmissionModel submission) async {

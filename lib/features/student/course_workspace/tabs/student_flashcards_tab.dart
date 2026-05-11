@@ -10,6 +10,7 @@ import '../../../../models/material_model.dart';
 import '../../../../services/flashcard_service.dart';
 import '../../../../services/gemini_ai_service.dart';
 import '../../../../services/material_service.dart';
+import '../../../ai_controls/providers/ai_controls_provider.dart';
 import '../../../permissions/providers/permissions_provider.dart';
 
 class StudentFlashcardsTab extends ConsumerStatefulWidget {
@@ -36,8 +37,10 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
       future: _future,
       builder: (context, snapshot) {
         final data = snapshot.data ?? const _FlashcardTabData([], []);
+        final aiControls = ref.watch(aiControlsProvider).valueOrDefaults;
         final canGenerate =
-            ref.watch(permissionsProvider).valueOrDefaults.generateFlashcards;
+            ref.watch(permissionsProvider).valueOrDefaults.generateFlashcards &&
+            aiControls.canStudentGenerateFlashcards;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(

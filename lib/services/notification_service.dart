@@ -2,6 +2,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/notification_model.dart';
 import '../models/user_settings_model.dart';
+import 'auth_service.dart';
+import 'platform_settings_service.dart';
 import 'user_settings_service.dart';
 
 class NotificationService {
@@ -14,6 +16,11 @@ class NotificationService {
   Future<List<NotificationModel>> getNotifications() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return const [];
+    if (AuthService.instance.currentUser?.role.value == 'admin') {
+      final platform = await PlatformSettingsService.instance
+          .getEffectiveSettings();
+      if (!platform.adminNotifications) return const [];
+    }
     final response = await _client
         .from('notifications')
         .select()
@@ -33,6 +40,11 @@ class NotificationService {
   Future<int> getUnreadCount() async {
     final userId = _client.auth.currentUser?.id;
     if (userId == null) return 0;
+    if (AuthService.instance.currentUser?.role.value == 'admin') {
+      final platform = await PlatformSettingsService.instance
+          .getEffectiveSettings();
+      if (!platform.adminNotifications) return 0;
+    }
     final response = await _client
         .from('notifications')
         .select('id, category')

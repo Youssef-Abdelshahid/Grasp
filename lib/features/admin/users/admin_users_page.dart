@@ -1,25 +1,28 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/app_role.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/user_utils.dart';
+import '../../../features/platform_settings/providers/platform_settings_provider.dart';
 import '../../../models/admin_models.dart';
+import '../../../models/platform_settings_model.dart';
 import '../../../services/admin_service.dart';
 import '../../../services/auth_service.dart';
 import 'admin_user_detail_page.dart';
 
-class AdminUsersPage extends StatefulWidget {
+class AdminUsersPage extends ConsumerStatefulWidget {
   const AdminUsersPage({super.key});
 
   @override
-  State<AdminUsersPage> createState() => _AdminUsersPageState();
+  ConsumerState<AdminUsersPage> createState() => _AdminUsersPageState();
 }
 
-class _AdminUsersPageState extends State<AdminUsersPage> {
+class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
 
@@ -66,6 +69,11 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   }
 
   Future<void> _openCreateUser() async {
+    final settings = ref.read(platformSettingsProvider).valueOrDefaults;
+    if (!settings.adminUserCreationEnabled) {
+      _showSnackBar('Admin user creation is currently disabled.', isError: true);
+      return;
+    }
     final message = await _showCreateUserSheet();
     if (message == null || !mounted) {
       return;
@@ -193,6 +201,8 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
   }
 
   Widget _buildHeader(int count, bool isLoading) {
+    final platformSettings = ref.watch(platformSettingsProvider).valueOrDefaults;
+    final canCreate = platformSettings.adminUserCreationEnabled;
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -238,7 +248,7 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
         ),
         const SizedBox(width: 8),
         ElevatedButton.icon(
-          onPressed: isLoading ? null : _openCreateUser,
+          onPressed: isLoading || !canCreate ? null : _openCreateUser,
           icon: const Icon(Icons.person_add_rounded, size: 16),
           label: const Text('Create User'),
         ),
@@ -328,7 +338,10 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
                     child: TextFormField(
                       controller: password,
                       obscureText: obscurePassword,
-                      validator: _passwordError,
+                      validator: (value) => _passwordError(
+                        value,
+                        ref.read(platformSettingsProvider).valueOrDefaults,
+                      ),
                       decoration: InputDecoration(
                         suffixIcon: IconButton(
                           onPressed: () => setSheet(
@@ -895,12 +908,20 @@ class _AdminUsersPageState extends State<AdminUsersPage> {
     return null;
   }
 
-  String? _passwordError(String? value) {
+  String? _passwordError(String? value, PlatformSettingsConfig settings) {
     if (value == null || value.isEmpty) {
       return 'Temporary password is required.';
     }
-    if (value.length < 8) {
-      return 'Temporary password must be at least 8 characters.';
+    if (settings.requireStrongPasswords) {
+      if (value.length < 8 ||
+          !RegExp('[A-Z]').hasMatch(value) ||
+          !RegExp('[a-z]').hasMatch(value) ||
+          !RegExp('[0-9]').hasMatch(value) ||
+          !RegExp(r'[^A-Za-z0-9]').hasMatch(value)) {
+        return 'Use uppercase, lowercase, number, and special character.';
+      }
+    } else if (value.length < 6) {
+      return 'Temporary password must be at least 6 characters.';
     }
     return null;
   }

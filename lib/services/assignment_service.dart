@@ -5,9 +5,11 @@ import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/assignment_model.dart';
+import '../models/upload_limits_model.dart';
 import 'material_service.dart';
 import '../models/permissions_model.dart';
 import 'permissions_service.dart';
+import 'upload_limits_service.dart';
 
 class AssignmentService {
   AssignmentService._();
@@ -183,6 +185,11 @@ class AssignmentService {
     await PermissionsService.instance.requireInstructorPermission(
       PermissionKeys.manageAssignments,
     );
+    await UploadLimitsService.instance.validateUpload(
+      source: UploadSources.assignmentAttachment,
+      file: file,
+      courseId: courseId,
+    );
     final bytes = await _readFileBytes(file);
     final objectPath =
         '$courseId/assignment-attachments/${DateTime.now().millisecondsSinceEpoch}_${p.basename(file.name)}';
@@ -196,6 +203,14 @@ class AssignmentService {
             upsert: false,
           ),
         );
+    await UploadLimitsService.instance.recordUploadMetadata(
+      bucket: MaterialService.bucketName,
+      source: UploadSources.assignmentAttachment,
+      file: file,
+      mimeType: _guessMime(file.extension ?? ''),
+      storagePath: objectPath,
+      courseId: courseId,
+    );
     return {
       'path': objectPath,
       'name': file.name,

@@ -14,6 +14,7 @@ import '../../../services/material_service.dart';
 import '../../../services/quiz_service.dart';
 import '../../../services/user_settings_service.dart';
 import '../../activity/activity_sheets.dart';
+import '../../ai_controls/providers/ai_controls_provider.dart';
 import '../../permissions/providers/permissions_provider.dart';
 import '../pages/quiz_builder_page.dart';
 
@@ -42,6 +43,7 @@ class _QuizzesTabState extends ConsumerState<QuizzesTab> {
       builder: (context, snapshot) {
         final quizzes = snapshot.data ?? [];
         final permissions = ref.watch(permissionsProvider).valueOrDefaults;
+        final aiControls = ref.watch(aiControlsProvider).valueOrDefaults;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -50,7 +52,8 @@ class _QuizzesTabState extends ConsumerState<QuizzesTab> {
               _buildHeader(
                 quizzes.length,
                 canManage: permissions.manageQuizzes,
-                canUseAi: permissions.useAiQuizGeneration,
+                canUseAi: permissions.useAiQuizGeneration &&
+                    aiControls.canInstructorGenerateQuiz,
               ),
               const SizedBox(height: 20),
               if (snapshot.connectionState != ConnectionState.done)

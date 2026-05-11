@@ -10,6 +10,7 @@ import '../../../../models/study_note_model.dart';
 import '../../../../services/gemini_ai_service.dart';
 import '../../../../services/material_service.dart';
 import '../../../../services/study_note_service.dart';
+import '../../../ai_controls/providers/ai_controls_provider.dart';
 import '../../../permissions/providers/permissions_provider.dart';
 
 class StudentStudyNotesTab extends ConsumerStatefulWidget {
@@ -36,8 +37,10 @@ class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
       future: _future,
       builder: (context, snapshot) {
         final data = snapshot.data ?? const _StudyNotesTabData([], []);
+        final aiControls = ref.watch(aiControlsProvider).valueOrDefaults;
         final canGenerate =
-            ref.watch(permissionsProvider).valueOrDefaults.generateStudyNotes;
+            ref.watch(permissionsProvider).valueOrDefaults.generateStudyNotes &&
+            aiControls.canStudentGenerateStudyNotes;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(

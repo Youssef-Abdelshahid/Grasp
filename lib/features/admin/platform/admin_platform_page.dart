@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
+import '../../../features/platform_settings/providers/platform_settings_provider.dart';
+import '../../../models/platform_settings_model.dart';
 import '../../../widgets/auth/logout_flow.dart';
 
 class AdminPlatformPage extends ConsumerStatefulWidget {
@@ -13,51 +15,148 @@ class AdminPlatformPage extends ConsumerStatefulWidget {
 }
 
 class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
-  bool _registrationsOpen = true;
-  bool _emailVerification = true;
-  bool _adminApproval = false;
-  bool _maintenanceMode = false;
-  bool _twoFactorAdmin = true;
-  bool _sessionTimeout = true;
-  bool _systemAlerts = true;
-  bool _auditLogs = true;
-  bool _notifyEmail = true;
-  bool _notifyPush = true;
-  bool _notifyNewUser = true;
-  bool _notifyLowStorage = false;
-  String _digestFreq = 'Weekly';
+  final _platformNameController = TextEditingController(text: 'Grasp');
 
-  final _loadingActions = <String>{};
-  final _doneActions = <String>{};
+  bool _landingPageRegistration = true;
+  bool _requireStrongPasswords = true;
+  bool _allowPasswordChange = true;
+  bool _adminUserCreationEnabled = true;
+  bool _preventDeletingLastAdmin = true;
+  bool _adminNotifications = true;
+  bool _newUserNotifications = true;
+  bool _courseActivityNotifications = true;
+  bool _aiFailureNotifications = true;
+  bool _requireReloginAfterPasswordChange = true;
+  bool _autoLogoutInactiveUsers = true;
+  String _dashboardTimeRange = 'Last 30 days';
+  String _defaultListSorting = 'Newest first';
+  String _timeoutDuration = '30 min';
 
-  void _confirmAction({
-    required String id,
-    required String title,
-    required String message,
-    required String successMessage,
-    bool isDangerous = false,
-  }) {
+  bool _syncedInitialValues = false;
+  bool _isSaving = false;
+  bool _isResetting = false;
+  bool _isForcingLogout = false;
+
+  @override
+  void dispose() {
+    _platformNameController.dispose();
+    super.dispose();
+  }
+
+  void _syncFromSettings(PlatformSettingsConfig settings) {
+    _platformNameController.text = settings.platformName;
+    _landingPageRegistration = settings.landingPageRegistration;
+    _dashboardTimeRange = PlatformDashboardRanges.label(
+      settings.defaultDashboardTimeRange,
+    );
+    _defaultListSorting = PlatformListSorting.label(settings.defaultListSorting);
+    _requireStrongPasswords = settings.requireStrongPasswords;
+    _allowPasswordChange = settings.allowPasswordChange;
+    _adminUserCreationEnabled = settings.adminUserCreationEnabled;
+    _preventDeletingLastAdmin = settings.preventDeletingLastAdmin;
+    _adminNotifications = settings.adminNotifications;
+    _newUserNotifications = settings.newUserNotifications;
+    _courseActivityNotifications = settings.courseActivityNotifications;
+    _aiFailureNotifications = settings.aiGenerationFailureNotifications;
+    _requireReloginAfterPasswordChange =
+        settings.requireReloginAfterPasswordChange;
+    _autoLogoutInactiveUsers = settings.autoLogoutInactiveUsers;
+    _timeoutDuration = PlatformTimeoutDurations.label(
+      settings.timeoutDurationMinutes,
+    );
+  }
+
+  PlatformSettingsConfig _currentConfig() {
+    return PlatformSettingsConfig(
+      platformName: _platformNameController.text.trim(),
+      landingPageRegistration: _landingPageRegistration,
+      defaultDashboardTimeRange: PlatformDashboardRanges.fromLabel(
+        _dashboardTimeRange,
+      ),
+      defaultListSorting: PlatformListSorting.fromLabel(_defaultListSorting),
+      requireStrongPasswords: _requireStrongPasswords,
+      allowPasswordChange: _allowPasswordChange,
+      adminUserCreationEnabled: _adminUserCreationEnabled,
+      preventDeletingLastAdmin: _preventDeletingLastAdmin,
+      adminNotifications: _adminNotifications,
+      newUserNotifications: _newUserNotifications,
+      courseActivityNotifications: _courseActivityNotifications,
+      aiGenerationFailureNotifications: _aiFailureNotifications,
+      requireReloginAfterPasswordChange: _requireReloginAfterPasswordChange,
+      autoLogoutInactiveUsers: _autoLogoutInactiveUsers,
+      timeoutDurationMinutes: PlatformTimeoutDurations.fromLabel(
+        _timeoutDuration,
+      ),
+    );
+  }
+
+  Future<void> _saveSettings() async {
+    final config = _currentConfig();
+    if (config.platformName.trim().isEmpty) {
+      _showSnackBar('Platform name is required.', isError: true);
+      return;
+    }
+
+    setState(() => _isSaving = true);
+    try {
+      final saved = await ref
+          .read(adminPlatformSettingsProvider.notifier)
+          .save(config);
+      if (!mounted) return;
+      setState(() {
+        _syncFromSettings(saved);
+        _isSaving = false;
+      });
+      _showSnackBar('Platform settings saved.');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isSaving = false);
+      _showSnackBar(error.toString(), isError: true);
+    }
+  }
+
+  Future<void> _resetSettings() async {
+    setState(() => _isResetting = true);
+    try {
+      final reset = await ref
+          .read(adminPlatformSettingsProvider.notifier)
+          .reset();
+      if (!mounted) return;
+      setState(() {
+        _syncFromSettings(reset);
+        _isResetting = false;
+      });
+      _showSnackBar('Platform settings reset to defaults.');
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isResetting = false);
+      _showSnackBar(error.toString(), isError: true);
+    }
+  }
+
+  Future<void> _confirmForceLogoutAllUsers() async {
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(message, style: AppTextStyles.bodySmall),
+        title: const Text('Force Logout All Users'),
+        content: Text(
+          'All active sessions will be marked invalid. Everyone, including you, will need to sign in again.',
+          style: AppTextStyles.bodySmall,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: const Text('Cancel'),
           ),
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               Navigator.pop(context);
-              _runAction(id, successMessage);
+              await _forceLogoutAllUsers();
             },
-            style: isDangerous
-                ? ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.error,
-                    foregroundColor: Colors.white,
-                  )
-                : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Confirm'),
           ),
         ],
@@ -65,18 +164,21 @@ class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
     );
   }
 
-  Future<void> _runAction(String id, String successMessage) async {
-    setState(() => _loadingActions.add(id));
-    await Future.delayed(const Duration(milliseconds: 1400));
-    if (!mounted) return;
-    setState(() {
-      _loadingActions.remove(id);
-      _doneActions.add(id);
-    });
-    _showSnackBar(successMessage);
-    await Future.delayed(const Duration(seconds: 3));
-    if (!mounted) return;
-    setState(() => _doneActions.remove(id));
+  Future<void> _forceLogoutAllUsers() async {
+    setState(() => _isForcingLogout = true);
+    try {
+      await ref
+          .read(adminPlatformSettingsProvider.notifier)
+          .forceLogoutAllUsers();
+      if (!mounted) return;
+      _showSnackBar('All sessions were invalidated. Please sign in again.');
+      if (!mounted) return;
+      logoutAndReturnToAuthGate(context, ref);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _isForcingLogout = false);
+      _showSnackBar(error.toString(), isError: true);
+    }
   }
 
   void _showSnackBar(String message, {bool isError = false}) {
@@ -104,53 +206,135 @@ class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
 
   @override
   Widget build(BuildContext context) {
+    final settingsAsync = ref.watch(adminPlatformSettingsProvider);
+    final loadedSettings = settingsAsync.valueOrNull;
+    if (!_syncedInitialValues && loadedSettings != null) {
+      _syncedInitialValues = true;
+      _syncFromSettings(loadedSettings);
+    }
+
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
 
+    if (settingsAsync.isLoading && loadedSettings == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (settingsAsync.hasError && !_syncedInitialValues) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                color: AppColors.error,
+                size: 32,
+              ),
+              const SizedBox(height: 12),
+              Text('Unable to load platform settings', style: AppTextStyles.h3),
+              const SizedBox(height: 6),
+              Text(
+                settingsAsync.error.toString(),
+                style: AppTextStyles.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: () => ref.invalidate(adminPlatformSettingsProvider),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return SingleChildScrollView(
       padding: EdgeInsets.all(isWide ? 28 : 16),
-      child: isWide
-          ? Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    children: [
-                      _buildPlatformSettings(),
-                      const SizedBox(height: 20),
-                      _buildSecuritySettings(),
-                      const SizedBox(height: 20),
-                      _buildNotificationSettings(),
-                    ],
-                  ),
+      child: Column(
+        children: [
+          _buildSaveBar(),
+          const SizedBox(height: 20),
+          isWide
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        children: [
+                          _buildPlatformSettings(),
+                          const SizedBox(height: 20),
+                          _buildSecuritySettings(),
+                          const SizedBox(height: 20),
+                          _buildNotificationSettings(),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 20),
+                    Expanded(flex: 2, child: _buildDangerZone()),
+                  ],
+                )
+              : Column(
+                  children: [
+                    _buildPlatformSettings(),
+                    const SizedBox(height: 20),
+                    _buildSecuritySettings(),
+                    const SizedBox(height: 20),
+                    _buildNotificationSettings(),
+                    const SizedBox(height: 20),
+                    _buildDangerZone(),
+                  ],
                 ),
-                const SizedBox(width: 20),
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    children: [
-                      _buildSystemActions(),
-                      const SizedBox(height: 20),
-                      _buildDangerZone(),
-                    ],
-                  ),
-                ),
-              ],
-            )
-          : Column(
-              children: [
-                _buildPlatformSettings(),
-                const SizedBox(height: 20),
-                _buildSecuritySettings(),
-                const SizedBox(height: 20),
-                _buildNotificationSettings(),
-                const SizedBox(height: 20),
-                _buildSystemActions(),
-                const SizedBox(height: 20),
-                _buildDangerZone(),
-              ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSaveBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Platform settings are saved platform-wide and applied across auth, branding, sessions, and admin user controls.',
+              style: AppTextStyles.bodySmall,
             ),
+          ),
+          const SizedBox(width: 12),
+          OutlinedButton.icon(
+            onPressed: (_isSaving || _isResetting) ? null : _resetSettings,
+            icon: _isResetting
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.restore_rounded, size: 16),
+            label: const Text('Reset'),
+          ),
+          const SizedBox(width: 8),
+          ElevatedButton.icon(
+            onPressed: _isSaving ? null : _saveSettings,
+            icon: _isSaving
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.save_rounded, size: 16),
+            label: Text(_isSaving ? 'Saving...' : 'Save'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -161,31 +345,55 @@ class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
       iconColor: AppColors.primary,
       iconBg: AppColors.primaryLight,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ToggleTile(
-            label: 'Open Registrations',
-            subtitle: 'Allow new users to register on the platform',
-            value: _registrationsOpen,
-            onChanged: (v) => setState(() => _registrationsOpen = v),
+          _TextInputTile(
+            label: 'Platform Name',
+            description: 'Display name shown in the app header/sidebar',
+            controller: _platformNameController,
+            hint: 'Grasp',
           ),
+          const SizedBox(height: 14),
           _ToggleTile(
-            label: 'Email Verification',
-            subtitle: 'Require email confirmation on sign-up',
-            value: _emailVerification,
-            onChanged: (v) => setState(() => _emailVerification = v),
+            label: 'Landing Page Registration',
+            subtitle:
+                'Show or hide registration access from the public landing/auth page',
+            value: _landingPageRegistration,
+            onChanged: (v) => setState(() => _landingPageRegistration = v),
           ),
-          _ToggleTile(
-            label: 'Admin Approval for Instructors',
-            subtitle: 'Manually approve instructor registrations',
-            value: _adminApproval,
-            onChanged: (v) => setState(() => _adminApproval = v),
+          const SizedBox(height: 8),
+          Text('Default Dashboard Time Range', style: AppTextStyles.label),
+          const SizedBox(height: 3),
+          Text(
+            'Default time window used by dashboard summaries',
+            style: AppTextStyles.caption,
           ),
-          _ToggleTile(
-            label: 'Maintenance Mode',
-            subtitle: 'Take platform offline for maintenance',
-            value: _maintenanceMode,
-            onChanged: (v) => setState(() => _maintenanceMode = v),
-            dangerColor: true,
+          const SizedBox(height: 8),
+          _DropdownTile(
+            value: _dashboardTimeRange,
+            items: const [
+              'Last 7 days',
+              'Last 30 days',
+              'This semester',
+              'All time',
+            ],
+            onChanged: (v) =>
+                setState(() => _dashboardTimeRange = v ?? _dashboardTimeRange),
+          ),
+          const SizedBox(height: 14),
+          Text('Default List Sorting', style: AppTextStyles.label),
+          const SizedBox(height: 3),
+          Text(
+            'Default ordering for admin management lists',
+            style: AppTextStyles.caption,
+          ),
+          const SizedBox(height: 8),
+          _DropdownTile(
+            value: _defaultListSorting,
+            items: const ['Newest first', 'Oldest first', 'A-Z'],
+            onChanged: (v) => setState(
+              () => _defaultListSorting = v ?? _defaultListSorting,
+            ),
           ),
         ],
       ),
@@ -201,28 +409,29 @@ class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
       child: Column(
         children: [
           _ToggleTile(
-            label: 'Two-Factor for Admins',
-            subtitle: 'Require 2FA for all admin accounts',
-            value: _twoFactorAdmin,
-            onChanged: (v) => setState(() => _twoFactorAdmin = v),
+            label: 'Require Strong Passwords',
+            subtitle: 'Encourage stronger passwords during account creation',
+            value: _requireStrongPasswords,
+            onChanged: (v) => setState(() => _requireStrongPasswords = v),
           ),
           _ToggleTile(
-            label: 'Auto Session Timeout',
-            subtitle: 'Sign out inactive sessions after 30 minutes',
-            value: _sessionTimeout,
-            onChanged: (v) => setState(() => _sessionTimeout = v),
+            label: 'Allow Password Change',
+            subtitle:
+                'Allow users to change their password from profile/settings pages',
+            value: _allowPasswordChange,
+            onChanged: (v) => setState(() => _allowPasswordChange = v),
           ),
           _ToggleTile(
-            label: 'System Alerts',
-            subtitle: 'Send alerts for unusual platform activity',
-            value: _systemAlerts,
-            onChanged: (v) => setState(() => _systemAlerts = v),
+            label: 'Admin User Creation Enabled',
+            subtitle: 'Allow admins to create users manually from the Users page',
+            value: _adminUserCreationEnabled,
+            onChanged: (v) => setState(() => _adminUserCreationEnabled = v),
           ),
           _ToggleTile(
-            label: 'Audit Logs',
-            subtitle: 'Log all admin actions for compliance',
-            value: _auditLogs,
-            onChanged: (v) => setState(() => _auditLogs = v),
+            label: 'Prevent Deleting Last Admin',
+            subtitle: 'Keep at least one admin account active in the platform',
+            value: _preventDeletingLastAdmin,
+            onChanged: (v) => setState(() => _preventDeletingLastAdmin = v),
           ),
         ],
       ),
@@ -236,142 +445,30 @@ class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
       iconColor: AppColors.amber,
       iconBg: AppColors.amberLight,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _ToggleTile(
-            label: 'Email Notifications',
-            subtitle: 'Receive admin alerts via email',
-            value: _notifyEmail,
-            onChanged: (v) => setState(() => _notifyEmail = v),
+            label: 'Admin Notifications',
+            subtitle: 'Show admin notifications in the notification menu',
+            value: _adminNotifications,
+            onChanged: (v) => setState(() => _adminNotifications = v),
           ),
           _ToggleTile(
-            label: 'Push Notifications',
-            subtitle: 'In-app and browser push alerts',
-            value: _notifyPush,
-            onChanged: (v) => setState(() => _notifyPush = v),
+            label: 'New User Notifications',
+            subtitle: 'Notify admins when a new user account is created',
+            value: _newUserNotifications,
+            onChanged: (v) => setState(() => _newUserNotifications = v),
           ),
           _ToggleTile(
-            label: 'New User Registrations',
-            subtitle: 'Alert when new users sign up',
-            value: _notifyNewUser,
-            onChanged: (v) => setState(() => _notifyNewUser = v),
+            label: 'Course Activity Notifications',
+            subtitle: 'Notify admins about major course changes',
+            value: _courseActivityNotifications,
+            onChanged: (v) => setState(() => _courseActivityNotifications = v),
           ),
           _ToggleTile(
-            label: 'Low Storage Alert',
-            subtitle: 'Notify when storage drops below 20%',
-            value: _notifyLowStorage,
-            onChanged: (v) => setState(() => _notifyLowStorage = v),
-          ),
-          const SizedBox(height: 8),
-          const Divider(height: 1, color: AppColors.border),
-          const SizedBox(height: 12),
-          Text('Digest Frequency', style: AppTextStyles.label),
-          const SizedBox(height: 4),
-          Text(
-            'How often to receive summary reports',
-            style: AppTextStyles.caption,
-          ),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.border),
-            ),
-            child: DropdownButtonHideUnderline(
-              child: DropdownButton<String>(
-                value: _digestFreq,
-                isExpanded: true,
-                style: AppTextStyles.body,
-                items: ['Daily', 'Weekly', 'Monthly', 'Never']
-                    .map((v) => DropdownMenuItem(value: v, child: Text(v)))
-                    .toList(),
-                onChanged: (v) =>
-                    setState(() => _digestFreq = v ?? _digestFreq),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSystemActions() {
-    return _Section(
-      title: 'System Actions',
-      icon: Icons.terminal_rounded,
-      iconColor: AppColors.rose,
-      iconBg: AppColors.roseLight,
-      child: Column(
-        children: [
-          _SystemActionTile(
-            id: 'backup',
-            icon: Icons.backup_rounded,
-            label: 'Backup Database',
-            subtitle: 'Last backup: 2 hours ago',
-            color: AppColors.primary,
-            isLoading: _loadingActions.contains('backup'),
-            isDone: _doneActions.contains('backup'),
-            onTap: () => _confirmAction(
-              id: 'backup',
-              title: 'Backup Database',
-              message:
-                  'This will create a full backup of all platform data. Continue?',
-              successMessage: 'Backup completed successfully',
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          _SystemActionTile(
-            id: 'export',
-            icon: Icons.bar_chart_rounded,
-            label: 'Export Reports',
-            subtitle: 'Download platform usage reports',
-            color: AppColors.violet,
-            isLoading: _loadingActions.contains('export'),
-            isDone: _doneActions.contains('export'),
-            onTap: () => _confirmAction(
-              id: 'export',
-              title: 'Export Reports',
-              message:
-                  'Generate and download a full usage report for this month?',
-              successMessage: 'Report export started — check your email',
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          _SystemActionTile(
-            id: 'cache',
-            icon: Icons.cleaning_services_rounded,
-            label: 'Clear Cache',
-            subtitle: 'Free up system cache memory',
-            color: AppColors.amber,
-            isLoading: _loadingActions.contains('cache'),
-            isDone: _doneActions.contains('cache'),
-            onTap: () => _confirmAction(
-              id: 'cache',
-              title: 'Clear Cache',
-              message:
-                  'Clear all system and user session caches? Active sessions may be affected.',
-              successMessage: 'Cache cleared successfully',
-            ),
-          ),
-          const Divider(height: 1, color: AppColors.border),
-          _SystemActionTile(
-            id: 'restart',
-            icon: Icons.restart_alt_rounded,
-            label: 'Restart Services',
-            subtitle: 'Restart background services',
-            color: AppColors.error,
-            isLoading: _loadingActions.contains('restart'),
-            isDone: _doneActions.contains('restart'),
-            onTap: () => _confirmAction(
-              id: 'restart',
-              title: 'Restart Services',
-              message:
-                  'Restarting will briefly interrupt service for all users. Proceed?',
-              successMessage: 'Services restarted successfully',
-              isDangerous: true,
-            ),
+            label: 'AI Generation Failure Notifications',
+            subtitle: 'Notify admins when AI generation fails',
+            value: _aiFailureNotifications,
+            onChanged: (v) => setState(() => _aiFailureNotifications = v),
           ),
         ],
       ),
@@ -404,109 +501,54 @@ class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
                 ),
               ),
               const SizedBox(width: 10),
-              Text(
-                'Danger Zone',
-                style: AppTextStyles.h3.copyWith(color: AppColors.error),
+              Expanded(
+                child: Text(
+                  'Danger Zone',
+                  style: AppTextStyles.h3.copyWith(color: AppColors.error),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 16),
           const Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 16),
-          _DangerTile(
-            label: 'Reset All User Passwords',
-            subtitle: 'Force all users to reset their passwords on next login',
-            icon: Icons.lock_reset_rounded,
-            onTap: () => _confirmAction(
-              id: 'reset_passwords',
-              title: 'Reset All Passwords',
-              message:
-                  'This will force all users to reset their password. This cannot be undone.',
-              successMessage: 'Password reset emails sent to all users',
-              isDangerous: true,
-            ),
+          _ToggleTile(
+            label: 'Require Re-login After Password Change',
+            subtitle: 'Users must sign in again after changing their password',
+            value: _requireReloginAfterPasswordChange,
+            onChanged: (v) =>
+                setState(() => _requireReloginAfterPasswordChange = v),
           ),
-          const SizedBox(height: 10),
+          _ToggleTile(
+            label: 'Auto Logout Inactive Users',
+            subtitle: 'Automatically logs users out after inactivity',
+            value: _autoLogoutInactiveUsers,
+            onChanged: (v) => setState(() => _autoLogoutInactiveUsers = v),
+          ),
+          const SizedBox(height: 8),
+          Text('Timeout Duration', style: AppTextStyles.label),
+          const SizedBox(height: 3),
+          Text(
+            'How long users can be inactive before logout',
+            style: AppTextStyles.caption,
+          ),
+          const SizedBox(height: 8),
+          _DropdownTile(
+            value: _timeoutDuration,
+            items: const ['15 min', '30 min', '1 hour', '2 hours'],
+            onChanged: (v) =>
+                setState(() => _timeoutDuration = v ?? _timeoutDuration),
+          ),
+          const SizedBox(height: 16),
           _DangerTile(
-            label: 'Purge All Session Data',
-            subtitle: 'Sign out every active user on the platform',
+            label: 'Force Logout All Users',
+            subtitle: 'Signs out all active users from the platform',
             icon: Icons.logout_rounded,
-            onTap: () => _confirmAction(
-              id: 'purge_sessions',
-              title: 'Purge Sessions',
-              message:
-                  'This will immediately sign out all active users. Proceed?',
-              successMessage: 'All sessions purged successfully',
-              isDangerous: true,
-            ),
-          ),
-          const SizedBox(height: 10),
-          _DangerTile(
-            label: 'Logout & Return to Landing',
-            subtitle: 'End your admin session',
-            icon: Icons.exit_to_app_rounded,
-            onTap: () => logoutAndReturnToAuthGate(context, ref),
+            isLoading: _isForcingLogout,
+            isDone: false,
+            onTap: _confirmForceLogoutAllUsers,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _DangerTile extends StatelessWidget {
-  final String label, subtitle;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _DangerTile({
-    required this.label,
-    required this.subtitle,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.error.withValues(alpha: 0.15)),
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(7),
-              decoration: BoxDecoration(
-                color: AppColors.errorLight,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Icon(icon, size: 14, color: AppColors.error),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: AppTextStyles.label.copyWith(color: AppColors.error),
-                  ),
-                  Text(subtitle, style: AppTextStyles.caption),
-                ],
-              ),
-            ),
-            const Icon(
-              Icons.chevron_right_rounded,
-              size: 16,
-              color: AppColors.textMuted,
-            ),
-          ],
-        ),
       ),
     );
   }
@@ -515,7 +557,8 @@ class _DangerTile extends StatelessWidget {
 class _Section extends StatelessWidget {
   final String title;
   final IconData icon;
-  final Color iconColor, iconBg;
+  final Color iconColor;
+  final Color iconBg;
   final Widget child;
 
   const _Section({
@@ -549,7 +592,7 @@ class _Section extends StatelessWidget {
                 child: Icon(icon, color: iconColor, size: 16),
               ),
               const SizedBox(width: 10),
-              Text(title, style: AppTextStyles.h3),
+              Expanded(child: Text(title, style: AppTextStyles.h3)),
             ],
           ),
           const SizedBox(height: 16),
@@ -562,18 +605,98 @@ class _Section extends StatelessWidget {
   }
 }
 
+class _TextInputTile extends StatelessWidget {
+  final String label;
+  final String description;
+  final TextEditingController controller;
+  final String hint;
+
+  const _TextInputTile({
+    required this.label,
+    required this.description,
+    required this.controller,
+    required this.hint,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: AppTextStyles.label),
+        const SizedBox(height: 3),
+        Text(description, style: AppTextStyles.caption),
+        const SizedBox(height: 8),
+        TextField(
+          controller: controller,
+          style: AppTextStyles.body,
+          decoration: InputDecoration(
+            hintText: hint,
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 10,
+            ),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: AppColors.border),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DropdownTile extends StatelessWidget {
+  final String value;
+  final List<String> items;
+  final ValueChanged<String?> onChanged;
+
+  const _DropdownTile({
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String>(
+          value: value,
+          isExpanded: true,
+          style: AppTextStyles.body,
+          items: items
+              .map((v) => DropdownMenuItem<String>(value: v, child: Text(v)))
+              .toList(),
+          onChanged: onChanged,
+        ),
+      ),
+    );
+  }
+}
+
 class _ToggleTile extends StatelessWidget {
-  final String label, subtitle;
+  final String label;
+  final String subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
-  final bool dangerColor;
 
   const _ToggleTile({
     required this.label,
     required this.subtitle,
     required this.value,
     required this.onChanged,
-    this.dangerColor = false,
   });
 
   @override
@@ -586,14 +709,7 @@ class _ToggleTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: AppTextStyles.label.copyWith(
-                    color: dangerColor && value
-                        ? AppColors.error
-                        : AppColors.textPrimary,
-                  ),
-                ),
+                Text(label, style: AppTextStyles.label),
                 Text(subtitle, style: AppTextStyles.caption),
               ],
             ),
@@ -601,10 +717,8 @@ class _ToggleTile extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeThumbColor: dangerColor ? AppColors.error : AppColors.primary,
-            activeTrackColor: dangerColor
-                ? AppColors.errorLight
-                : AppColors.primaryLight,
+            activeThumbColor: AppColors.primary,
+            activeTrackColor: AppColors.primaryLight,
           ),
         ],
       ),
@@ -612,19 +726,18 @@ class _ToggleTile extends StatelessWidget {
   }
 }
 
-class _SystemActionTile extends StatelessWidget {
-  final String id, label, subtitle;
+class _DangerTile extends StatelessWidget {
+  final String label;
+  final String subtitle;
   final IconData icon;
-  final Color color;
-  final bool isLoading, isDone;
+  final bool isLoading;
+  final bool isDone;
   final VoidCallback onTap;
 
-  const _SystemActionTile({
-    required this.id,
-    required this.icon,
+  const _DangerTile({
     required this.label,
     required this.subtitle,
-    required this.color,
+    required this.icon,
     required this.isLoading,
     required this.isDone,
     required this.onTap,
@@ -632,36 +745,63 @@ class _SystemActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(vertical: 4),
-      leading: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Icon(icon, color: color, size: 16),
-      ),
-      title: Text(label, style: AppTextStyles.label),
-      subtitle: Text(subtitle, style: AppTextStyles.caption),
-      trailing: isLoading
-          ? SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2, color: color),
-            )
-          : isDone
-          ? const Icon(
-              Icons.check_circle_rounded,
-              size: 18,
-              color: AppColors.success,
-            )
-          : const Icon(
-              Icons.chevron_right_rounded,
-              size: 16,
-              color: AppColors.textMuted,
-            ),
+    return InkWell(
       onTap: isLoading ? null : onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.error.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.error.withValues(alpha: 0.15)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(7),
+              decoration: BoxDecoration(
+                color: AppColors.errorLight,
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(icon, size: 14, color: AppColors.error),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    label,
+                    style: AppTextStyles.label.copyWith(color: AppColors.error),
+                  ),
+                  Text(subtitle, style: AppTextStyles.caption),
+                ],
+              ),
+            ),
+            if (isLoading)
+              const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.error,
+                ),
+              )
+            else if (isDone)
+              const Icon(
+                Icons.check_circle_rounded,
+                size: 18,
+                color: AppColors.success,
+              )
+            else
+              const Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: AppColors.textMuted,
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

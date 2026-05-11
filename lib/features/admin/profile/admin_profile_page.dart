@@ -149,6 +149,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
     final message = error
         .toString()
         .replaceFirst('AdminServiceException: ', '')
+        .replaceFirst('PlatformSettingsException: ', '')
         .replaceFirst('Exception: ', '');
     if (message.toLowerCase().contains('invalid login') ||
         message.toLowerCase().contains('incorrect')) {

@@ -19,6 +19,7 @@ import '../features/admin/upload_limits/admin_upload_limits_page.dart';
 import '../features/admin/platform/admin_platform_page.dart';
 import '../features/admin/profile/admin_profile_page.dart';
 import '../features/auth/providers/auth_providers.dart';
+import '../features/platform_settings/providers/platform_settings_provider.dart';
 import '../features/notifications/notifications_page.dart';
 import '../widgets/auth/logout_flow.dart';
 
@@ -211,7 +212,7 @@ class _AdminSidebar extends ConsumerWidget {
       color: AppColors.sidebarBg,
       child: Column(
         children: [
-          _buildLogo(),
+          _buildLogo(ref),
           const SizedBox(height: 8),
           Expanded(
             child: ListView(
@@ -245,7 +246,11 @@ class _AdminSidebar extends ConsumerWidget {
     );
   }
 
-  Widget _buildLogo() {
+  Widget _buildLogo(WidgetRef ref) {
+    final platformName = ref
+        .watch(platformSettingsProvider)
+        .valueOrDefaults
+        .platformName;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
       decoration: const BoxDecoration(
@@ -271,7 +276,7 @@ class _AdminSidebar extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  AppConstants.appName,
+                  platformName,
                   style: AppTextStyles.h3.copyWith(
                     color: Colors.white,
                     fontWeight: FontWeight.w700,

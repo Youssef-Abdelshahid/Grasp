@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../services/activity_service.dart';
+import '../../services/ai_controls_service.dart';
 import '../../services/admin_content_service.dart';
 import '../../services/admin_service.dart';
 import '../../services/announcement_service.dart';
@@ -16,10 +17,12 @@ import '../../services/gemini_ai_service.dart';
 import '../../services/material_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/permissions_service.dart';
+import '../../services/platform_settings_service.dart';
 import '../../services/profile_service.dart';
 import '../../services/quiz_service.dart';
 import '../../services/study_note_service.dart';
 import '../../services/submission_service.dart';
+import '../../services/upload_limits_service.dart';
 import '../../services/user_settings_service.dart';
 
 final authServiceProvider = Provider<AuthService>(
@@ -54,6 +57,15 @@ final notificationServiceProvider = Provider<NotificationService>(
 );
 final permissionsServiceProvider = Provider<PermissionsService>(
   (ref) => PermissionsService.instance,
+);
+final uploadLimitsServiceProvider = Provider<UploadLimitsService>(
+  (ref) => UploadLimitsService.instance,
+);
+final aiControlsServiceProvider = Provider<AiControlsService>(
+  (ref) => AiControlsService.instance,
+);
+final platformSettingsServiceProvider = Provider<PlatformSettingsService>(
+  (ref) => PlatformSettingsService.instance,
 );
 final flashcardServiceProvider = Provider<FlashcardService>(
   (ref) => FlashcardService.instance,

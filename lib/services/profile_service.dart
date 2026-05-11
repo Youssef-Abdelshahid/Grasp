@@ -5,7 +5,10 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/auth/app_role.dart';
 import '../models/user_model.dart';
+import '../models/upload_limits_model.dart';
 import 'auth_service.dart';
+import 'platform_settings_service.dart';
+import 'upload_limits_service.dart';
 
 class ProfileService {
   ProfileService._();
@@ -82,7 +85,25 @@ class ProfileService {
   }
 
   Future<void> updatePassword(String newPassword) async {
+    final settings = await PlatformSettingsService.instance
+        .getEffectiveSettings();
+    if (!settings.allowPasswordChange) {
+      throw const ProfileException(
+        PlatformSettingsService.passwordChangeDisabledMessage,
+      );
+    }
+    final passwordError = PlatformSettingsService.instance
+        .strongPasswordError(newPassword, settings);
+    if (passwordError != null) {
+      throw ProfileException(passwordError);
+    }
+    await PlatformSettingsService.instance.ensurePasswordChangeAllowed(
+      newPassword,
+    );
     await _client.auth.updateUser(UserAttributes(password: newPassword));
+    if (settings.requireReloginAfterPasswordChange) {
+      await AuthService.instance.logout();
+    }
   }
 
   Future<UserModel> updatePreferences(Map<String, dynamic> preferences) async {
@@ -103,6 +124,10 @@ class ProfileService {
 
   Future<UserModel> uploadAvatar(PlatformFile file) async {
     final userId = _client.auth.currentUser!.id;
+    await UploadLimitsService.instance.validateUpload(
+      source: UploadSources.profileImage,
+      file: file,
+    );
     final bytes = await _readFileBytes(file);
     final extension = (file.extension ?? 'png').toLowerCase();
     final objectPath =
@@ -118,6 +143,13 @@ class ProfileService {
             contentType: _guessImageMime(extension),
           ),
         );
+    await UploadLimitsService.instance.recordUploadMetadata(
+      bucket: avatarBucketName,
+      source: UploadSources.profileImage,
+      file: file,
+      mimeType: _guessImageMime(extension),
+      storagePath: objectPath,
+    );
 
     final avatarUrl = await _client.storage
         .from(avatarBucketName)

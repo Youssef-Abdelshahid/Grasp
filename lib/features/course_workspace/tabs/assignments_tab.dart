@@ -14,6 +14,7 @@ import '../../../services/gemini_ai_service.dart';
 import '../../../services/material_service.dart';
 import '../../../services/user_settings_service.dart';
 import '../../activity/activity_sheets.dart';
+import '../../ai_controls/providers/ai_controls_provider.dart';
 import '../../permissions/providers/permissions_provider.dart';
 import '../pages/assignment_builder_page.dart';
 
@@ -44,6 +45,7 @@ class _AssignmentsTabState extends ConsumerState<AssignmentsTab> {
       builder: (context, snapshot) {
         final assignments = snapshot.data ?? [];
         final permissions = ref.watch(permissionsProvider).valueOrDefaults;
+        final aiControls = ref.watch(aiControlsProvider).valueOrDefaults;
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
@@ -52,7 +54,8 @@ class _AssignmentsTabState extends ConsumerState<AssignmentsTab> {
               _buildHeader(
                 assignments.length,
                 canManage: permissions.manageAssignments,
-                canUseAi: permissions.useAiAssignmentGeneration,
+                canUseAi: permissions.useAiAssignmentGeneration &&
+                    aiControls.canInstructorGenerateAssignment,
               ),
               const SizedBox(height: 20),
               if (snapshot.connectionState != ConnectionState.done)

@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../core/auth/app_role.dart';
 import '../core/config/app_env.dart';
+import '../models/ai_controls_model.dart';
 import '../models/assignment_model.dart';
 import '../models/flashcard_model.dart';
 import '../models/material_model.dart';
@@ -14,6 +15,7 @@ import '../models/permissions_model.dart';
 import '../models/quiz_model.dart';
 import '../models/quiz_question_model.dart';
 import 'auth_service.dart';
+import 'ai_controls_service.dart';
 import 'material_service.dart';
 import 'permissions_service.dart';
 
@@ -41,6 +43,9 @@ class GeminiAiService {
       'Gemini returned an invalid question format. Please try again.';
 
   final Map<String, Map<String, dynamic>> _memoryCache = {};
+  AiControlsConfig? _activeAiConfig;
+  String? _lastModelUsed;
+  bool _lastFallbackUsed = false;
 
   SupabaseClient get _client => Supabase.instance.client;
 
@@ -62,9 +67,15 @@ class GeminiAiService {
       courseId,
       PermissionKeys.useAiQuizGeneration,
     );
+    return _withAiControls(
+      featureType: AiFeatureTypes.quizDraft,
+      requestedCount: questionCount,
+      task: (aiConfig) async {
     final cleanMaterials = _requireMaterials(materials);
     final normalizedTypes = _normalizeQuestionTypes(questionTypes);
-    final safeQuestionCount = questionCount.clamp(1, 30).toInt();
+    final safeQuestionCount = questionCount
+        .clamp(1, aiConfig.maxGeneratedQuestionsPerQuiz)
+        .toInt();
     final safeMarks = totalMarks.clamp(1, 500).toInt();
     final groundedContext = await _buildGroundedContext(cleanMaterials);
     final contextParts = groundedContext.contextParts;
@@ -129,6 +140,8 @@ class GeminiAiService {
       payload: draft.toJson(),
     );
     return draft;
+      },
+    );
   }
 
   Future<AiAssignmentDraft> generateAssignmentDraft({
@@ -145,6 +158,9 @@ class GeminiAiService {
       courseId,
       PermissionKeys.useAiAssignmentGeneration,
     );
+    return _withAiControls(
+      featureType: AiFeatureTypes.assignmentDraft,
+      task: (aiConfig) async {
     final cleanMaterials = _requireMaterials(materials);
     final safeTaskCount = taskCount.clamp(1, 20).toInt();
     final safeMarks = marks.clamp(1, 500).toInt();
@@ -200,6 +216,8 @@ class GeminiAiService {
       payload: draft.toJson(),
     );
     return draft;
+      },
+    );
   }
 
   Future<AiFlashcardDraft> generateFlashcardDraft({
@@ -210,8 +228,14 @@ class GeminiAiService {
     required String difficulty,
   }) async {
     await _ensureStudentCanGenerateFlashcards(courseId);
+    return _withAiControls(
+      featureType: AiFeatureTypes.flashcards,
+      requestedCount: cardCount,
+      task: (aiConfig) async {
     final cleanMaterials = _requireMaterials(materials);
-    final safeCardCount = cardCount.clamp(1, 40).toInt();
+    final safeCardCount = cardCount
+        .clamp(1, aiConfig.maxGeneratedFlashcards)
+        .toInt();
     final groundedContext = await _buildGroundedContext(cleanMaterials);
     final cacheKey = _cacheKey({
       'kind': 'flashcards',
@@ -270,6 +294,8 @@ class GeminiAiService {
       payload: draft.toJson(),
     );
     return draft;
+      },
+    );
   }
 
   Future<AiStudyNoteDraft> generateStudyNoteDraft({
@@ -278,6 +304,9 @@ class GeminiAiService {
     required String prompt,
   }) async {
     await _ensureStudentCanGenerateStudyNotes(courseId);
+    return _withAiControls(
+      featureType: AiFeatureTypes.studyNotes,
+      task: (aiConfig) async {
     final cleanMaterials = _requireMaterials(materials);
     final groundedContext = await _buildGroundedContext(cleanMaterials);
     final cacheKey = _cacheKey({
@@ -306,14 +335,26 @@ class GeminiAiService {
         'If the context is insufficient or unreadable, return {"failure":"insufficient_context"} only. '
         'Schema: {"title":string,"content":string}. '
         'content should be clean markdown-like text with clear headings and bullets where useful. Include these sections when supported by the content: Important Concepts, Definitions, Key Explanations, Examples, Step-by-Step Breakdowns, Comparisons, Things to Memorize, and Quick Review. '
+        'Keep content under ${aiConfig.maxGeneratedStudyNotesLength} characters. '
         'Optional prompt may guide focus or style, but must not add unrelated content. Custom: ${_cleanShort(prompt, max: 500, fallback: "none")}.\nPROVIDED MATERIAL CONTEXT:\n${groundedContext.promptText}';
 
     final json = await _generateJson(promptText, groundedContext.contextParts);
-    final draft = _validateStudyNoteDraft(
+    final validatedDraft = _validateStudyNoteDraft(
       json,
       context: groundedContext,
       materialIds: cleanMaterials.map((material) => material.id).toList(),
     );
+    final draft = validatedDraft.content.length <=
+            aiConfig.maxGeneratedStudyNotesLength
+        ? validatedDraft
+        : AiStudyNoteDraft(
+            title: validatedDraft.title,
+            content: _cleanLong(
+              validatedDraft.content,
+              max: aiConfig.maxGeneratedStudyNotesLength,
+            ),
+            materialIds: validatedDraft.materialIds,
+          );
     _memoryCache[cacheKey] = draft.toJson();
     await _storeAiDraft(
       courseId: courseId,
@@ -323,6 +364,8 @@ class GeminiAiService {
       payload: draft.toJson(),
     );
     return draft;
+      },
+    );
   }
 
   Future<QuizQuestionModel> generateSingleQuestion({
@@ -338,6 +381,10 @@ class GeminiAiService {
       courseId,
       PermissionKeys.useAiQuizGeneration,
     );
+    return _withAiControls(
+      featureType: AiFeatureTypes.singleQuestion,
+      requestedCount: 1,
+      task: (aiConfig) async {
     final normalizedType = _normalizeQuestionTypes([type]).first;
     final scopedMaterials = materials.isNotEmpty
         ? materials
@@ -377,6 +424,48 @@ class GeminiAiService {
         throw const GeminiAiException(_invalidQuestionError);
       }
       rethrow;
+    }
+      },
+    );
+  }
+
+  Future<T> _withAiControls<T>({
+    required String featureType,
+    int? requestedCount,
+    required Future<T> Function(AiControlsConfig config) task,
+  }) async {
+    final reservation = await AiControlsService.instance.beginGeneration(
+      featureType: featureType,
+      requestedCount: requestedCount,
+    );
+    final previousConfig = _activeAiConfig;
+    final previousModel = _lastModelUsed;
+    final previousFallback = _lastFallbackUsed;
+    _activeAiConfig = reservation.config;
+    _lastModelUsed = null;
+    _lastFallbackUsed = false;
+    try {
+      final result = await task(reservation.config);
+      await AiControlsService.instance.finishGeneration(
+        logId: reservation.logId,
+        success: true,
+        modelUsed: _lastModelUsed,
+        fallbackUsed: _lastFallbackUsed,
+      );
+      return result;
+    } catch (error) {
+      await AiControlsService.instance.finishGeneration(
+        logId: reservation.logId,
+        success: false,
+        modelUsed: _lastModelUsed,
+        fallbackUsed: _lastFallbackUsed,
+        errorCategory: _errorCategory(error),
+      );
+      rethrow;
+    } finally {
+      _activeAiConfig = previousConfig;
+      _lastModelUsed = previousModel;
+      _lastFallbackUsed = previousFallback;
     }
   }
 
@@ -514,6 +603,8 @@ class GeminiAiService {
       _log('Attempting model: $model');
       try {
         final response = await _postToModel(model, body);
+        _lastModelUsed = model;
+        _lastFallbackUsed = index > 0;
         _log('Final model used: $model');
         return response;
       } on _GeminiFallbackException catch (error) {
@@ -577,6 +668,7 @@ class GeminiAiService {
   List<String> _fallbackModels() {
     final seen = <String>{};
     return [
+      _activeAiConfig?.defaultModelId ?? AppEnv.geminiPrimaryModel,
       AppEnv.geminiPrimaryModel,
       AppEnv.geminiFallbackModel1,
       AppEnv.geminiFallbackModel2,
@@ -631,6 +723,24 @@ class GeminiAiService {
     debugPrint('[GeminiAiService] $message');
   }
 
+  String _errorCategory(Object error) {
+    if (error is GeminiAiException) {
+      final message = error.message.toLowerCase();
+      if (message.contains('disabled')) return 'disabled';
+      if (message.contains('limit')) return 'limit';
+      if (message.contains('permission')) return 'permission';
+      if (message.contains('context') || message.contains('material')) {
+        return 'context';
+      }
+      if (message.contains('json') || message.contains('format')) {
+        return 'invalid_response';
+      }
+      if (message.contains('gemini')) return 'gemini';
+    }
+    if (error is AiControlsException) return 'ai_controls';
+    return error.runtimeType.toString();
+  }
+
   Future<_GroundedContext> _buildGroundedContext(
     List<MaterialModel> materials,
   ) async {
@@ -682,6 +792,7 @@ class GeminiAiService {
     final context = _GroundedContext(
       sources: sources,
       contextParts: contextParts,
+      maxContextChars: _activeAiConfig?.maxMaterialContextSize ?? _maxContextChars,
     );
     if (!context.hasAnyUsableContent) {
       throw const GeminiAiException(_materialReadError);
@@ -802,6 +913,7 @@ class GeminiAiService {
     final context = _GroundedContext(
       sources: sources,
       contextParts: contextParts,
+      maxContextChars: _activeAiConfig?.maxMaterialContextSize ?? _maxContextChars,
     );
     if (context.hasAnyUsableContent) {
       return context;
@@ -899,9 +1011,10 @@ class GeminiAiService {
   }
 
   List<String> _selectRepresentativeChunks(String text) {
-    final fullText = _cleanExcerpt(text, max: _maxContextChars);
-    if (fullText.length <= _maxContextChars &&
-        text.length <= _maxContextChars) {
+    final maxContextChars =
+        _activeAiConfig?.maxMaterialContextSize ?? _maxContextChars;
+    final fullText = _cleanExcerpt(text, max: maxContextChars);
+    if (fullText.length <= maxContextChars && text.length <= maxContextChars) {
       return [fullText];
     }
     final paragraphs = text
@@ -910,7 +1023,7 @@ class GeminiAiService {
         .where((item) => item.length >= 80)
         .toList();
     if (paragraphs.isEmpty) {
-      final clean = _cleanExcerpt(text, max: _maxContextChars);
+      final clean = _cleanExcerpt(text, max: maxContextChars);
       return clean.length < _minExtractedChars ? const [] : [clean];
     }
 
@@ -941,13 +1054,13 @@ class GeminiAiService {
       if (important && !selected.contains(paragraph)) {
         selected.add(paragraph);
       }
-      if (selected.join('\n').length >= _maxContextChars) break;
+      if (selected.join('\n').length >= maxContextChars) break;
     }
 
     final budgeted = <String>[];
     var used = 0;
     for (final chunk in selected) {
-      final remaining = _maxContextChars - used;
+      final remaining = maxContextChars - used;
       if (remaining <= 200) break;
       final value = _cleanExcerpt(
         chunk,
@@ -2105,10 +2218,15 @@ class _UploadedAiFile {
 }
 
 class _GroundedContext {
-  const _GroundedContext({required this.sources, required this.contextParts});
+  const _GroundedContext({
+    required this.sources,
+    required this.contextParts,
+    required this.maxContextChars,
+  });
 
   final List<_GroundedSource> sources;
   final List<Map<String, dynamic>> contextParts;
+  final int maxContextChars;
 
   bool get hasAnyUsableContent =>
       sources.any((source) => source.hasText || source.rawFileAttached);
@@ -2126,17 +2244,17 @@ class _GroundedContext {
       .toList();
 
   String get promptText {
-    final budgetPerSource = (GeminiAiService._maxContextChars / sources.length)
+    final budgetPerSource = (maxContextChars / sources.length)
         .floor()
-        .clamp(1200, GeminiAiService._maxContextChars)
+        .clamp(1200, maxContextChars)
         .toInt();
     final parts = <String>[];
     for (final source in sources) {
       parts.add(source.toPromptText(budgetPerSource));
     }
     final joined = parts.join('\n---\n');
-    if (joined.length <= GeminiAiService._maxContextChars) return joined;
-    return joined.substring(0, GeminiAiService._maxContextChars);
+    if (joined.length <= maxContextChars) return joined;
+    return joined.substring(0, maxContextChars);
   }
 
   String get fingerprint => base64Url.encode(utf8.encode(promptText));

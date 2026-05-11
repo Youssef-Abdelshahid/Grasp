@@ -7,7 +7,9 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/utils/file_utils.dart';
 import '../models/material_model.dart';
 import '../models/permissions_model.dart';
+import '../models/upload_limits_model.dart';
 import 'permissions_service.dart';
+import 'upload_limits_service.dart';
 
 class MaterialService {
   MaterialService._();
@@ -52,6 +54,11 @@ class MaterialService {
     await PermissionsService.instance.requireInstructorPermission(
       PermissionKeys.uploadMaterials,
     );
+    await UploadLimitsService.instance.validateUpload(
+      source: UploadSources.material,
+      file: file,
+      courseId: courseId,
+    );
     final bytes = await _readFileBytes(file);
     final fileName = file.name;
     final extension = FileUtils.fileExtension(fileName).toLowerCase();
@@ -89,8 +96,17 @@ class MaterialService {
         })
         .select('*, profiles!materials_uploaded_by_fkey(full_name)')
         .single();
-
-    return MaterialModel.fromJson(Map<String, dynamic>.from(response));
+    final material = MaterialModel.fromJson(Map<String, dynamic>.from(response));
+    await UploadLimitsService.instance.recordUploadMetadata(
+      bucket: bucketName,
+      source: UploadSources.material,
+      file: file,
+      mimeType: _guessMime(file.extension ?? ''),
+      storagePath: objectPath,
+      courseId: courseId,
+      materialId: material.id,
+    );
+    return material;
   }
 
   Future<MaterialModel> updateMaterial({
