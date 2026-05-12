@@ -113,12 +113,12 @@ class _QuizzesTabState extends ConsumerState<QuizzesTab> {
 
         final createButton = ElevatedButton.icon(
           onPressed: canManage ? () => _openBuilder() : null,
-          icon: const Icon(Icons.add_rounded, size: 16),
+          icon: Icon(Icons.add_rounded, size: 16),
           label: const Text('Create Quiz'),
         );
         final generateButton = OutlinedButton.icon(
           onPressed: canUseAi && canManage ? _generateQuiz : null,
-          icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+          icon: Icon(Icons.auto_awesome_rounded, size: 16),
           label: const Text('Generate Quiz'),
         );
 
@@ -368,7 +368,7 @@ class _QuizCard extends StatelessWidget {
                   color: AppColors.violetLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.quiz_rounded,
                   color: AppColors.violet,
                   size: 20,

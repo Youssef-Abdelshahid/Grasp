@@ -339,7 +339,7 @@ class _SubmissionDetailSheetState extends State<_SubmissionDetailSheet> {
                     _Box(
                       child: Row(
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.lock_outline_rounded,
                             color: AppColors.textSecondary,
                           ),
@@ -589,7 +589,7 @@ class _ReviewHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF1E1B4B), AppColors.primary],
@@ -1480,7 +1480,7 @@ class _AssignmentReview extends StatelessWidget {
                 ),
                 TextButton.icon(
                   onPressed: () => _openAttachment(context, detail),
-                  icon: const Icon(Icons.download_rounded, size: 16),
+                  icon: Icon(Icons.download_rounded, size: 16),
                   label: const Text('Open'),
                 ),
               ],
@@ -1600,7 +1600,7 @@ class _VisibilityNotice extends StatelessWidget {
     return _Box(
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.lock_outline_rounded,
             color: AppColors.textSecondary,
           ),
@@ -1719,7 +1719,7 @@ class _SaveGradeButton extends StatelessWidget {
                 height: 16,
                 child: CircularProgressIndicator(strokeWidth: 2),
               )
-            : const Icon(Icons.save_rounded, size: 16),
+            : Icon(Icons.save_rounded, size: 16),
         label: Text(saving ? 'Saving...' : 'Save Grade'),
       ),
     );
@@ -1798,7 +1798,7 @@ class _AssignmentGradingPanelState extends State<_AssignmentGradingPanel> {
                       height: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.save_rounded, size: 16),
+                  : Icon(Icons.save_rounded, size: 16),
               label: Text(_saving ? 'Saving...' : 'Save Grade'),
             ),
           ),

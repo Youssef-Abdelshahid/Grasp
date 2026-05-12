@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/constants/app_constants.dart';
+import '../../core/auth/app_role.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
+import '../../features/auth/providers/auth_providers.dart';
 import '../../features/settings/providers/user_settings_provider.dart';
+import '../../features/theme/providers/theme_mode_provider.dart';
 import '../../models/user_settings_model.dart';
 import '../../widgets/auth/logout_flow.dart';
 
@@ -30,6 +33,7 @@ class _InstructorSettingsPageState
   int _defaultQuestionCount = 10;
   final Set<String> _defaultQuestionTypes = {'MCQ', 'True/False'};
   String _defaultAssignmentDifficulty = 'Medium';
+  String _themeMode = themeModeLight;
 
   static const _difficulties = ['Easy', 'Medium', 'Hard'];
   static const _questionTypes = [
@@ -53,6 +57,15 @@ class _InstructorSettingsPageState
       data: (envelope) {
         final settings = envelope.settings;
         if (settings is! InstructorSettings) {
+          final currentRole = ref.watch(currentRoleProvider);
+          if (currentRole == AppRole.instructor) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) {
+                ref.invalidate(userSettingsProvider);
+              }
+            });
+            return const Center(child: CircularProgressIndicator());
+          }
           return const _SettingsMessage(
             message: 'Instructor settings are not available for this account.',
           );
@@ -86,11 +99,21 @@ class _InstructorSettingsPageState
                   children: [
                     Expanded(child: _generationDefaultsSection()),
                     const SizedBox(width: 20),
-                    Expanded(child: _accountSection()),
+                    Expanded(
+                      child: Column(
+                        children: [
+                          _appearanceSection(),
+                          const SizedBox(height: 20),
+                          _accountSection(),
+                        ],
+                      ),
+                    ),
                   ],
                 )
               else ...[
                 _generationDefaultsSection(),
+                const SizedBox(height: 20),
+                _appearanceSection(),
                 const SizedBox(height: 20),
                 _accountSection(),
               ],
@@ -134,6 +157,7 @@ class _InstructorSettingsPageState
     _defaultAssignmentDifficulty = _displayDifficulty(
       settings.defaultAssignmentDifficulty,
     );
+    _themeMode = settings.themeMode;
   }
 
   Future<void> _save() async {
@@ -142,6 +166,7 @@ class _InstructorSettingsPageState
         .read(userSettingsProvider.notifier)
         .save(
           InstructorSettings(
+            themeMode: _themeMode,
             emailNotifications: _emailNotifications,
             pushNotifications: _pushNotifications,
             quizSubmissionAlerts: _quizAlerts,
@@ -210,6 +235,36 @@ class _InstructorSettingsPageState
     ],
   );
 
+  Widget _appearanceSection() => _SettingsSection(
+    title: 'Appearance',
+    children: [
+      DropdownButtonFormField<String>(
+        initialValue: _themeMode,
+        decoration: const InputDecoration(labelText: 'Theme'),
+        items: const [
+          DropdownMenuItem(value: themeModeLight, child: Text('Light')),
+          DropdownMenuItem(value: themeModeDark, child: Text('Dark')),
+        ],
+        onChanged: _saving
+            ? null
+            : (value) {
+                if (value == null) return;
+                setState(() => _themeMode = value);
+                ref
+                    .read(themeModeProvider.notifier)
+                    .setThemeMode(
+                      value == themeModeDark ? ThemeMode.dark : ThemeMode.light,
+                    );
+              },
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'Applies immediately and is saved with your settings.',
+        style: AppTextStyles.bodySmall,
+      ),
+    ],
+  );
+
   Widget _generationDefaultsSection() => _SettingsSection(
     title: 'Default AI Generation Preferences',
     children: [
@@ -230,19 +285,37 @@ class _InstructorSettingsPageState
         runSpacing: 8,
         children: _questionTypes
             .map(
-              (type) => FilterChip(
-                label: Text(type),
-                selected: _defaultQuestionTypes.contains(type),
-                onSelected: (selected) {
-                  setState(() {
-                    if (selected) {
-                      _defaultQuestionTypes.add(type);
-                    } else if (_defaultQuestionTypes.length > 1) {
-                      _defaultQuestionTypes.remove(type);
-                    }
-                  });
-                },
-              ),
+              (type) {
+                final selected = _defaultQuestionTypes.contains(type);
+                final canRemove = _defaultQuestionTypes.length > 1;
+                return FilterChip(
+                  label: Text(type),
+                  selected: selected,
+                  showCheckmark: true,
+                  checkmarkColor: selected ? Colors.white : AppColors.primary,
+                  selectedColor: AppColors.primary,
+                  backgroundColor: AppColors.surface,
+                  disabledColor: AppColors.primary.withValues(alpha: 0.12),
+                  side: BorderSide(
+                    color: selected ? AppColors.primary : AppColors.border,
+                  ),
+                  labelStyle: AppTextStyles.caption.copyWith(
+                    color: selected ? Colors.white : AppColors.textPrimary,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  onSelected: selected && !canRemove
+                      ? null
+                      : (isSelected) {
+                          setState(() {
+                            if (isSelected) {
+                              _defaultQuestionTypes.add(type);
+                            } else if (_defaultQuestionTypes.length > 1) {
+                              _defaultQuestionTypes.remove(type);
+                            }
+                          });
+                        },
+                );
+              },
             )
             .toList(),
       ),
@@ -264,7 +337,7 @@ class _InstructorSettingsPageState
     children: [
       ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: const Icon(Icons.logout_rounded, color: AppColors.error),
+        leading: Icon(Icons.logout_rounded, color: AppColors.error),
         title: const Text('Sign Out'),
         onTap: () => logoutAndReturnToAuthGate(context, ref),
       ),
@@ -315,7 +388,7 @@ class _InstructorSettingsPageState
             onPressed: _defaultQuestionCount <= 1
                 ? null
                 : () => setState(() => _defaultQuestionCount--),
-            icon: const Icon(Icons.remove_rounded),
+            icon: Icon(Icons.remove_rounded),
           ),
           SizedBox(
             width: 48,
@@ -330,7 +403,7 @@ class _InstructorSettingsPageState
             onPressed: _defaultQuestionCount >= 50
                 ? null
                 : () => setState(() => _defaultQuestionCount++),
-            icon: const Icon(Icons.add_rounded),
+            icon: Icon(Icons.add_rounded),
           ),
         ],
       ),
@@ -368,7 +441,7 @@ class _SettingsLoadError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 40),
+            Icon(Icons.cloud_off_rounded, size: 40),
             const SizedBox(height: 12),
             Text(
               'Unable to load settings.',

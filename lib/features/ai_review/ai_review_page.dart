@@ -157,11 +157,11 @@ class _AiReviewPageState extends State<AiReviewPage> {
         const SizedBox(width: 12),
         ElevatedButton.icon(
           onPressed: () {},
-          icon: const Icon(Icons.auto_awesome_rounded, size: 14),
+          icon: Icon(Icons.auto_awesome_rounded, size: 14),
           label: const Text('Generate New'),
           style: ElevatedButton.styleFrom(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            textStyle: const TextStyle(
+            textStyle: TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
@@ -262,11 +262,11 @@ class _AiReviewPageState extends State<AiReviewPage> {
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.background,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.auto_awesome_rounded,
                 size: 32,
                 color: AppColors.textMuted,
@@ -484,7 +484,7 @@ class _AiItemCardState extends State<_AiItemCard> {
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(color: AppColors.border, height: 1),
+          Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 12),
           _buildActions(),
         ],

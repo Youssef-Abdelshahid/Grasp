@@ -120,12 +120,12 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
                   const SizedBox(width: 12),
                   IconButton.filledTonal(
                     onPressed: _load,
-                    icon: const Icon(Icons.refresh_rounded),
+                    icon: Icon(Icons.refresh_rounded),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     onPressed: _create,
-                    icon: const Icon(Icons.add_rounded, size: 16),
+                    icon: Icon(Icons.add_rounded, size: 16),
                     label: const Text('Create'),
                   ),
                 ],
@@ -135,7 +135,7 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
                 controller: _searchController,
                 onChanged: _search,
                 decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search_rounded),
+                  prefixIcon: Icon(Icons.search_rounded),
                   hintText:
                       'Search ${_title.toLowerCase()}, courses, or codes...',
                 ),
@@ -209,12 +209,12 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
                             IconButton(
                               tooltip: 'View',
                               onPressed: () => _showDetails(item),
-                              icon: const Icon(Icons.visibility_rounded),
+                              icon: Icon(Icons.visibility_rounded),
                             ),
                             IconButton(
                               tooltip: 'Edit',
                               onPressed: () => _openBuilder(item),
-                              icon: const Icon(Icons.edit_rounded),
+                              icon: Icon(Icons.edit_rounded),
                             ),
                             IconButton(
                               tooltip: item.isPublished
@@ -233,7 +233,7 @@ class _AdminAssessmentsPageState extends State<AdminAssessmentsPage> {
                             IconButton(
                               tooltip: 'Delete',
                               onPressed: () => _delete(item),
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.delete_rounded,
                                 color: AppColors.error,
                               ),

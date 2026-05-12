@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../models/course_model.dart';
 import '../../../services/course_service.dart';
+import '../../../services/permissions_service.dart';
 import '../../courses/providers/course_providers.dart';
 import '../../courses/pages/create_course_page.dart';
 import '../../permissions/providers/permissions_provider.dart';
@@ -19,7 +20,7 @@ class CourseWorkspacePage extends ConsumerStatefulWidget {
     super.key,
     required this.courseId,
     this.initialCourse,
-    this.accentColor = AppColors.primary,
+    this.accentColor = const Color(0xFF4F46E5),
   });
 
   final String courseId;
@@ -46,6 +47,7 @@ class _CourseWorkspacePageState extends ConsumerState<CourseWorkspacePage> {
     final courseAsync = ref.watch(courseDetailsProvider(widget.courseId));
     final course = courseAsync.valueOrNull ?? fallbackCourse;
     final permissions = ref.watch(permissionsProvider).valueOrDefaults;
+    final canManageCourse = permissions.canInstructorManageCourses;
     final tabs = _baseTabs
         .where((tab) => tab.label != 'Students' || permissions.viewStudentActivity)
         .toList();
@@ -79,28 +81,30 @@ class _CourseWorkspacePageState extends ConsumerState<CourseWorkspacePage> {
               backgroundColor: AppColors.sidebarBg,
               foregroundColor: Colors.white,
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
+                icon: Icon(Icons.arrow_back_rounded),
                 onPressed: () => Navigator.pop(context),
               ),
               actions: [
-                IconButton(
-                  icon: const Icon(Icons.edit_rounded),
-                  onPressed: () => _editCourse(course),
-                  tooltip: 'Edit Course',
-                ),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'archive') {
-                      _archiveCourse(course);
-                    }
-                  },
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'archive',
-                      child: Text('Archive Course'),
-                    ),
-                  ],
-                ),
+                if (canManageCourse)
+                  IconButton(
+                    icon: Icon(Icons.edit_rounded),
+                    onPressed: () => _editCourse(course),
+                    tooltip: 'Edit Course',
+                  ),
+                if (canManageCourse)
+                  PopupMenuButton<String>(
+                    onSelected: (value) {
+                      if (value == 'archive') {
+                        _archiveCourse(course);
+                      }
+                    },
+                    itemBuilder: (_) => const [
+                      PopupMenuItem(
+                        value: 'archive',
+                        child: Text('Archive Course'),
+                      ),
+                    ],
+                  ),
               ],
               flexibleSpace: FlexibleSpaceBar(
                 collapseMode: CollapseMode.pin,
@@ -242,8 +246,8 @@ class _CourseWorkspacePageState extends ConsumerState<CourseWorkspacePage> {
         indicatorWeight: 2,
         labelColor: Colors.white,
         unselectedLabelColor: Colors.white60,
-        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(
+        labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w400,
         ),
@@ -301,11 +305,23 @@ class _CourseWorkspacePageState extends ConsumerState<CourseWorkspacePage> {
       return;
     }
 
-    await CourseService.instance.archiveCourse(course.id);
-    if (!mounted) {
-      return;
+    try {
+      await CourseService.instance.archiveCourse(course.id);
+      if (!mounted) {
+        return;
+      }
+      Navigator.pop(context);
+    } on PermissionsException catch (error) {
+      _showMessage(error.message);
+    } catch (error) {
+      _showMessage(error.toString());
     }
-    Navigator.pop(context);
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 }
 

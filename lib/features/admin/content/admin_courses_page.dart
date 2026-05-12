@@ -390,27 +390,27 @@ class _AdminCoursesPageState extends State<AdminCoursesPage> {
                 children: [
                   ElevatedButton.icon(
                     onPressed: () => _showMembers(course),
-                    icon: const Icon(Icons.group_rounded, size: 16),
+                    icon: Icon(Icons.group_rounded, size: 16),
                     label: const Text('Members'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => _uploadMaterial(course),
-                    icon: const Icon(Icons.upload_rounded, size: 16),
+                    icon: Icon(Icons.upload_rounded, size: 16),
                     label: const Text('Material'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => _createQuiz(course),
-                    icon: const Icon(Icons.quiz_rounded, size: 16),
+                    icon: Icon(Icons.quiz_rounded, size: 16),
                     label: const Text('Quiz'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => _createAssignment(course),
-                    icon: const Icon(Icons.assignment_rounded, size: 16),
+                    icon: Icon(Icons.assignment_rounded, size: 16),
                     label: const Text('Assignment'),
                   ),
                   OutlinedButton.icon(
                     onPressed: () => _createAnnouncement(course),
-                    icon: const Icon(Icons.campaign_rounded, size: 16),
+                    icon: Icon(Icons.campaign_rounded, size: 16),
                     label: const Text('Announcement'),
                   ),
                 ],
@@ -664,17 +664,17 @@ class _CourseList extends StatelessWidget {
                 IconButton(
                   tooltip: 'View',
                   onPressed: () => onView(item),
-                  icon: const Icon(Icons.visibility_rounded),
+                  icon: Icon(Icons.visibility_rounded),
                 ),
                 IconButton(
                   tooltip: 'Edit',
                   onPressed: () => onEdit(item),
-                  icon: const Icon(Icons.edit_rounded),
+                  icon: Icon(Icons.edit_rounded),
                 ),
                 IconButton(
                   tooltip: 'Archive',
                   onPressed: () => onArchive(item),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.archive_rounded,
                     color: AppColors.amber,
                   ),
@@ -682,7 +682,7 @@ class _CourseList extends StatelessWidget {
                 IconButton(
                   tooltip: 'Delete safely',
                   onPressed: () => onDelete(item),
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.delete_rounded,
                     color: AppColors.error,
                   ),
@@ -774,7 +774,7 @@ class _CourseMembersSheetState extends State<_CourseMembersSheet> {
                       Expanded(child: _sectionTitle('Instructors')),
                       OutlinedButton.icon(
                         onPressed: _addInstructor,
-                        icon: const Icon(Icons.person_add_rounded, size: 16),
+                        icon: Icon(Icons.person_add_rounded, size: 16),
                         label: const Text('Add'),
                       ),
                     ],
@@ -810,7 +810,7 @@ class _CourseMembersSheetState extends State<_CourseMembersSheet> {
                         );
                       }).toList(),
                     ),
-                  const Divider(color: AppColors.border),
+                  Divider(color: AppColors.border),
                   Row(
                     children: [
                       Expanded(
@@ -820,7 +820,7 @@ class _CourseMembersSheetState extends State<_CourseMembersSheet> {
                       ),
                       OutlinedButton.icon(
                         onPressed: _addStudent,
-                        icon: const Icon(Icons.person_add_rounded, size: 16),
+                        icon: Icon(Icons.person_add_rounded, size: 16),
                         label: const Text('Add'),
                       ),
                     ],
@@ -861,12 +861,12 @@ class _CourseMembersSheetState extends State<_CourseMembersSheet> {
                                       courseId: widget.course.id,
                                       studentId: student.id,
                                     ),
-                                    icon: const Icon(Icons.insights_rounded),
+                                    icon: Icon(Icons.insights_rounded),
                                   ),
                                   IconButton(
                                     tooltip: 'Remove student',
                                     onPressed: () => _removeStudent(student),
-                                    icon: const Icon(
+                                    icon: Icon(
                                       Icons.remove_circle_outline_rounded,
                                       color: AppColors.error,
                                     ),
@@ -1199,13 +1199,13 @@ class _Header extends StatelessWidget {
         ),
         IconButton.filledTonal(
           onPressed: onRefresh,
-          icon: const Icon(Icons.refresh_rounded),
+          icon: Icon(Icons.refresh_rounded),
         ),
         if (actionLabel != null && onAction != null) ...[
           const SizedBox(width: 8),
           ElevatedButton.icon(
             onPressed: onAction,
-            icon: const Icon(Icons.add_rounded, size: 16),
+            icon: Icon(Icons.add_rounded, size: 16),
             label: Text(actionLabel!),
           ),
         ],
@@ -1239,7 +1239,7 @@ class _Filters extends StatelessWidget {
           controller: controller,
           onChanged: onChanged,
           decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.search_rounded),
+            prefixIcon: Icon(Icons.search_rounded),
             hintText: hint,
           ),
         ),
@@ -1384,7 +1384,7 @@ class _InstructorSelector extends StatelessWidget {
             runSpacing: 8,
             children: selected.map((user) {
               return InputChip(
-                avatar: const Icon(Icons.person_rounded, size: 16),
+                avatar: Icon(Icons.person_rounded, size: 16),
                 label: Text(
                   user.email.isEmpty
                       ? user.name
@@ -1418,7 +1418,7 @@ class _InstructorSelector extends StatelessWidget {
             if (picked == null) return;
             onChanged({...selectedIds, picked.id});
           },
-          icon: const Icon(Icons.person_add_rounded, size: 16),
+          icon: Icon(Icons.person_add_rounded, size: 16),
           label: const Text('Add instructor'),
         ),
       ],

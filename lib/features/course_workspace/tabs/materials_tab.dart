@@ -407,7 +407,7 @@ class _UploadAreaState extends State<_UploadArea> {
           ),
           child: Column(
             children: [
-              const Icon(
+              Icon(
                 Icons.cloud_upload_rounded,
                 color: AppColors.primary,
                 size: 36,

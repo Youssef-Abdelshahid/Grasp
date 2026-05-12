@@ -55,7 +55,7 @@ class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
                           snapshot.connectionState == ConnectionState.done
                           ? () => _openGenerateDialog(data.materials)
                           : null,
-                      icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                      icon: Icon(Icons.auto_awesome_rounded, size: 16),
                       label: const Text('Generate'),
                     ),
                 ],
@@ -132,6 +132,7 @@ class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
     final promptController = TextEditingController();
     var selectedIds = materials.map((material) => material.id).toSet();
     var isGenerating = false;
+    String? dialogError;
 
     final generated = await showDialog<StudyNoteModel>(
       context: context,
@@ -141,10 +142,15 @@ class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
           builder: (context, setDialogState) {
             Future<void> generate() async {
               if (selectedIds.isEmpty) {
-                _showMessage('Select at least one material.', isError: true);
+                setDialogState(() {
+                  dialogError = 'Select at least one material.';
+                });
                 return;
               }
-              setDialogState(() => isGenerating = true);
+              setDialogState(() {
+                dialogError = null;
+                isGenerating = true;
+              });
               try {
                 final selectedMaterials = materials
                     .where((material) => selectedIds.contains(material.id))
@@ -170,8 +176,10 @@ class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
                   Navigator.pop(dialogContext, saved);
                 }
               } catch (error) {
-                setDialogState(() => isGenerating = false);
-                _showMessage(error.toString(), isError: true);
+                setDialogState(() {
+                  isGenerating = false;
+                  dialogError = _friendlyError(error);
+                });
               }
             }
 
@@ -184,6 +192,10 @@ class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (dialogError != null) ...[
+                        _DialogError(message: dialogError!),
+                        const SizedBox(height: 12),
+                      ],
                       TextField(
                         controller: promptController,
                         enabled: !isGenerating,
@@ -256,7 +268,7 @@ class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
                 ),
                 ElevatedButton.icon(
                   onPressed: isGenerating ? null : generate,
-                  icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                  icon: Icon(Icons.auto_awesome_rounded, size: 16),
                   label: Text(isGenerating ? 'Generating...' : 'Generate'),
                 ),
               ],
@@ -330,6 +342,11 @@ class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
       ),
     );
   }
+
+  String _friendlyError(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '');
+    return message.isEmpty ? 'Study notes could not be generated.' : message;
+  }
 }
 
 class _StudyNoteCard extends StatelessWidget {
@@ -371,7 +388,7 @@ class _StudyNoteCard extends StatelessWidget {
                       color: AppColors.violetLight,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.note_alt_rounded,
                       color: AppColors.violet,
                       size: 16,
@@ -408,19 +425,19 @@ class _StudyNoteCard extends StatelessWidget {
                   IconButton(
                     tooltip: 'Edit',
                     onPressed: onEdit,
-                    icon: const Icon(Icons.edit_rounded),
+                    icon: Icon(Icons.edit_rounded),
                   ),
                   IconButton(
                     tooltip: 'Delete',
                     onPressed: onDelete,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.delete_rounded,
                       color: AppColors.error,
                     ),
                   ),
                   ElevatedButton.icon(
                     onPressed: onOpen,
-                    icon: const Icon(Icons.visibility_rounded, size: 16),
+                    icon: Icon(Icons.visibility_rounded, size: 16),
                     label: const Text('Open'),
                   ),
                 ],
@@ -441,6 +458,32 @@ class _StudyNotesTabData {
   final bool fromCache;
 }
 
+class _DialogError extends StatelessWidget {
+  const _DialogError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.errorLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        message,
+        style: AppTextStyles.bodySmall.copyWith(
+          color: AppColors.error,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 class _OfflineCacheLabel extends StatelessWidget {
   const _OfflineCacheLabel({required this.label, required this.subtitle});
 
@@ -458,7 +501,7 @@ class _OfflineCacheLabel extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.wifi_off_rounded, size: 16, color: AppColors.amber),
+          Icon(Icons.wifi_off_rounded, size: 16, color: AppColors.amber),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

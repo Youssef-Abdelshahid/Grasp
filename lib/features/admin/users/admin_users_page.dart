@@ -8,6 +8,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/user_utils.dart';
+import '../../../core/widgets/app_avatar.dart';
 import '../../../features/platform_settings/providers/platform_settings_provider.dart';
 import '../../../models/admin_models.dart';
 import '../../../models/platform_settings_model.dart';
@@ -243,13 +244,13 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
         ),
         IconButton.filledTonal(
           onPressed: isLoading ? null : _loadUsers,
-          icon: const Icon(Icons.refresh_rounded, size: 18),
+          icon: Icon(Icons.refresh_rounded, size: 18),
           tooltip: 'Refresh users',
         ),
         const SizedBox(width: 8),
         ElevatedButton.icon(
           onPressed: isLoading || !canCreate ? null : _openCreateUser,
-          icon: const Icon(Icons.person_add_rounded, size: 16),
+          icon: Icon(Icons.person_add_rounded, size: 16),
           label: const Text('Create User'),
         ),
       ],
@@ -529,14 +530,14 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
             onChanged: _onSearchChanged,
             decoration: InputDecoration(
               hintText: 'Search by name or email...',
-              prefixIcon: const Icon(
+              prefixIcon: Icon(
                 Icons.search_rounded,
                 color: AppColors.textMuted,
                 size: 18,
               ),
               suffixIcon: _searchController.text.isNotEmpty
                   ? IconButton(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.clear_rounded,
                         size: 16,
                         color: AppColors.textMuted,
@@ -617,13 +618,13 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
       child: Column(
         children: [
           _buildTableHeader(),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: AppColors.border),
           ListView.separated(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
             itemCount: users.length,
             separatorBuilder: (_, _) =>
-                const Divider(height: 1, color: AppColors.border),
+                Divider(height: 1, color: AppColors.border),
             itemBuilder: (_, i) => _buildTableRow(users[i]),
           ),
         ],
@@ -664,16 +665,12 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
               flex: 3,
               child: Row(
                 children: [
-                  CircleAvatar(
+                  AppAvatar(
                     radius: 16,
+                    avatarUrl: user.avatarUrl,
+                    initials: UserUtils.initials(user.name),
                     backgroundColor: roleBg,
-                    child: Text(
-                      UserUtils.initials(user.name),
-                      style: AppTextStyles.caption.copyWith(
-                        color: roleColor,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    textColor: roleColor,
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -771,16 +768,12 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
+                  AppAvatar(
                     radius: 22,
+                    avatarUrl: user.avatarUrl,
+                    initials: UserUtils.initials(user.name),
                     backgroundColor: roleBg,
-                    child: Text(
-                      UserUtils.initials(user.name),
-                      style: AppTextStyles.label.copyWith(
-                        color: roleColor,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
+                    textColor: roleColor,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -821,11 +814,11 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
                 ],
               ),
               const SizedBox(height: 12),
-              const Divider(height: 1, color: AppColors.border),
+              Divider(height: 1, color: AppColors.border),
               const SizedBox(height: 10),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.calendar_today_rounded,
                     size: 12,
                     color: AppColors.textMuted,
@@ -866,11 +859,11 @@ class _AdminUsersPageState extends ConsumerState<AdminUsersPage> {
           children: [
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColors.background,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.people_outline_rounded,
                 size: 32,
                 color: AppColors.textMuted,
@@ -1139,7 +1132,7 @@ class _ErrorState extends StatelessWidget {
         padding: const EdgeInsets.all(32),
         child: Column(
           children: [
-            const Icon(
+            Icon(
               Icons.cloud_off_rounded,
               size: 36,
               color: AppColors.textMuted,

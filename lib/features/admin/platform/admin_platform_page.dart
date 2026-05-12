@@ -227,7 +227,7 @@ class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.error_outline_rounded,
                 color: AppColors.error,
                 size: 32,
@@ -318,7 +318,7 @@ class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.restore_rounded, size: 16),
+                : Icon(Icons.restore_rounded, size: 16),
             label: const Text('Reset'),
           ),
           const SizedBox(width: 8),
@@ -330,7 +330,7 @@ class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.save_rounded, size: 16),
+                : Icon(Icons.save_rounded, size: 16),
             label: Text(_isSaving ? 'Saving...' : 'Save'),
           ),
         ],
@@ -494,7 +494,7 @@ class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
                   color: AppColors.errorLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.warning_rounded,
                   color: AppColors.error,
                   size: 16,
@@ -510,7 +510,7 @@ class _AdminPlatformPageState extends ConsumerState<AdminPlatformPage> {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(color: AppColors.border, height: 1),
+          Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 16),
           _ToggleTile(
             label: 'Require Re-login After Password Change',
@@ -596,7 +596,7 @@ class _Section extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(color: AppColors.border, height: 1),
+          Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 16),
           child,
         ],
@@ -638,11 +638,11 @@ class _TextInputTile extends StatelessWidget {
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
           ),
         ),
@@ -779,7 +779,7 @@ class _DangerTile extends StatelessWidget {
               ),
             ),
             if (isLoading)
-              const SizedBox(
+              SizedBox(
                 width: 18,
                 height: 18,
                 child: CircularProgressIndicator(
@@ -788,13 +788,13 @@ class _DangerTile extends StatelessWidget {
                 ),
               )
             else if (isDone)
-              const Icon(
+              Icon(
                 Icons.check_circle_rounded,
                 size: 18,
                 color: AppColors.success,
               )
             else
-              const Icon(
+              Icon(
                 Icons.chevron_right_rounded,
                 size: 16,
                 color: AppColors.textMuted,

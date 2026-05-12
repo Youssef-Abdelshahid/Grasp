@@ -95,15 +95,36 @@ class PermissionsService {
     await requirePermission(key);
   }
 
-  Future<void> requireInstructorCourseCreation() async {
+  Future<void> requireInstructorCourseManagement({bool creating = false}) async {
     final role = await _currentRole();
-    if (role == 'admin' || role == 'student') {
+    if (role == 'admin') {
       return;
     }
-    final permissions = await getPermissions();
-    if (!permissions.canInstructorCreateCourses) {
+    if (role != 'instructor') {
       throw const PermissionsException(blockedMessage);
     }
+    final permissions = await getPermissions();
+    final allowed = creating
+        ? permissions.canInstructorCreateCourses
+        : permissions.canInstructorManageCourses;
+    if (!allowed) {
+      throw const PermissionsException(blockedMessage);
+    }
+  }
+
+  Future<void> requireInstructorCourseCreation() {
+    return requireInstructorCourseManagement(creating: true);
+  }
+
+  Future<void> requireInstructorCourseStudentsManagement() async {
+    final role = await _currentRole();
+    if (role == 'admin') {
+      return;
+    }
+    if (role != 'instructor') {
+      throw const PermissionsException(blockedMessage);
+    }
+    await requirePermission(PermissionKeys.manageCourseStudents);
   }
 
   Future<String?> _currentRole() async {

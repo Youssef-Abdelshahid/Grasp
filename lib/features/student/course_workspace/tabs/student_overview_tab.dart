@@ -65,7 +65,7 @@ class _StudentOverviewTabState extends State<StudentOverviewTab> {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.info_outline_rounded,
                 color: AppColors.primary,
                 size: 18,
@@ -163,7 +163,7 @@ class _StudentOverviewTabState extends State<StudentOverviewTab> {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: materials.take(3).length,
                   separatorBuilder: (_, _) =>
-                      const Divider(height: 1, color: AppColors.border),
+                      Divider(height: 1, color: AppColors.border),
                   itemBuilder: (_, index) {
                     final material = materials[index];
                     final color = FileUtils.colorForExtension(
@@ -331,7 +331,7 @@ class _InstructorChip extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
+          Icon(
             Icons.person_rounded,
             size: 14,
             color: AppColors.textSecondary,

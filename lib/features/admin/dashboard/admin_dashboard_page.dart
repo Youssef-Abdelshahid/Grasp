@@ -195,7 +195,7 @@ class AdminDashboardPage extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
@@ -228,7 +228,7 @@ class AdminDashboardPage extends ConsumerWidget {
               color: Colors.white.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.admin_panel_settings_rounded,
               color: Colors.white,
               size: 30,
@@ -477,7 +477,7 @@ class AdminDashboardPage extends ConsumerWidget {
               physics: const NeverScrollableScrollPhysics(),
               itemCount: items.length,
               separatorBuilder: (_, _) =>
-                  const Divider(height: 1, color: AppColors.border),
+                  Divider(height: 1, color: AppColors.border),
               itemBuilder: (_, index) {
                 final item = items[index];
                 final isInstructor = item.role == 'Instructor';
@@ -554,7 +554,7 @@ class AdminDashboardPage extends ConsumerWidget {
               physics: const NeverScrollableScrollPhysics(),
               itemCount: items.length,
               separatorBuilder: (_, _) =>
-                  const Divider(height: 1, color: AppColors.border),
+                  Divider(height: 1, color: AppColors.border),
               itemBuilder: (_, index) {
                 final item = items[index];
                 return ListTile(
@@ -646,7 +646,7 @@ class _DashboardErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 40),
+            Icon(Icons.cloud_off_rounded, size: 40),
             const SizedBox(height: 12),
             Text(
               'Failed to load admin dashboard data.',

@@ -7,6 +7,8 @@ class AppPermissions {
     required this.generateStudyNotes,
     required this.viewCourseStudentList,
     required this.createCourses,
+    required this.manageCourses,
+    required this.manageCourseStudents,
     required this.uploadMaterials,
     required this.manageQuizzes,
     required this.manageAssignments,
@@ -29,6 +31,8 @@ class AppPermissions {
         generateStudyNotes: true,
         viewCourseStudentList: true,
         createCourses: true,
+        manageCourses: true,
+        manageCourseStudents: true,
         uploadMaterials: true,
         manageQuizzes: true,
         manageAssignments: true,
@@ -54,7 +58,15 @@ class AppPermissions {
       generateFlashcards: read(PermissionKeys.generateFlashcards),
       generateStudyNotes: read(PermissionKeys.generateStudyNotes),
       viewCourseStudentList: read(PermissionKeys.viewCourseStudentList),
-      createCourses: read(PermissionKeys.createCourses),
+      createCourses:
+          json[PermissionKeys.createCourses] as bool? ??
+          json[PermissionKeys.manageCourses] as bool? ??
+          true,
+      manageCourses:
+          json[PermissionKeys.manageCourses] as bool? ??
+          json[PermissionKeys.createCourses] as bool? ??
+          defaults[PermissionKeys.manageCourses] as bool,
+      manageCourseStudents: read(PermissionKeys.manageCourseStudents),
       uploadMaterials: read(PermissionKeys.uploadMaterials),
       manageQuizzes: read(PermissionKeys.manageQuizzes),
       manageAssignments: read(PermissionKeys.manageAssignments),
@@ -82,6 +94,8 @@ class AppPermissions {
   final bool viewCourseStudentList;
 
   final bool createCourses;
+  final bool manageCourses;
+  final bool manageCourseStudents;
   final bool uploadMaterials;
   final bool manageQuizzes;
   final bool manageAssignments;
@@ -97,7 +111,9 @@ class AppPermissions {
   final bool requireReviewBeforeAiContentPublished;
 
   bool get canInstructorCreateCourses =>
-      createCourses && allowInstructorsToCreateCourses;
+      manageCourses && allowInstructorsToCreateCourses;
+
+  bool get canInstructorManageCourses => manageCourses;
 
   int get enabledStudentCount => studentValues.where((value) => value).length;
   int get enabledInstructorCount =>
@@ -113,7 +129,8 @@ class AppPermissions {
       ];
 
   List<bool> get instructorValues => [
-        createCourses,
+        manageCourses,
+        manageCourseStudents,
         uploadMaterials,
         manageQuizzes,
         manageAssignments,
@@ -131,7 +148,8 @@ class AppPermissions {
         PermissionKeys.generateFlashcards: generateFlashcards,
         PermissionKeys.generateStudyNotes: generateStudyNotes,
         PermissionKeys.viewCourseStudentList: viewCourseStudentList,
-        PermissionKeys.createCourses: createCourses,
+        PermissionKeys.manageCourses: manageCourses,
+        PermissionKeys.manageCourseStudents: manageCourseStudents,
         PermissionKeys.uploadMaterials: uploadMaterials,
         PermissionKeys.manageQuizzes: manageQuizzes,
         PermissionKeys.manageAssignments: manageAssignments,
@@ -171,6 +189,8 @@ class PermissionKeys {
   static const viewCourseStudentList = 'view_course_student_list';
 
   static const createCourses = 'create_courses';
+  static const manageCourses = 'manage_courses';
+  static const manageCourseStudents = 'manage_course_students';
   static const uploadMaterials = 'upload_materials';
   static const manageQuizzes = 'manage_quizzes';
   static const manageAssignments = 'manage_assignments';
@@ -196,7 +216,8 @@ class PermissionKeys {
     generateFlashcards,
     generateStudyNotes,
     viewCourseStudentList,
-    createCourses,
+    manageCourses,
+    manageCourseStudents,
     uploadMaterials,
     manageQuizzes,
     manageAssignments,

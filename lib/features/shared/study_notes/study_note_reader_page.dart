@@ -62,7 +62,7 @@ class _StudyNoteReaderPageState extends State<StudyNoteReaderPage> {
         appBar: AppBar(
           backgroundColor: AppColors.surface,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
+            icon: Icon(Icons.arrow_back_rounded),
             onPressed: () => Navigator.pop(context, _changed),
           ),
           title: Text(
@@ -80,7 +80,7 @@ class _StudyNoteReaderPageState extends State<StudyNoteReaderPage> {
                 padding: const EdgeInsets.only(right: 12),
                 child: ElevatedButton.icon(
                   onPressed: _saving ? null : _save,
-                  icon: const Icon(Icons.save_rounded, size: 16),
+                  icon: Icon(Icons.save_rounded, size: 16),
                   label: Text(_saving ? 'Saving...' : 'Save'),
                 ),
               ),
@@ -90,12 +90,12 @@ class _StudyNoteReaderPageState extends State<StudyNoteReaderPage> {
                 onPressed: _deleting
                     ? null
                     : () => setState(() => _editing = true),
-                icon: const Icon(Icons.edit_rounded),
+                icon: Icon(Icons.edit_rounded),
               ),
               IconButton(
                 tooltip: 'Delete',
                 onPressed: _deleting ? null : _delete,
-                icon: const Icon(Icons.delete_rounded, color: AppColors.error),
+                icon: Icon(Icons.delete_rounded, color: AppColors.error),
               ),
               const SizedBox(width: 8),
             ],
@@ -162,7 +162,7 @@ class _StudyNoteReaderPageState extends State<StudyNoteReaderPage> {
             Text('Updated ${_note.updatedLabel}', style: AppTextStyles.caption),
           ],
           const SizedBox(height: 24),
-          const Divider(height: 1),
+          Divider(height: 1),
           const SizedBox(height: 8),
           StudyNoteContentView(content: _note.content),
         ],

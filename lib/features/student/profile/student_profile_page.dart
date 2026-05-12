@@ -35,6 +35,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
   bool _obscureConfirm = true;
   bool _savingProfile = false;
   bool _savingPassword = false;
+  bool _uploadingAvatar = false;
   bool _didPopulate = false;
 
   late Future<_StudentProfileData> _future;
@@ -107,6 +108,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                               profile: data.profile,
                               summary: data.summary,
                               onUploadAvatar: _uploadAvatar,
+                              isUploadingAvatar: _uploadingAvatar,
                             ),
                             const SizedBox(height: 20),
                             _ActivityCard(notifications: data.notifications),
@@ -155,6 +157,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
                         profile: data.profile,
                         summary: data.summary,
                         onUploadAvatar: _uploadAvatar,
+                        isUploadingAvatar: _uploadingAvatar,
                       ),
                       const SizedBox(height: 20),
                       _ProfileFormCard(
@@ -281,6 +284,7 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
     }
 
     try {
+      setState(() => _uploadingAvatar = true);
       await ProfileService.instance.uploadAvatar(result.files.single);
       _showMessage('Profile image updated.');
       _refresh();
@@ -288,6 +292,10 @@ class _StudentProfilePageState extends State<StudentProfilePage> {
       _showMessage(error.message, isError: true);
     } on PostgrestException catch (error) {
       _showMessage(error.message, isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _uploadingAvatar = false);
+      }
     }
   }
 
@@ -329,11 +337,13 @@ class _StudentProfileHeader extends StatelessWidget {
     required this.profile,
     required this.summary,
     required this.onUploadAvatar,
+    required this.isUploadingAvatar,
   });
 
   final UserModel profile;
   final StudentDashboardSummary summary;
   final VoidCallback onUploadAvatar;
+  final bool isUploadingAvatar;
 
   @override
   Widget build(BuildContext context) {
@@ -348,7 +358,7 @@ class _StudentProfileHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.cyan, Color(0xFF0891B2)],
@@ -377,8 +387,14 @@ class _StudentProfileHeader extends StatelessWidget {
                     : null,
               ),
               IconButton(
-                onPressed: onUploadAvatar,
-                icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                onPressed: isUploadingAvatar ? null : onUploadAvatar,
+                icon: isUploadingAvatar
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(Icons.camera_alt_rounded, size: 16),
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: AppColors.cyan,
@@ -618,7 +634,7 @@ class _ActivityCard extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.brightness_1_rounded,
                             size: 10,
                             color: AppColors.emerald,

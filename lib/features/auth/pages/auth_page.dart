@@ -85,7 +85,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
         AppConstants.appName;
     return Expanded(
       child: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
@@ -105,7 +105,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
                       color: AppColors.primary,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.school_rounded,
                       color: Colors.white,
                       size: 18,
@@ -181,7 +181,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
             onTap: () => Navigator.pop(context),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.arrow_back_rounded,
                   size: 18,
                   color: AppColors.textSecondary,
@@ -232,7 +232,11 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               if (value == null || value.trim().isEmpty) {
                 return 'Please enter your email address.';
               }
-              if (!value.contains('@')) {
+              final email = value.trim();
+              final isValidEmail = RegExp(
+                r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+              ).hasMatch(email);
+              if (!isValidEmail) {
                 return 'Please enter a valid email address.';
               }
               return null;
@@ -277,6 +281,9 @@ class _AuthPageState extends ConsumerState<AuthPage> {
               onToggle: () =>
                   setState(() => _obscureConfirm = !_obscureConfirm),
               validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please confirm your password.';
+                }
                 if (value != _passwordController.text) {
                   return 'Passwords do not match.';
                 }
@@ -584,7 +591,7 @@ class _AuthPageState extends ConsumerState<AuthPage> {
           validator: validator,
           decoration: InputDecoration(
             hintText: '........',
-            prefixIcon: const Icon(
+            prefixIcon: Icon(
               Icons.lock_outline_rounded,
               size: 18,
               color: AppColors.textMuted,

@@ -48,7 +48,7 @@ class _MaterialStudyPageState extends State<MaterialStudyPage> {
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
+          icon: Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.pop(context),
         ),
         title: Column(
@@ -68,7 +68,7 @@ class _MaterialStudyPageState extends State<MaterialStudyPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.open_in_new_rounded),
+            icon: Icon(Icons.open_in_new_rounded),
             onPressed: _isOpening ? null : _openFile,
           ),
         ],
@@ -125,7 +125,7 @@ class _MaterialStudyPageState extends State<MaterialStudyPage> {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.open_in_new_rounded, size: 14),
+                        : Icon(Icons.open_in_new_rounded, size: 14),
                     label: Text(_isOpening ? 'Opening...' : 'Open File'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: color,

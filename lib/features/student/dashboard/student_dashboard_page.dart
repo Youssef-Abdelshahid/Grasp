@@ -118,7 +118,7 @@ class _StudentDashboardPageState extends ConsumerState<StudentDashboardPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF4F46E5), Color(0xFF06B6D4)],
@@ -160,7 +160,7 @@ class _StudentDashboardPageState extends ConsumerState<StudentDashboardPage> {
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.auto_stories_rounded,
               color: Colors.white,
               size: 30,
@@ -407,7 +407,7 @@ class _StudentDashboardPageState extends ConsumerState<StudentDashboardPage> {
               physics: const NeverScrollableScrollPhysics(),
               itemCount: announcements.length,
               separatorBuilder: (_, _) =>
-                  const Divider(height: 1, color: AppColors.border),
+                  Divider(height: 1, color: AppColors.border),
               itemBuilder: (_, index) {
                 final item = announcements[index];
                 return ListTile(
@@ -516,7 +516,7 @@ class _DashboardErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 40),
+            Icon(Icons.cloud_off_rounded, size: 40),
             const SizedBox(height: 12),
             Text(
               'Failed to load student dashboard data.',

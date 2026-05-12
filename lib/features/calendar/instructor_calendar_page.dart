@@ -173,14 +173,14 @@ class _CalendarCard extends StatelessWidget {
               Text(_monthLabel(focusedMonth), style: AppTextStyles.h3),
               const Spacer(),
               IconButton(
-                icon: const Icon(Icons.chevron_left_rounded),
+                icon: Icon(Icons.chevron_left_rounded),
                 onPressed: onPreviousMonth,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
               const SizedBox(width: 8),
               IconButton(
-                icon: const Icon(Icons.chevron_right_rounded),
+                icon: Icon(Icons.chevron_right_rounded),
                 onPressed: onNextMonth,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
@@ -432,7 +432,7 @@ class _UpcomingEventsCard extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: events.length,
                   separatorBuilder: (_, _) =>
-                      const Divider(height: 1, color: AppColors.border),
+                      Divider(height: 1, color: AppColors.border),
                   itemBuilder: (_, index) {
                     final event = events[index];
                     return ListTile(

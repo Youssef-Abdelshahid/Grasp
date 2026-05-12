@@ -102,7 +102,7 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
+          icon: Icon(Icons.arrow_back_rounded),
           onPressed: _isSaving ? null : () => Navigator.pop(context),
         ),
         title: Text(
@@ -153,7 +153,7 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.assignment_rounded, color: AppColors.emerald),
+          Icon(Icons.assignment_rounded, color: AppColors.emerald),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -342,7 +342,7 @@ class _AssignmentBuilderPageState extends State<AssignmentBuilderPage> {
             ),
           OutlinedButton.icon(
             onPressed: _addRubric,
-            icon: const Icon(Icons.add_rounded, size: 16),
+            icon: Icon(Icons.add_rounded, size: 16),
             label: const Text('Add Criterion'),
           ),
         ],
@@ -562,7 +562,7 @@ class _AttachmentEditor extends StatelessWidget {
             final attachment = entry.value;
             return ListTile(
               contentPadding: EdgeInsets.zero,
-              leading: const Icon(Icons.attach_file_rounded),
+              leading: Icon(Icons.attach_file_rounded),
               title: Text(
                 attachment['name']?.toString() ?? 'Attachment',
                 overflow: TextOverflow.ellipsis,
@@ -575,7 +575,7 @@ class _AttachmentEditor extends StatelessWidget {
                     )
                   : null,
               trailing: IconButton(
-                icon: const Icon(Icons.close_rounded),
+                icon: Icon(Icons.close_rounded),
                 onPressed: () => onRemove(entry.key),
               ),
             );
@@ -588,7 +588,7 @@ class _AttachmentEditor extends StatelessWidget {
                   height: 14,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Icon(Icons.attach_file_rounded, size: 16),
+              : Icon(Icons.attach_file_rounded, size: 16),
           label: Text(uploading ? 'Uploading...' : 'Add Attachment'),
         ),
       ],
@@ -640,7 +640,7 @@ class _RubricRowCard extends StatelessWidget {
               const Spacer(),
               if (canDelete)
                 IconButton(
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.delete_outline_rounded,
                     size: 18,
                     color: AppColors.textSecondary,
@@ -697,11 +697,11 @@ class _DateField extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: InputDecorator(
             decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.calendar_today_rounded, size: 18),
+              prefixIcon: Icon(Icons.calendar_today_rounded, size: 18),
               suffixIcon: onClear == null
                   ? null
                   : IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 18),
+                      icon: Icon(Icons.close_rounded, size: 18),
                       onPressed: onClear,
                     ),
             ),

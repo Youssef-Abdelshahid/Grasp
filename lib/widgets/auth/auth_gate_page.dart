@@ -56,7 +56,7 @@ class _InactiveAccountScaffold extends ConsumerWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.lock_rounded, size: 40),
+                Icon(Icons.lock_rounded, size: 40),
                 const SizedBox(height: 16),
                 Text(
                   'Your account is $status. Contact an administrator to restore access.',

@@ -115,12 +115,12 @@ class _AssignmentsTabState extends ConsumerState<AssignmentsTab> {
 
         final createButton = ElevatedButton.icon(
           onPressed: canManage ? () => _openBuilder() : null,
-          icon: const Icon(Icons.add_rounded, size: 16),
+          icon: Icon(Icons.add_rounded, size: 16),
           label: const Text('Create Assignment'),
         );
         final generateButton = OutlinedButton.icon(
           onPressed: canUseAi && canManage ? _generateAssignment : null,
-          icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+          icon: Icon(Icons.auto_awesome_rounded, size: 16),
           label: const Text('Generate Assignment'),
         );
 
@@ -380,7 +380,7 @@ class _AssignmentCard extends StatelessWidget {
                   color: AppColors.emeraldLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.assignment_rounded,
                   color: AppColors.emerald,
                   size: 20,

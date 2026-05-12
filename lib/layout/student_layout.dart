@@ -4,9 +4,11 @@ import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
+import '../core/widgets/app_avatar.dart';
 import '../core/widgets/top_bar_actions.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/platform_settings/providers/platform_settings_provider.dart';
+import '../features/theme/providers/theme_mode_provider.dart';
 import '../features/student/profile/student_profile_page.dart';
 import '../features/student/dashboard/student_dashboard_page.dart';
 import '../features/student/courses/student_courses_page.dart';
@@ -67,6 +69,7 @@ class _StudentLayoutState extends ConsumerState<StudentLayout> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(themeModeProvider);
     final user = ref.watch(currentUserProvider);
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
@@ -88,6 +91,7 @@ class _StudentLayoutState extends ConsumerState<StudentLayout> {
                     onNotificationsTap: _openNotifications,
                     onProfileTap: _openProfile,
                     initials: UserUtils.initials(user?.name ?? 'Student'),
+                    avatarUrl: user?.avatarUrl,
                   ),
                   Expanded(child: _pages[_selectedIndex]),
                 ],
@@ -127,6 +131,7 @@ class _StudentLayoutState extends ConsumerState<StudentLayout> {
         MobileNotificationBadgeButton(onPressed: _openNotifications),
         ProfileAvatarButton(
           initials: UserUtils.initials(user?.name ?? 'Student'),
+          avatarUrl: user?.avatarUrl,
           backgroundColor: AppColors.cyanLight,
           textColor: AppColors.cyan,
           radius: 16,
@@ -206,7 +211,7 @@ class _StudentSidebar extends ConsumerWidget {
         .platformName;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.sidebarHover)),
       ),
       child: Row(
@@ -217,7 +222,7 @@ class _StudentSidebar extends ConsumerWidget {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.school_rounded,
               color: Colors.white,
               size: 18,
@@ -242,7 +247,7 @@ class _StudentSidebar extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.sidebarHover)),
       ),
       child: Column(
@@ -274,16 +279,12 @@ class _StudentSidebar extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    AppAvatar(
                       radius: 16,
+                      avatarUrl: user?.avatarUrl,
+                      initials: UserUtils.initials(name),
                       backgroundColor: AppColors.cyan,
-                      child: Text(
-                        UserUtils.initials(name),
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      textColor: Colors.white,
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -376,12 +377,14 @@ class _StudentTopBar extends StatelessWidget {
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
   final String initials;
+  final String? avatarUrl;
 
   const _StudentTopBar({
     required this.title,
     this.onNotificationsTap,
     this.onProfileTap,
     required this.initials,
+    this.avatarUrl,
   });
 
   @override
@@ -389,7 +392,7 @@ class _StudentTopBar extends StatelessWidget {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
@@ -403,6 +406,7 @@ class _StudentTopBar extends StatelessWidget {
           const SizedBox(width: 12),
           ProfileAvatarButton(
             initials: initials,
+            avatarUrl: avatarUrl,
             backgroundColor: AppColors.cyanLight,
             textColor: AppColors.cyan,
             onTap: () => onProfileTap?.call(),

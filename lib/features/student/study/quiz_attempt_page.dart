@@ -95,7 +95,7 @@ class _QuizAttemptPageState extends State<QuizAttemptPage> {
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
+          icon: Icon(Icons.close_rounded),
           onPressed: _isSubmitting ? null : () => _showExitDialog(context),
         ),
         title: Column(
@@ -451,7 +451,7 @@ class _QuestionCard extends StatelessWidget {
                         ),
                       ),
                       child: isChosen
-                          ? const Icon(
+                          ? Icon(
                               Icons.check_rounded,
                               color: Colors.white,
                               size: 14,
@@ -756,7 +756,7 @@ class _NavigationBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(top: BorderSide(color: AppColors.border)),
       ),
@@ -764,7 +764,7 @@ class _NavigationBar extends StatelessWidget {
         children: [
           OutlinedButton.icon(
             onPressed: isFirst || isSubmitting ? null : onPrevious,
-            icon: const Icon(Icons.chevron_left_rounded, size: 18),
+            icon: Icon(Icons.chevron_left_rounded, size: 18),
             label: const Text('Prev'),
           ),
           const Spacer(),
@@ -780,7 +780,7 @@ class _NavigationBar extends StatelessWidget {
                         color: Colors.white,
                       ),
                     )
-                  : const Icon(Icons.check_circle_rounded, size: 16),
+                  : Icon(Icons.check_circle_rounded, size: 16),
               label: Text(isSubmitting ? 'Submitting...' : 'Submit Quiz'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.emerald,
@@ -791,7 +791,7 @@ class _NavigationBar extends StatelessWidget {
             ElevatedButton.icon(
               onPressed: isSubmitting ? null : onNext,
               icon: const Text('Next'),
-              label: const Icon(Icons.chevron_right_rounded, size: 18),
+              label: Icon(Icons.chevron_right_rounded, size: 18),
             ),
         ],
       ),
@@ -844,7 +844,7 @@ class _ResultScreen extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: LinearGradient(
                   colors: hasScore
-                      ? [AppColors.emerald, const Color(0xFF059669)]
+                      ? [AppColors.emerald, Color(0xFF059669)]
                       : [AppColors.primary, AppColors.violet],
                 ),
               ),
@@ -853,7 +853,7 @@ class _ResultScreen extends StatelessWidget {
                 children: [
                   Text(
                     hasScore ? _markText(scoreValue) : 'Sent',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.w800,
                       color: Colors.white,
@@ -861,7 +861,7 @@ class _ResultScreen extends StatelessWidget {
                   ),
                   Text(
                     hasScore ? 'of ${_markText(totalMarks)}' : 'Pending review',
-                    style: const TextStyle(fontSize: 12, color: Colors.white70),
+                    style: TextStyle(fontSize: 12, color: Colors.white70),
                   ),
                 ],
               ),
@@ -981,7 +981,7 @@ class _ResultScreen extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () => Navigator.pop(context, submission),
-                icon: const Icon(Icons.arrow_back_rounded, size: 16),
+                icon: Icon(Icons.arrow_back_rounded, size: 16),
                 label: const Text('Back to Quizzes'),
               ),
             ),

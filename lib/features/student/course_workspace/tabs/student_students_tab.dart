@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/user_utils.dart';
+import '../../../../core/widgets/app_avatar.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../models/basic_profile_model.dart';
 import '../../../../services/course_people_service.dart';
@@ -118,15 +119,12 @@ class _StudentList extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    AppAvatar(
                       radius: 20,
+                      avatarUrl: student.avatarUrl,
+                      initials: UserUtils.initials(student.name),
                       backgroundColor: AppColors.cyan.withValues(alpha: 0.12),
-                      child: Text(
-                        UserUtils.initials(student.name),
-                        style: AppTextStyles.label.copyWith(
-                          color: AppColors.cyan,
-                        ),
-                      ),
+                      textColor: AppColors.cyan,
                     ),
                     const SizedBox(width: 12),
                     Expanded(

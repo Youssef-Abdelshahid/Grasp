@@ -5,6 +5,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../models/course_model.dart';
 import '../../../services/course_service.dart';
+import '../../../services/permissions_service.dart';
 
 class CreateCoursePage extends StatefulWidget {
   const CreateCoursePage({super.key, this.course});
@@ -69,7 +70,7 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.close_rounded),
+          icon: Icon(Icons.close_rounded),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(title, style: AppTextStyles.h3),
@@ -165,7 +166,7 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
                   _selfEnrollment,
                   (value) => setState(() => _selfEnrollment = value),
                 ),
-                const Divider(color: AppColors.border, height: 24),
+                Divider(color: AppColors.border, height: 24),
                 _buildToggle(
                   'Visible to students',
                   _visible,
@@ -287,6 +288,8 @@ class _CreateCoursePageState extends State<CreateCoursePage> {
         return;
       }
       Navigator.pop(context, course);
+    } on PermissionsException catch (error) {
+      _showError(error.message);
     } on PostgrestException catch (error) {
       _showError(error.message);
     } catch (error) {
@@ -321,7 +324,7 @@ class _DropdownField<T> extends StatelessWidget {
     return DropdownButtonFormField<T>(
       initialValue: value,
       isExpanded: true,
-      icon: const Icon(
+      icon: Icon(
         Icons.arrow_drop_down_rounded,
         color: AppColors.textSecondary,
       ),

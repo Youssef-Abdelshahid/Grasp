@@ -35,6 +35,7 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
   bool _obscureConfirm = true;
   bool _savingProfile = false;
   bool _savingPassword = false;
+  bool _uploadingAvatar = false;
   bool _didPopulate = false;
 
   late Future<_InstructorProfileData> _future;
@@ -110,6 +111,7 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
                               profile: data.profile,
                               summary: data.summary,
                               onUploadAvatar: _uploadAvatar,
+                              isUploadingAvatar: _uploadingAvatar,
                             ),
                             const SizedBox(height: 20),
                             _RecentActivity(notifications: data.notifications),
@@ -158,6 +160,7 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
                         profile: data.profile,
                         summary: data.summary,
                         onUploadAvatar: _uploadAvatar,
+                        isUploadingAvatar: _uploadingAvatar,
                       ),
                       const SizedBox(height: 20),
                       _InstructorProfileForm(
@@ -277,11 +280,16 @@ class _InstructorProfilePageState extends State<InstructorProfilePage> {
     }
 
     try {
+      setState(() => _uploadingAvatar = true);
       await ProfileService.instance.uploadAvatar(result.files.single);
       _showMessage('Profile image updated.');
       _refresh();
     } on ProfileException catch (error) {
       _showMessage(error.message, isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _uploadingAvatar = false);
+      }
     }
   }
 
@@ -323,11 +331,13 @@ class _InstructorHeader extends StatelessWidget {
     required this.profile,
     required this.summary,
     required this.onUploadAvatar,
+    required this.isUploadingAvatar,
   });
 
   final UserModel profile;
   final InstructorDashboardSummary summary;
   final VoidCallback onUploadAvatar;
+  final bool isUploadingAvatar;
 
   @override
   Widget build(BuildContext context) {
@@ -342,7 +352,7 @@ class _InstructorHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.primary, Color(0xFF6366F1)],
@@ -371,8 +381,14 @@ class _InstructorHeader extends StatelessWidget {
                     : null,
               ),
               IconButton(
-                onPressed: onUploadAvatar,
-                icon: const Icon(Icons.camera_alt_rounded, size: 16),
+                onPressed: isUploadingAvatar ? null : onUploadAvatar,
+                icon: isUploadingAvatar
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(Icons.camera_alt_rounded, size: 16),
                 style: IconButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: AppColors.primary,
@@ -609,7 +625,7 @@ class _RecentActivity extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.brightness_1_rounded,
                             size: 10,
                             color: AppColors.emerald,

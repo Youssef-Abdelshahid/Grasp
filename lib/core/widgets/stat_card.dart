@@ -138,7 +138,7 @@ class _StatCardState extends State<StatCard> {
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(
+                                    Icon(
                                       Icons.trending_up_rounded,
                                       color: AppColors.success,
                                       size: 14,

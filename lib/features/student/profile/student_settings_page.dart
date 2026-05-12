@@ -5,6 +5,7 @@ import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../features/settings/providers/user_settings_provider.dart';
+import '../../../features/theme/providers/theme_mode_provider.dart';
 import '../../../models/user_settings_model.dart';
 import '../../../widgets/auth/logout_flow.dart';
 
@@ -29,6 +30,7 @@ class _StudentSettingsPageState extends ConsumerState<StudentSettingsPage> {
   bool _studyReminders = true;
   bool _weeklyStudySummary = true;
   bool _showOverdueFirst = true;
+  String _themeMode = themeModeLight;
   String _deadlineReminderTime = '09:00';
   bool _saving = false;
 
@@ -76,9 +78,15 @@ class _StudentSettingsPageState extends ConsumerState<StudentSettingsPage> {
               if (isWide)
                 Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [Expanded(child: _accountSection())],
+                  children: [
+                    Expanded(child: _appearanceSection()),
+                    const SizedBox(width: 20),
+                    Expanded(child: _accountSection()),
+                  ],
                 )
               else ...[
+                _appearanceSection(),
+                const SizedBox(height: 20),
                 _accountSection(),
               ],
               const SizedBox(height: 20),
@@ -118,6 +126,7 @@ class _StudentSettingsPageState extends ConsumerState<StudentSettingsPage> {
     _studyReminders = settings.dailyStudyReminder;
     _weeklyStudySummary = settings.weeklyStudySummary;
     _showOverdueFirst = settings.showOverdueFirst;
+    _themeMode = settings.themeMode;
     _deadlineReminderTime = settings.defaultDeadlineReminderTime;
   }
 
@@ -127,6 +136,7 @@ class _StudentSettingsPageState extends ConsumerState<StudentSettingsPage> {
         .read(userSettingsProvider.notifier)
         .save(
           StudentSettings(
+            themeMode: _themeMode,
             emailNotifications: _emailNotifications,
             pushNotifications: _pushNotifications,
             assignmentAlerts: _assignmentReminders,
@@ -222,12 +232,42 @@ class _StudentSettingsPageState extends ConsumerState<StudentSettingsPage> {
     ],
   );
 
+  Widget _appearanceSection() => _SettingsSection(
+    title: 'Appearance',
+    children: [
+      DropdownButtonFormField<String>(
+        initialValue: _themeMode,
+        decoration: const InputDecoration(labelText: 'Theme'),
+        items: const [
+          DropdownMenuItem(value: themeModeLight, child: Text('Light')),
+          DropdownMenuItem(value: themeModeDark, child: Text('Dark')),
+        ],
+        onChanged: _saving
+            ? null
+            : (value) {
+                if (value == null) return;
+                setState(() => _themeMode = value);
+                ref
+                    .read(themeModeProvider.notifier)
+                    .setThemeMode(
+                      value == themeModeDark ? ThemeMode.dark : ThemeMode.light,
+                    );
+              },
+      ),
+      const SizedBox(height: 8),
+      Text(
+        'Applies immediately and is saved with your settings.',
+        style: AppTextStyles.bodySmall,
+      ),
+    ],
+  );
+
   Widget _timeTile() {
     return ListTile(
       contentPadding: EdgeInsets.zero,
       title: Text('Default Deadline Reminder Time', style: AppTextStyles.label),
       subtitle: Text(_deadlineReminderTime, style: AppTextStyles.bodySmall),
-      trailing: const Icon(Icons.schedule_rounded),
+      trailing: Icon(Icons.schedule_rounded),
       onTap: _saving ? null : _pickReminderTime,
     );
   }
@@ -251,7 +291,7 @@ class _StudentSettingsPageState extends ConsumerState<StudentSettingsPage> {
     children: [
       ListTile(
         contentPadding: EdgeInsets.zero,
-        leading: const Icon(Icons.logout_rounded, color: AppColors.error),
+        leading: Icon(Icons.logout_rounded, color: AppColors.error),
         title: const Text('Sign Out'),
         onTap: () => logoutAndReturnToAuthGate(context, ref),
       ),
@@ -286,7 +326,7 @@ class _SettingsLoadError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 40),
+            Icon(Icons.cloud_off_rounded, size: 40),
             const SizedBox(height: 12),
             Text(
               'Unable to load settings.',

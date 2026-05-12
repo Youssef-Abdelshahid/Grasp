@@ -259,7 +259,7 @@ class _OfflineCacheLabel extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.wifi_off_rounded, size: 16, color: AppColors.amber),
+          Icon(Icons.wifi_off_rounded, size: 16, color: AppColors.amber),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

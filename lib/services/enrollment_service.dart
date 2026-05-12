@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../models/enrollment_model.dart';
+import 'permissions_service.dart';
 
 class EnrollmentService {
   EnrollmentService._();
@@ -28,6 +29,8 @@ class EnrollmentService {
     required String courseId,
     required String studentEmail,
   }) async {
+    await PermissionsService.instance
+        .requireInstructorCourseStudentsManagement();
     final normalizedEmail = studentEmail.trim().toLowerCase();
     final profile = await _client
         .from('profiles')
@@ -57,6 +60,8 @@ class EnrollmentService {
     required String courseId,
     required String studentId,
   }) async {
+    await PermissionsService.instance
+        .requireInstructorCourseStudentsManagement();
     await _client
         .from('enrollments')
         .delete()

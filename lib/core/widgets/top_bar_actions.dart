@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/notifications/providers/notification_providers.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
+import 'app_avatar.dart';
 
 class NotificationBadgeButton extends ConsumerWidget {
   const NotificationBadgeButton({super.key, required this.onPressed});
@@ -33,7 +34,7 @@ class NotificationBadgeButton extends ConsumerWidget {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              const Icon(
+              Icon(
                 Icons.notifications_outlined,
                 color: AppColors.textSecondary,
                 size: 20,
@@ -64,7 +65,7 @@ class MobileNotificationBadgeButton extends ConsumerWidget {
       icon: Stack(
         clipBehavior: Clip.none,
         children: [
-          const Icon(
+          Icon(
             Icons.notifications_outlined,
             color: AppColors.textSecondary,
             size: 22,
@@ -92,6 +93,7 @@ class ProfileAvatarButton extends StatelessWidget {
     required this.backgroundColor,
     required this.textColor,
     required this.onTap,
+    this.avatarUrl,
     this.radius = 18,
     this.padding = EdgeInsets.zero,
   });
@@ -100,6 +102,7 @@ class ProfileAvatarButton extends StatelessWidget {
   final Color backgroundColor;
   final Color textColor;
   final VoidCallback onTap;
+  final String? avatarUrl;
   final double radius;
   final EdgeInsetsGeometry padding;
 
@@ -115,16 +118,12 @@ class ProfileAvatarButton extends StatelessWidget {
           customBorder: const CircleBorder(),
           child: Padding(
             padding: padding,
-            child: CircleAvatar(
+            child: AppAvatar(
               radius: radius,
+              avatarUrl: avatarUrl,
+              initials: initials,
               backgroundColor: backgroundColor,
-              child: Text(
-                initials,
-                style: AppTextStyles.caption.copyWith(
-                  color: textColor,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
+              textColor: textColor,
             ),
           ),
         ),

@@ -38,7 +38,7 @@ class _NavBar extends ConsumerWidget {
     final registrationEnabled = settings?.landingPageRegistration ?? true;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
@@ -50,7 +50,7 @@ class _NavBar extends ConsumerWidget {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.school_rounded,
               color: Colors.white,
               size: 16,
@@ -78,7 +78,7 @@ class _NavBar extends ConsumerWidget {
               style: ElevatedButton.styleFrom(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                textStyle: const TextStyle(
+                textStyle: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -109,7 +109,7 @@ class _Hero extends ConsumerWidget {
         horizontal: isWide ? 80 : 20,
         vertical: isWide ? 80 : 40,
       ),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -128,7 +128,7 @@ class _Hero extends ConsumerWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.auto_awesome_rounded,
                   color: AppColors.primary,
                   size: 14,
@@ -272,7 +272,7 @@ class _Features extends StatelessWidget {
   final BuildContext parentContext;
   const _Features(this.parentContext);
 
-  static const _items = [
+  static final _items = [
     (
       icon: Icons.quiz_rounded,
       title: 'AI Quizzes',

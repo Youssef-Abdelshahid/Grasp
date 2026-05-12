@@ -4,6 +4,7 @@ import '../../../core/auth/app_role.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/user_utils.dart';
+import '../../../core/widgets/app_avatar.dart';
 import '../../../models/admin_models.dart';
 import '../../../services/admin_service.dart';
 import '../../../services/auth_service.dart';
@@ -144,7 +145,7 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
         title: Text('User Details', style: AppTextStyles.h2),
         actions: [
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.refresh_rounded,
               color: AppColors.textSecondary,
               size: 20,
@@ -152,7 +153,7 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
             onPressed: _refresh,
           ),
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.edit_rounded,
               color: AppColors.textSecondary,
               size: 20,
@@ -223,16 +224,13 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
       ),
       child: Row(
         children: [
-          CircleAvatar(
+          AppAvatar(
             radius: 36,
+            avatarUrl: user.avatarUrl,
+            initials: UserUtils.initials(user.name),
             backgroundColor: Colors.white.withValues(alpha: 0.2),
-            child: Text(
-              UserUtils.initials(user.name),
-              style: AppTextStyles.h2.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
+            textColor: Colors.white,
+            borderColor: Colors.white.withValues(alpha: 0.35),
           ),
           const SizedBox(width: 16),
           Expanded(
@@ -296,16 +294,16 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
       child: Column(
         children: [
           _InfoRow(label: 'Full Name', value: user.name),
-          const Divider(height: 20, color: AppColors.border),
+          Divider(height: 20, color: AppColors.border),
           _InfoRow(label: 'Email Address', value: user.email),
-          const Divider(height: 20, color: AppColors.border),
+          Divider(height: 20, color: AppColors.border),
           _InfoRow(
             label: 'Phone Number',
             value: user.phone.isEmpty ? 'Not set' : user.phone,
           ),
-          const Divider(height: 20, color: AppColors.border),
+          Divider(height: 20, color: AppColors.border),
           _InfoRow(label: 'Role', value: user.roleLabel),
-          const Divider(height: 20, color: AppColors.border),
+          Divider(height: 20, color: AppColors.border),
           _InfoRow(label: 'Account Status', value: user.statusLabel),
         ],
       ),
@@ -458,7 +456,7 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
                             color: AppColors.amber.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.circle_rounded,
                             size: 8,
                             color: AppColors.amber,
@@ -531,7 +529,7 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
             color: AppColors.primary,
             onTap: _saving ? null : _showEditUserSheet,
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: AppColors.border),
           _ActionTile(
             icon: isActive ? Icons.block_rounded : Icons.check_circle_rounded,
             label: isActive ? 'Suspend Account' : 'Activate Account',
@@ -545,7 +543,7 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
                         : AdminAccountStatus.active,
                   ),
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: AppColors.border),
           _ActionTile(
             icon: Icons.swap_horiz_rounded,
             label: 'Change Role',
@@ -553,7 +551,7 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
             color: AppColors.violet,
             onTap: _saving ? null : _showChangeRoleDialog,
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: AppColors.border),
           _ActionTile(
             icon: Icons.delete_rounded,
             label: 'Remove Account',
@@ -575,6 +573,7 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
     final phoneCtrl = TextEditingController(text: user.phone);
     var selectedRole = user.role;
     var selectedStatus = user.status;
+    String? formError;
 
     showModalBottomSheet(
       context: context,
@@ -597,6 +596,10 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Edit User', style: AppTextStyles.h2),
+                if (formError != null) ...[
+                  const SizedBox(height: 12),
+                  _SheetError(message: formError!),
+                ],
                 const SizedBox(height: 18),
                 _SheetTextField(label: 'Full Name', controller: nameCtrl),
                 const SizedBox(height: 14),
@@ -659,16 +662,15 @@ class _AdminUserDetailPageState extends State<AdminUserDetailPage> {
                           final name = nameCtrl.text.trim();
                           final email = emailCtrl.text.trim();
                           if (name.isEmpty) {
-                            _showSnackBar(
-                              'Full name is required.',
-                              isError: true,
+                            setSheet(
+                              () => formError = 'Full name is required.',
                             );
                             return;
                           }
                           if (!_isValidEmail(email)) {
-                            _showSnackBar(
-                              'Enter a valid email address.',
-                              isError: true,
+                            setSheet(
+                              () => formError =
+                                  'Enter a valid email address.',
                             );
                             return;
                           }
@@ -795,6 +797,32 @@ class _SheetTextField extends StatelessWidget {
   }
 }
 
+class _SheetError extends StatelessWidget {
+  const _SheetError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.errorLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        message,
+        style: AppTextStyles.bodySmall.copyWith(
+          color: AppColors.error,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 class _Card extends StatelessWidget {
   const _Card({
     required this.title,
@@ -837,7 +865,7 @@ class _Card extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Divider(color: AppColors.border, height: 1),
+          Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 14),
           child,
         ],
@@ -914,7 +942,7 @@ class _ActionTile extends StatelessWidget {
       ),
       title: Text(label, style: AppTextStyles.label),
       subtitle: Text(subtitle, style: AppTextStyles.caption),
-      trailing: const Icon(
+      trailing: Icon(
         Icons.chevron_right_rounded,
         size: 16,
         color: AppColors.textMuted,
@@ -935,7 +963,7 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.cloud_off_rounded, size: 36),
+          Icon(Icons.cloud_off_rounded, size: 36),
           const SizedBox(height: 12),
           Text('Failed to load user details', style: AppTextStyles.h3),
           const SizedBox(height: 12),

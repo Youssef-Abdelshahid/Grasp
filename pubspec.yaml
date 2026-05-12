@@ -42,6 +42,7 @@ dependencies:
   path_provider: ^2.1.5
   http: ^1.2.2
   flutter_riverpod: ^2.6.1
+  shared_preferences: ^2.3.3
   supabase_flutter: ^2.8.4
   sqflite: ^2.4.1
   sqflite_common_ffi: ^2.3.6

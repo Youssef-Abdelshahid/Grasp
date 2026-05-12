@@ -132,7 +132,7 @@ class _AdminMaterialsPageState extends State<AdminMaterialsPage> {
                           horizontal: 14,
                           vertical: 8,
                         ),
-                        leading: const Icon(
+                        leading: Icon(
                           Icons.description_rounded,
                           color: AppColors.primary,
                         ),
@@ -147,22 +147,22 @@ class _AdminMaterialsPageState extends State<AdminMaterialsPage> {
                             IconButton(
                               tooltip: 'View details',
                               onPressed: () => _showDetails(item),
-                              icon: const Icon(Icons.visibility_rounded),
+                              icon: Icon(Icons.visibility_rounded),
                             ),
                             IconButton(
                               tooltip: 'Open file',
                               onPressed: () => _openFile(item),
-                              icon: const Icon(Icons.open_in_new_rounded),
+                              icon: Icon(Icons.open_in_new_rounded),
                             ),
                             IconButton(
                               tooltip: 'Edit',
                               onPressed: () => _showEdit(item),
-                              icon: const Icon(Icons.edit_rounded),
+                              icon: Icon(Icons.edit_rounded),
                             ),
                             IconButton(
                               tooltip: 'Remove',
                               onPressed: () => _remove(item),
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.delete_rounded,
                                 color: AppColors.error,
                               ),
@@ -488,12 +488,12 @@ class _Header extends StatelessWidget {
         const SizedBox(width: 12),
         IconButton.filledTonal(
           onPressed: onRefresh,
-          icon: const Icon(Icons.refresh_rounded),
+          icon: Icon(Icons.refresh_rounded),
         ),
         const SizedBox(width: 8),
         ElevatedButton.icon(
           onPressed: onUpload,
-          icon: const Icon(Icons.upload_rounded, size: 16),
+          icon: Icon(Icons.upload_rounded, size: 16),
           label: const Text('Upload'),
         ),
       ],

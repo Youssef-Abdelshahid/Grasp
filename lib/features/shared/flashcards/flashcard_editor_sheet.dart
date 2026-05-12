@@ -63,7 +63,7 @@ class _FlashcardEditorSheetState extends State<FlashcardEditorSheet> {
                 ),
                 IconButton(
                   onPressed: _saving ? null : () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
+                  icon: Icon(Icons.close_rounded),
                 ),
               ],
             ),
@@ -96,7 +96,7 @@ class _FlashcardEditorSheetState extends State<FlashcardEditorSheet> {
                         const Spacer(),
                         TextButton.icon(
                           onPressed: _saving ? null : _addCard,
-                          icon: const Icon(Icons.add_rounded, size: 16),
+                          icon: Icon(Icons.add_rounded, size: 16),
                           label: const Text('Add card'),
                         ),
                       ],
@@ -132,7 +132,7 @@ class _FlashcardEditorSheetState extends State<FlashcardEditorSheet> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: _saving ? null : _save,
-                    icon: const Icon(Icons.save_rounded, size: 16),
+                    icon: Icon(Icons.save_rounded, size: 16),
                     label: Text(_saving ? 'Saving...' : 'Save'),
                   ),
                 ),
@@ -229,7 +229,7 @@ class _EditableCard extends StatelessWidget {
               IconButton(
                 tooltip: 'Remove card',
                 onPressed: enabled && canRemove ? onRemove : null,
-                icon: const Icon(Icons.delete_rounded, color: AppColors.error),
+                icon: Icon(Icons.delete_rounded, color: AppColors.error),
               ),
             ],
           ),

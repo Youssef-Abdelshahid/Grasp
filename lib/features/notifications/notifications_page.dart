@@ -48,7 +48,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     itemCount: filtered.length,
                     separatorBuilder: (_, _) =>
-                        const Divider(height: 1, color: AppColors.border),
+                        Divider(height: 1, color: AppColors.border),
                     itemBuilder: (_, index) => _NotificationTile(
                       notification: filtered[index],
                       onTap: () => _handleTap(filtered[index]),
@@ -69,7 +69,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.surface,
-        leading: const BackButton(color: AppColors.textPrimary),
+        leading: BackButton(color: AppColors.textPrimary),
         title: Row(
           children: [
             Text('Notifications', style: AppTextStyles.h2),
@@ -175,7 +175,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                           ),
                           child: Text(
                             '$unreadCount',
-                            style: const TextStyle(
+                            style: TextStyle(
                               color: Colors.white,
                               fontSize: 10,
                               fontWeight: FontWeight.w700,
@@ -201,11 +201,11 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
         children: [
           Container(
             padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               color: AppColors.background,
               shape: BoxShape.circle,
             ),
-            child: const Icon(
+            child: Icon(
               Icons.notifications_off_rounded,
               size: 32,
               color: AppColors.textMuted,
@@ -225,7 +225,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.cloud_off_rounded, size: 40),
+          Icon(Icons.cloud_off_rounded, size: 40),
           const SizedBox(height: 12),
           Text('Unable to load notifications', style: AppTextStyles.h3),
           const SizedBox(height: 12),
@@ -327,7 +327,7 @@ class _NotificationTile extends StatelessWidget {
                             width: 8,
                             height: 8,
                             margin: const EdgeInsets.only(left: 8),
-                            decoration: const BoxDecoration(
+                            decoration: BoxDecoration(
                               color: AppColors.primary,
                               shape: BoxShape.circle,
                             ),
@@ -358,27 +358,27 @@ class _NotificationTile extends StatelessWidget {
 
   _NotificationVisualStyle _styleForCategory(String category) {
     if (category.contains('assignment')) {
-      return const _NotificationVisualStyle(
+      return _NotificationVisualStyle(
         icon: Icons.assignment_rounded,
         color: AppColors.emerald,
         background: AppColors.emeraldLight,
       );
     }
     if (category.contains('quiz')) {
-      return const _NotificationVisualStyle(
+      return _NotificationVisualStyle(
         icon: Icons.quiz_rounded,
         color: AppColors.violet,
         background: AppColors.violetLight,
       );
     }
     if (category.contains('announcement')) {
-      return const _NotificationVisualStyle(
+      return _NotificationVisualStyle(
         icon: Icons.campaign_rounded,
         color: AppColors.cyan,
         background: AppColors.cyanLight,
       );
     }
-    return const _NotificationVisualStyle(
+    return _NotificationVisualStyle(
       icon: Icons.notifications_rounded,
       color: AppColors.primary,
       background: AppColors.primaryLight,

@@ -57,7 +57,7 @@ class _AssignmentSubmissionPageState extends State<AssignmentSubmissionPage> {
       appBar: AppBar(
         backgroundColor: AppColors.surface,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
+          icon: Icon(Icons.arrow_back_rounded),
           onPressed: () => Navigator.pop(context, _submission),
         ),
         title: Column(
@@ -122,7 +122,7 @@ class _AssignmentSubmissionPageState extends State<AssignmentSubmissionPage> {
                           color: Colors.white,
                         ),
                       )
-                    : const Icon(Icons.send_rounded, size: 16),
+                    : Icon(Icons.send_rounded, size: 16),
                 label: Text(
                   _isSubmitting ? 'Submitting...' : 'Submit Assignment',
                 ),
@@ -230,7 +230,7 @@ class _HeaderCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF1E1B4B), AppColors.primary],
@@ -245,7 +245,7 @@ class _HeaderCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.assignment_rounded,
               color: Colors.white,
               size: 22,
@@ -393,7 +393,7 @@ class _AssignmentAttachmentsCard extends StatelessWidget {
         children: attachments.map((attachment) {
           return ListTile(
             contentPadding: EdgeInsets.zero,
-            leading: const Icon(Icons.insert_drive_file_rounded),
+            leading: Icon(Icons.insert_drive_file_rounded),
             title: Text(
               attachment['name']?.toString() ?? 'Attachment',
               overflow: TextOverflow.ellipsis,
@@ -487,7 +487,7 @@ class _ExistingSubmissionCard extends StatelessWidget {
           const SizedBox(height: 8),
           OutlinedButton.icon(
             onPressed: onViewResult,
-            icon: const Icon(Icons.grade_rounded, size: 16),
+            icon: Icon(Icons.grade_rounded, size: 16),
             label: const Text('View Result'),
           ),
         ],
@@ -524,7 +524,7 @@ class _UploadCard extends StatelessWidget {
                 const SizedBox(height: 12),
                 ElevatedButton.icon(
                   onPressed: onPickFile,
-                  icon: const Icon(Icons.folder_open_rounded, size: 14),
+                  icon: Icon(Icons.folder_open_rounded, size: 14),
                   label: const Text('Choose File'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.emerald,
@@ -549,7 +549,7 @@ class _UploadCard extends StatelessWidget {
                 ),
                 IconButton(
                   onPressed: onClearFile,
-                  icon: const Icon(Icons.close_rounded),
+                  icon: Icon(Icons.close_rounded),
                 ),
               ],
             ),

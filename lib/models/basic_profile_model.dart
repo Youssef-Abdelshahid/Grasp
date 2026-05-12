@@ -9,6 +9,7 @@ class BasicProfileModel {
     this.phone = '',
     this.status = 'active',
     this.enrolledAt,
+    this.avatarUrl,
   });
 
   final String id;
@@ -18,6 +19,7 @@ class BasicProfileModel {
   final String phone;
   final String status;
   final DateTime? enrolledAt;
+  final String? avatarUrl;
 
   String get roleLabel => role.label;
 
@@ -29,6 +31,7 @@ class BasicProfileModel {
       phone: json['phone'] as String? ?? '',
       role: AppRole.fromValue(json['role'] as String? ?? 'student'),
       status: json['status'] as String? ?? 'active',
+      avatarUrl: json['avatar_url'] as String?,
       enrolledAt: json['enrolled_at'] == null
           ? null
           : DateTime.tryParse(json['enrolled_at'].toString())?.toLocal(),

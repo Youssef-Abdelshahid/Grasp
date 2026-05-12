@@ -8,6 +8,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../models/course_model.dart';
 import '../../../services/course_service.dart';
+import '../../../services/permissions_service.dart';
 import '../../course_workspace/pages/course_workspace_page.dart';
 import '../../permissions/providers/permissions_provider.dart';
 import '../providers/course_providers.dart';
@@ -21,7 +22,7 @@ class CoursesPage extends ConsumerStatefulWidget {
 }
 
 class _CoursesPageState extends ConsumerState<CoursesPage> {
-  static const _courseColors = [
+  static final _courseColors = [
     AppColors.primary,
     AppColors.cyan,
     AppColors.violet,
@@ -35,8 +36,9 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
     final padding = EdgeInsets.all(isWide ? 28 : 16);
-    final canCreate =
-        ref.watch(permissionsProvider).valueOrDefaults.canInstructorCreateCourses;
+    final permissions = ref.watch(permissionsProvider).valueOrDefaults;
+    final canCreate = permissions.canInstructorCreateCourses;
+    final canManageCourses = permissions.canInstructorManageCourses;
 
     return ref
         .watch(instructorCoursesProvider)
@@ -62,7 +64,7 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
                       onAction: canCreate ? () => _openCreate(context) : null,
                     )
                   else
-                    _buildList(context, isWide, courses),
+                    _buildList(context, isWide, courses, canManageCourses),
                 ],
               ),
             );
@@ -95,7 +97,7 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
         isWide
             ? ElevatedButton.icon(
                 onPressed: canCreate ? () => _openCreate(context) : null,
-                icon: const Icon(Icons.add_rounded, size: 18),
+                icon: Icon(Icons.add_rounded, size: 18),
                 label: const Text('Create Course'),
               )
             : ElevatedButton(
@@ -105,7 +107,7 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
                     horizontal: 14,
                     vertical: 10,
                   ),
-                  textStyle: const TextStyle(
+                  textStyle: TextStyle(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                   ),
@@ -120,6 +122,7 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
     BuildContext context,
     bool isWide,
     List<CourseModel> courses,
+    bool canManageCourses,
   ) {
     if (!isWide) {
       return Column(
@@ -130,8 +133,12 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
               course: courses[index],
               accentColor: _courseColors[index % _courseColors.length],
               onOpen: () => _openWorkspace(context, courses[index], index),
-              onEdit: () => _openEdit(context, courses[index]),
-              onArchive: () => _archiveCourse(courses[index]),
+              onEdit: canManageCourses
+                  ? () => _openEdit(context, courses[index])
+                  : null,
+              onArchive: canManageCourses
+                  ? () => _archiveCourse(courses[index])
+                  : null,
             ),
           );
         }),
@@ -154,8 +161,11 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
           course: courses[index],
           accentColor: _courseColors[index % _courseColors.length],
           onOpen: () => _openWorkspace(context, courses[index], index),
-          onEdit: () => _openEdit(context, courses[index]),
-          onArchive: () => _archiveCourse(courses[index]),
+          onEdit: canManageCourses
+              ? () => _openEdit(context, courses[index])
+              : null,
+          onArchive:
+              canManageCourses ? () => _archiveCourse(courses[index]) : null,
         );
       },
     );
@@ -229,6 +239,8 @@ class _CoursesPageState extends ConsumerState<CoursesPage> {
     try {
       await CourseService.instance.archiveCourse(course.id);
       _refresh();
+    } on PermissionsException catch (error) {
+      _showMessage(error.message);
     } on PostgrestException catch (error) {
       _showMessage(error.message);
     }
@@ -257,8 +269,8 @@ class _CourseCard extends StatelessWidget {
   final CourseModel course;
   final Color accentColor;
   final VoidCallback onOpen;
-  final VoidCallback onEdit;
-  final VoidCallback onArchive;
+  final VoidCallback? onEdit;
+  final VoidCallback? onArchive;
 
   @override
   Widget build(BuildContext context) {
@@ -329,20 +341,28 @@ class _CourseCard extends StatelessWidget {
                               onOpen();
                               break;
                             case 'edit':
-                              onEdit();
+                              onEdit?.call();
                               break;
                             case 'archive':
-                              onArchive();
+                              onArchive?.call();
                               break;
                           }
                         },
-                        itemBuilder: (_) => const [
-                          PopupMenuItem(value: 'open', child: Text('Open')),
-                          PopupMenuItem(value: 'edit', child: Text('Edit')),
-                          PopupMenuItem(
-                            value: 'archive',
-                            child: Text('Archive'),
+                        itemBuilder: (_) => [
+                          const PopupMenuItem(
+                            value: 'open',
+                            child: Text('Open'),
                           ),
+                          if (onEdit != null)
+                            const PopupMenuItem(
+                              value: 'edit',
+                              child: Text('Edit'),
+                            ),
+                          if (onArchive != null)
+                            const PopupMenuItem(
+                              value: 'archive',
+                              child: Text('Archive'),
+                            ),
                         ],
                       ),
                     ],
@@ -375,7 +395,7 @@ class _CourseCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Divider(color: AppColors.border, height: 1),
+                  Divider(color: AppColors.border, height: 1),
                   const SizedBox(height: 10),
                   Row(
                     children: [

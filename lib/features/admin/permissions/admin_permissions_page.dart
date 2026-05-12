@@ -45,7 +45,7 @@ class _AdminPermissionsPageState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.lock_outline_rounded,
                 color: AppColors.error,
                 size: 36,
@@ -154,7 +154,7 @@ class _AdminPermissionsPageState
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.save_rounded, size: 16),
+                : Icon(Icons.save_rounded, size: 16),
             label: Text(_isSaving ? 'Saving...' : 'Save'),
           ),
         ],
@@ -280,10 +280,18 @@ class _AdminPermissionsPageState
       child: Column(
         children: [
           _ToggleTile(
-            label: 'Create Courses',
-            subtitle: 'Allow instructors to create new courses',
-            value: _permissions.createCourses,
-            onChanged: (v) => _setPermission(PermissionKeys.createCourses, v),
+            label: 'Manage Courses',
+            subtitle: 'Allow instructors to create, edit, and delete courses',
+            value: _permissions.manageCourses,
+            onChanged: (v) => _setPermission(PermissionKeys.manageCourses, v),
+          ),
+          _ToggleTile(
+            label: 'Manage Course Students',
+            subtitle:
+                'Allow instructors to add and remove students from their assigned courses',
+            value: _permissions.manageCourseStudents,
+            onChanged: (v) =>
+                _setPermission(PermissionKeys.manageCourseStudents, v),
           ),
           _ToggleTile(
             label: 'Upload Materials',
@@ -435,7 +443,7 @@ class _AdminPermissionsPageState
             bg: AppColors.violetLight,
             role: 'Instructors',
             enabled: instructorOn,
-            total: 9,
+            total: _permissions.instructorValues.length,
           ),
         ],
       ),
@@ -562,7 +570,7 @@ class _Section extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(color: AppColors.border, height: 1),
+          Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 16),
           child,
         ],

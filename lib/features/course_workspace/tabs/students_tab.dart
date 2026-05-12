@@ -1,25 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/user_utils.dart';
+import '../../../core/widgets/app_avatar.dart';
 import '../../../core/widgets/empty_state.dart';
 import '../../../features/activity/activity_sheets.dart';
+import '../../../features/permissions/providers/permissions_provider.dart';
 import '../../../models/activity_models.dart';
 import '../../../services/activity_service.dart';
 import '../../../services/enrollment_service.dart';
+import '../../../services/permissions_service.dart';
 
-class StudentsTab extends StatefulWidget {
+class StudentsTab extends ConsumerStatefulWidget {
   const StudentsTab({super.key, required this.courseId});
 
   final String courseId;
 
   @override
-  State<StudentsTab> createState() => _StudentsTabState();
+  ConsumerState<StudentsTab> createState() => _StudentsTabState();
 }
 
-class _StudentsTabState extends State<StudentsTab> {
+class _StudentsTabState extends ConsumerState<StudentsTab> {
   final _searchController = TextEditingController();
   late Future<List<CourseStudentActivity>> _studentsFuture;
 
@@ -43,13 +47,17 @@ class _StudentsTabState extends State<StudentsTab> {
       future: _studentsFuture,
       builder: (context, snapshot) {
         final students = _filter(snapshot.data ?? const []);
+        final canManageStudents = ref
+            .watch(permissionsProvider)
+            .valueOrDefaults
+            .manageCourseStudents;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _buildHeader(students.length),
+              _buildHeader(students.length, canManageStudents),
               const SizedBox(height: 12),
               TextField(
                 controller: _searchController,
@@ -66,13 +74,14 @@ class _StudentsTabState extends State<StudentsTab> {
                 EmptyState(
                   icon: Icons.people_outline_rounded,
                   title: 'No students enrolled',
-                  subtitle:
-                      'Add students by email to start building the course roster.',
-                  actionLabel: 'Enroll Student',
-                  onAction: _showEnrollDialog,
+                  subtitle: canManageStudents
+                      ? 'Add students by email to start building the course roster.'
+                      : 'Student enrollment changes are currently disabled for instructors.',
+                  actionLabel: canManageStudents ? 'Enroll Student' : null,
+                  onAction: canManageStudents ? _showEnrollDialog : null,
                 )
               else
-                _buildStudentList(students),
+                _buildStudentList(students, canManageStudents),
             ],
           ),
         );
@@ -80,7 +89,7 @@ class _StudentsTabState extends State<StudentsTab> {
     );
   }
 
-  Widget _buildHeader(int count) {
+  Widget _buildHeader(int count, bool canManageStudents) {
     return Row(
       children: [
         Expanded(
@@ -92,18 +101,19 @@ class _StudentsTabState extends State<StudentsTab> {
             ],
           ),
         ),
-        OutlinedButton.icon(
-          onPressed: _showEnrollDialog,
-          icon: const Icon(Icons.person_add_alt_1_rounded, size: 14),
-          label: const Text('Enroll'),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            textStyle: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+        if (canManageStudents)
+          OutlinedButton.icon(
+            onPressed: _showEnrollDialog,
+            icon: Icon(Icons.person_add_alt_1_rounded, size: 14),
+            label: const Text('Enroll'),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
-        ),
       ],
     );
   }
@@ -120,7 +130,10 @@ class _StudentsTabState extends State<StudentsTab> {
         .toList();
   }
 
-  Widget _buildStudentList(List<CourseStudentActivity> students) {
+  Widget _buildStudentList(
+    List<CourseStudentActivity> students,
+    bool canManageStudents,
+  ) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: List.generate(students.length, (index) {
@@ -136,15 +149,12 @@ class _StudentsTabState extends State<StudentsTab> {
             ),
             child: Row(
               children: [
-                CircleAvatar(
+                AppAvatar(
                   radius: 20,
+                  avatarUrl: student.studentAvatarUrl,
+                  initials: UserUtils.initials(student.studentName),
                   backgroundColor: AppColors.primaryLight,
-                  child: Text(
-                    UserUtils.initials(student.studentName),
-                    style: AppTextStyles.label.copyWith(
-                      color: AppColors.primary,
-                    ),
-                  ),
+                  textColor: AppColors.primary,
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -208,7 +218,7 @@ class _StudentsTabState extends State<StudentsTab> {
                       ),
                     IconButton(
                       tooltip: 'View activity',
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.analytics_rounded,
                         size: 18,
                         color: AppColors.textSecondary,
@@ -219,14 +229,18 @@ class _StudentsTabState extends State<StudentsTab> {
                         studentId: student.studentId,
                       ),
                     ),
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'remove') _unenroll(student);
-                      },
-                      itemBuilder: (_) => const [
-                        PopupMenuItem(value: 'remove', child: Text('Remove')),
-                      ],
-                    ),
+                    if (canManageStudents)
+                      PopupMenuButton<String>(
+                        onSelected: (value) {
+                          if (value == 'remove') _unenroll(student);
+                        },
+                        itemBuilder: (_) => const [
+                          PopupMenuItem(
+                            value: 'remove',
+                            child: Text('Remove'),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ],
@@ -277,17 +291,27 @@ class _StudentsTabState extends State<StudentsTab> {
       _refresh();
     } on EnrollmentException catch (error) {
       _showMessage(error.message);
+    } on PermissionsException catch (error) {
+      _showMessage(error.message);
     } on PostgrestException catch (error) {
       _showMessage(error.message);
     }
   }
 
   Future<void> _unenroll(CourseStudentActivity student) async {
-    await EnrollmentService.instance.unenrollStudent(
-      courseId: widget.courseId,
-      studentId: student.studentId,
-    );
-    _refresh();
+    try {
+      await EnrollmentService.instance.unenrollStudent(
+        courseId: widget.courseId,
+        studentId: student.studentId,
+      );
+      _refresh();
+    } on EnrollmentException catch (error) {
+      _showMessage(error.message);
+    } on PermissionsException catch (error) {
+      _showMessage(error.message);
+    } on PostgrestException catch (error) {
+      _showMessage(error.message);
+    }
   }
 
   void _refresh() {

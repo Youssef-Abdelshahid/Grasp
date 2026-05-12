@@ -99,7 +99,9 @@ class CourseService {
     required bool allowSelfEnrollment,
     required bool isVisible,
   }) async {
-    await PermissionsService.instance.requireInstructorCourseCreation();
+    await PermissionsService.instance.requireInstructorCourseManagement(
+      creating: true,
+    );
     final userId = _client.auth.currentUser!.id;
     final response = await _client
         .from('courses')
@@ -139,6 +141,7 @@ class CourseService {
     required bool allowSelfEnrollment,
     required bool isVisible,
   }) async {
+    await PermissionsService.instance.requireInstructorCourseManagement();
     final response = await _client
         .from('courses')
         .update({
@@ -181,6 +184,7 @@ class CourseService {
   }
 
   Future<void> archiveCourse(String courseId) async {
+    await PermissionsService.instance.requireInstructorCourseManagement();
     await _client
         .from('courses')
         .update({
@@ -192,6 +196,7 @@ class CourseService {
   }
 
   Future<void> deleteCourse(String courseId) async {
+    await PermissionsService.instance.requireInstructorCourseManagement();
     await _client.from('courses').delete().eq('id', courseId);
   }
 

@@ -181,7 +181,7 @@ class _AssignmentCard extends StatelessWidget {
                   color: AppColors.emeraldLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.assignment_rounded,
                   color: AppColors.emerald,
                   size: 16,
@@ -226,7 +226,7 @@ class _AssignmentCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          const Divider(color: AppColors.border, height: 1),
+          Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 12),
           if (isSubmitted)
             Row(
@@ -239,7 +239,7 @@ class _AssignmentCard extends StatelessWidget {
                 ),
                 ElevatedButton.icon(
                   onPressed: canSubmitAssignments ? onOpen : null,
-                  icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                  icon: Icon(Icons.open_in_new_rounded, size: 16),
                   label: Text(
                     canSubmitAssignments
                         ? 'View / Resubmit'
@@ -257,7 +257,7 @@ class _AssignmentCard extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: canSubmitAssignments ? onOpen : null,
-                icon: const Icon(Icons.upload_rounded, size: 16),
+                icon: Icon(Icons.upload_rounded, size: 16),
                 label: Text(
                   canSubmitAssignments
                       ? 'Submit Assignment'

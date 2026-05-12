@@ -199,7 +199,7 @@ class _QuizCard extends StatelessWidget {
                   color: AppColors.violetLight,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.quiz_rounded,
                   color: AppColors.violet,
                   size: 16,
@@ -244,7 +244,7 @@ class _QuizCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          const Divider(color: AppColors.border, height: 1),
+          Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 12),
           if (hasSubmission)
             Row(
@@ -258,7 +258,7 @@ class _QuizCard extends StatelessWidget {
                       vertical: 5,
                     ),
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
+                      gradient: LinearGradient(
                         colors: [AppColors.emerald, Color(0xFF059669)],
                       ),
                       borderRadius: BorderRadius.circular(8),
@@ -279,7 +279,7 @@ class _QuizCard extends StatelessWidget {
                   onPressed: quiz.allowRetakes && canTakeQuizzes
                       ? onStart
                       : null,
-                  icon: const Icon(Icons.refresh_rounded, size: 16),
+                  icon: Icon(Icons.refresh_rounded, size: 16),
                   label: Text(
                     !canTakeQuizzes
                         ? 'Quiz taking disabled'
@@ -295,7 +295,7 @@ class _QuizCard extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: canTakeQuizzes ? onStart : null,
-                icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                icon: Icon(Icons.play_arrow_rounded, size: 16),
                 label: Text(
                   canTakeQuizzes ? 'Start Quiz' : 'Quiz taking disabled',
                 ),

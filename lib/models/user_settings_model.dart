@@ -45,6 +45,7 @@ sealed class UserSettings {
 
 class StudentSettings extends UserSettings {
   const StudentSettings({
+    this.themeMode = 'light',
     this.emailNotifications = true,
     this.pushNotifications = true,
     this.assignmentAlerts = true,
@@ -60,6 +61,7 @@ class StudentSettings extends UserSettings {
   }) : super(role: AppRole.student);
 
   final bool emailNotifications;
+  final String themeMode;
   final bool pushNotifications;
   final bool assignmentAlerts;
   final bool quizAlerts;
@@ -75,6 +77,7 @@ class StudentSettings extends UserSettings {
   factory StudentSettings.fromJson(Map<String, dynamic> json) {
     const defaults = StudentSettings();
     return StudentSettings(
+      themeMode: _themeMode(json['theme_mode'] as String?),
       emailNotifications:
           json['email_notifications'] as bool? ?? defaults.emailNotifications,
       pushNotifications:
@@ -104,6 +107,7 @@ class StudentSettings extends UserSettings {
   }
 
   StudentSettings copyWith({
+    String? themeMode,
     bool? emailNotifications,
     bool? pushNotifications,
     bool? assignmentAlerts,
@@ -118,6 +122,7 @@ class StudentSettings extends UserSettings {
     String? defaultDeadlineReminderTime,
   }) {
     return StudentSettings(
+      themeMode: themeMode ?? this.themeMode,
       emailNotifications: emailNotifications ?? this.emailNotifications,
       pushNotifications: pushNotifications ?? this.pushNotifications,
       assignmentAlerts: assignmentAlerts ?? this.assignmentAlerts,
@@ -137,6 +142,7 @@ class StudentSettings extends UserSettings {
   @override
   Map<String, dynamic> toJson() {
     return {
+      'theme_mode': _themeMode(themeMode),
       'email_notifications': emailNotifications,
       'push_notifications': pushNotifications,
       'assignment_alerts': assignmentAlerts,
@@ -155,6 +161,7 @@ class StudentSettings extends UserSettings {
 
 class InstructorSettings extends UserSettings {
   const InstructorSettings({
+    this.themeMode = 'light',
     this.emailNotifications = true,
     this.pushNotifications = true,
     this.quizSubmissionAlerts = true,
@@ -173,6 +180,7 @@ class InstructorSettings extends UserSettings {
   }) : super(role: AppRole.instructor);
 
   final bool emailNotifications;
+  final String themeMode;
   final bool pushNotifications;
   final bool quizSubmissionAlerts;
   final bool assignmentSubmissionAlerts;
@@ -207,6 +215,7 @@ class InstructorSettings extends UserSettings {
             .toLowerCase();
 
     return InstructorSettings(
+      themeMode: _themeMode(json['theme_mode'] as String?),
       emailNotifications:
           json['email_notifications'] as bool? ?? defaults.emailNotifications,
       pushNotifications:
@@ -238,6 +247,7 @@ class InstructorSettings extends UserSettings {
   }
 
   InstructorSettings copyWith({
+    String? themeMode,
     bool? emailNotifications,
     bool? pushNotifications,
     bool? quizSubmissionAlerts,
@@ -250,6 +260,7 @@ class InstructorSettings extends UserSettings {
     String? defaultAssignmentDifficulty,
   }) {
     return InstructorSettings(
+      themeMode: themeMode ?? this.themeMode,
       emailNotifications: emailNotifications ?? this.emailNotifications,
       pushNotifications: pushNotifications ?? this.pushNotifications,
       quizSubmissionAlerts: quizSubmissionAlerts ?? this.quizSubmissionAlerts,
@@ -269,6 +280,7 @@ class InstructorSettings extends UserSettings {
   @override
   Map<String, dynamic> toJson() {
     return {
+      'theme_mode': _themeMode(themeMode),
       'email_notifications': emailNotifications,
       'push_notifications': pushNotifications,
       'quiz_submission_alerts': quizSubmissionAlerts,
@@ -284,4 +296,8 @@ class InstructorSettings extends UserSettings {
       'default_assignment_difficulty': defaultAssignmentDifficulty,
     };
   }
+}
+
+String _themeMode(String? value) {
+  return value == 'dark' ? 'dark' : 'light';
 }

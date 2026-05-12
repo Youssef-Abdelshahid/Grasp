@@ -33,7 +33,7 @@ class _MaterialDetailsPageState extends State<MaterialDetailsPage> {
         title: Text(widget.material.fileType, style: AppTextStyles.h3),
         actions: [
           IconButton(
-            icon: const Icon(Icons.download_rounded),
+            icon: Icon(Icons.download_rounded),
             onPressed: _isOpening ? null : _openFile,
             tooltip: 'Open',
           ),
@@ -144,7 +144,7 @@ class _MaterialDetailsPageState extends State<MaterialDetailsPage> {
                               height: 16,
                               child: CircularProgressIndicator(strokeWidth: 2),
                             )
-                          : const Icon(Icons.open_in_new_rounded, size: 16),
+                          : Icon(Icons.open_in_new_rounded, size: 16),
                       label: Text(_isOpening ? 'Opening...' : 'Open File'),
                     ),
                   ),

@@ -12,6 +12,7 @@ import '../features/calendar/instructor_calendar_page.dart';
 import '../features/profile/instructor_settings_page.dart';
 import '../features/notifications/notifications_page.dart';
 import '../features/auth/providers/auth_providers.dart';
+import '../features/theme/providers/theme_mode_provider.dart';
 import 'app_sidebar.dart';
 
 class MainLayout extends ConsumerStatefulWidget {
@@ -61,6 +62,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(themeModeProvider);
     final user = ref.watch(currentUserProvider);
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
@@ -83,6 +85,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
                     onNotificationsTap: _openNotifications,
                     onProfileTap: _openProfile,
                     initials: UserUtils.initials(user?.name ?? 'Instructor'),
+                    avatarUrl: user?.avatarUrl,
                   ),
                   Expanded(child: _pages[_selectedIndex]),
                 ],
@@ -122,6 +125,7 @@ class _MainLayoutState extends ConsumerState<MainLayout> {
         MobileNotificationBadgeButton(onPressed: _openNotifications),
         ProfileAvatarButton(
           initials: UserUtils.initials(user?.name ?? 'Instructor'),
+          avatarUrl: user?.avatarUrl,
           backgroundColor: AppColors.primaryLight,
           textColor: AppColors.primary,
           radius: 16,
@@ -143,6 +147,7 @@ class _TopBar extends StatelessWidget {
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
   final String initials;
+  final String? avatarUrl;
 
   const _TopBar({
     required this.title,
@@ -150,6 +155,7 @@ class _TopBar extends StatelessWidget {
     this.onNotificationsTap,
     this.onProfileTap,
     required this.initials,
+    this.avatarUrl,
   });
 
   @override
@@ -157,7 +163,7 @@ class _TopBar extends StatelessWidget {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
@@ -165,7 +171,7 @@ class _TopBar extends StatelessWidget {
         children: [
           if (onMenuTap != null)
             IconButton(
-              icon: const Icon(Icons.menu_rounded),
+              icon: Icon(Icons.menu_rounded),
               onPressed: onMenuTap,
             ),
           Text(title, style: AppTextStyles.h2),
@@ -176,6 +182,7 @@ class _TopBar extends StatelessWidget {
           const SizedBox(width: 12),
           ProfileAvatarButton(
             initials: initials,
+            avatarUrl: avatarUrl,
             backgroundColor: AppColors.primaryLight,
             textColor: AppColors.primary,
             onTap: () => onProfileTap?.call(),

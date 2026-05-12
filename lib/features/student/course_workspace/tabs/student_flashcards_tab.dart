@@ -55,7 +55,7 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
                           snapshot.connectionState == ConnectionState.done
                           ? () => _openGenerateDialog(data.materials)
                           : null,
-                      icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                      icon: Icon(Icons.auto_awesome_rounded, size: 16),
                       label: const Text('Generate'),
                     ),
                 ],
@@ -134,6 +134,7 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
     var difficulty = 'mixed';
     var selectedIds = materials.map((material) => material.id).toSet();
     var isGenerating = false;
+    String? dialogError;
 
     final generated = await showDialog<FlashcardModel>(
       context: context,
@@ -142,11 +143,23 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             Future<void> generate() async {
+              final cardCount = int.tryParse(countController.text.trim());
               if (selectedIds.isEmpty) {
-                _showMessage('Select at least one material.', isError: true);
+                setDialogState(() {
+                  dialogError = 'Select at least one material.';
+                });
                 return;
               }
-              setDialogState(() => isGenerating = true);
+              if (cardCount == null || cardCount < 1 || cardCount > 40) {
+                setDialogState(() {
+                  dialogError = 'Enter a card count between 1 and 40.';
+                });
+                return;
+              }
+              setDialogState(() {
+                dialogError = null;
+                isGenerating = true;
+              });
               try {
                 final selectedMaterials = materials
                     .where((material) => selectedIds.contains(material.id))
@@ -156,7 +169,7 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
                       courseId: widget.courseId,
                       materials: selectedMaterials,
                       prompt: promptController.text,
-                      cardCount: int.tryParse(countController.text) ?? 12,
+                      cardCount: cardCount,
                       difficulty: difficulty,
                     );
                 final saved = await FlashcardService.instance.createFlashcards(
@@ -175,8 +188,10 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
                   Navigator.pop(dialogContext, saved);
                 }
               } catch (error) {
-                setDialogState(() => isGenerating = false);
-                _showMessage(error.toString(), isError: true);
+                setDialogState(() {
+                  isGenerating = false;
+                  dialogError = _friendlyError(error);
+                });
               }
             }
 
@@ -189,6 +204,10 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (dialogError != null) ...[
+                        _DialogError(message: dialogError!),
+                        const SizedBox(height: 12),
+                      ],
                       Row(
                         children: [
                           Expanded(
@@ -309,7 +328,7 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
                 ),
                 ElevatedButton.icon(
                   onPressed: isGenerating ? null : generate,
-                  icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                  icon: Icon(Icons.auto_awesome_rounded, size: 16),
                   label: Text(isGenerating ? 'Generating...' : 'Generate'),
                 ),
               ],
@@ -392,6 +411,11 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
       ),
     );
   }
+
+  String _friendlyError(Object error) {
+    final message = error.toString().replaceFirst('Exception: ', '');
+    return message.isEmpty ? 'Flashcards could not be generated.' : message;
+  }
 }
 
 class _FlashcardSetCard extends StatelessWidget {
@@ -433,7 +457,7 @@ class _FlashcardSetCard extends StatelessWidget {
                       color: AppColors.cyanLight,
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.style_rounded,
                       color: AppColors.cyan,
                       size: 16,
@@ -470,19 +494,19 @@ class _FlashcardSetCard extends StatelessWidget {
                   IconButton(
                     tooltip: 'Edit',
                     onPressed: onEdit,
-                    icon: const Icon(Icons.edit_rounded),
+                    icon: Icon(Icons.edit_rounded),
                   ),
                   IconButton(
                     tooltip: 'Delete',
                     onPressed: onDelete,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.delete_rounded,
                       color: AppColors.error,
                     ),
                   ),
                   ElevatedButton.icon(
                     onPressed: onStudy,
-                    icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                    icon: Icon(Icons.play_arrow_rounded, size: 16),
                     label: const Text('Study'),
                   ),
                 ],
@@ -526,7 +550,7 @@ class _FlashcardStudySheetState extends State<_FlashcardStudySheet> {
                 ),
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
+                  icon: Icon(Icons.close_rounded),
                 ),
               ],
             ),
@@ -571,7 +595,7 @@ class _FlashcardStudySheetState extends State<_FlashcardStudySheet> {
                           _index--;
                           _showBack = false;
                         }),
-                  icon: const Icon(Icons.chevron_left_rounded),
+                  icon: Icon(Icons.chevron_left_rounded),
                   label: const Text('Previous'),
                 ),
                 const SizedBox(width: 8),
@@ -582,7 +606,7 @@ class _FlashcardStudySheetState extends State<_FlashcardStudySheet> {
                           _index++;
                           _showBack = false;
                         }),
-                  icon: const Icon(Icons.chevron_right_rounded),
+                  icon: Icon(Icons.chevron_right_rounded),
                   label: const Text('Next'),
                 ),
               ],
@@ -602,6 +626,32 @@ class _FlashcardTabData {
   final bool fromCache;
 }
 
+class _DialogError extends StatelessWidget {
+  const _DialogError({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.errorLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        message,
+        style: AppTextStyles.bodySmall.copyWith(
+          color: AppColors.error,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 class _OfflineCacheLabel extends StatelessWidget {
   const _OfflineCacheLabel({required this.label, required this.subtitle});
 
@@ -619,7 +669,7 @@ class _OfflineCacheLabel extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.wifi_off_rounded, size: 16, color: AppColors.amber),
+          Icon(Icons.wifi_off_rounded, size: 16, color: AppColors.amber),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

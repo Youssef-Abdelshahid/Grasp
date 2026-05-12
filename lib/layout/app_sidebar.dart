@@ -4,6 +4,7 @@ import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
+import '../core/widgets/app_avatar.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/platform_settings/providers/platform_settings_provider.dart';
 import '../widgets/auth/logout_flow.dart';
@@ -73,7 +74,7 @@ class AppSidebar extends ConsumerWidget {
         .platformName;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.sidebarHover)),
       ),
       child: Row(
@@ -84,7 +85,7 @@ class AppSidebar extends ConsumerWidget {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.school_rounded,
               color: Colors.white,
               size: 18,
@@ -110,7 +111,7 @@ class AppSidebar extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.sidebarHover)),
       ),
       child: Column(
@@ -142,16 +143,12 @@ class AppSidebar extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    CircleAvatar(
+                    AppAvatar(
                       radius: 16,
+                      avatarUrl: user?.avatarUrl,
+                      initials: initials,
                       backgroundColor: AppColors.primary,
-                      child: Text(
-                        initials,
-                        style: AppTextStyles.caption.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      textColor: Colors.white,
                     ),
                     const SizedBox(width: 10),
                     Expanded(

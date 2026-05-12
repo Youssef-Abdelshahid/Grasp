@@ -12,6 +12,7 @@ class CourseStudentActivity {
     this.assignmentsSubmitted = 0,
     this.overdueCount = 0,
     this.latestActivityAt,
+    this.studentAvatarUrl,
   });
 
   final String studentId;
@@ -24,6 +25,7 @@ class CourseStudentActivity {
   final int assignmentsSubmitted;
   final int overdueCount;
   final DateTime? latestActivityAt;
+  final String? studentAvatarUrl;
 
   int get completedCount => quizzesCompleted + assignmentsSubmitted;
   int get totalCount => totalQuizzes + totalAssignments;
@@ -45,6 +47,9 @@ class CourseStudentActivity {
           .toInt(),
       overdueCount: (json['overdue_count'] as num? ?? 0).toInt(),
       latestActivityAt: _parse(json['latest_activity_at']),
+      studentAvatarUrl:
+          (json['student_avatar_url'] as String?) ??
+          (json['avatar_url'] as String?),
     );
   }
 }

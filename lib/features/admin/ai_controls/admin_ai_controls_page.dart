@@ -264,7 +264,7 @@ class _AdminAiControlsPageState extends ConsumerState<AdminAiControlsPage> {
                     height: 16,
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
-                : const Icon(Icons.save_rounded, size: 16),
+                : Icon(Icons.save_rounded, size: 16),
             label: Text(isSaving ? 'Saving...' : 'Save'),
           ),
         ],
@@ -557,7 +557,7 @@ class _AdminAiControlsPageState extends ConsumerState<AdminAiControlsPage> {
                 decoration: BoxDecoration(
                     color: AppColors.violetLight,
                     borderRadius: BorderRadius.circular(8)),
-                child: const Icon(Icons.bar_chart_rounded,
+                child: Icon(Icons.bar_chart_rounded,
                     color: AppColors.violet, size: 16),
               ),
               const SizedBox(width: 10),
@@ -565,7 +565,7 @@ class _AdminAiControlsPageState extends ConsumerState<AdminAiControlsPage> {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(color: AppColors.border, height: 1),
+          Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 16),
           _UsageStat(
               label: 'Total AI Requests',
@@ -664,7 +664,7 @@ class _ErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.error_outline_rounded,
               color: AppColors.error,
               size: 32,
@@ -674,7 +674,7 @@ class _ErrorState extends StatelessWidget {
             const SizedBox(height: 12),
             ElevatedButton.icon(
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh_rounded, size: 16),
+              icon: Icon(Icons.refresh_rounded, size: 16),
               label: const Text('Retry'),
             ),
           ],
@@ -786,7 +786,7 @@ class _Section extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(color: AppColors.border, height: 1),
+          Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 16),
           child,
         ],
@@ -879,11 +879,11 @@ class _InputTile extends StatelessWidget {
                 const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
           ),
         ),

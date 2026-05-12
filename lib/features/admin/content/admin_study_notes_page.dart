@@ -110,7 +110,7 @@ class _AdminStudyNotesPageState extends State<AdminStudyNotesPage> {
                               horizontal: 14,
                               vertical: 10,
                             ),
-                            leading: const Icon(
+                            leading: Icon(
                               Icons.note_alt_rounded,
                               color: AppColors.primary,
                             ),
@@ -130,17 +130,17 @@ class _AdminStudyNotesPageState extends State<AdminStudyNotesPage> {
                                 IconButton(
                                   tooltip: 'View details',
                                   onPressed: () => _openNotePage(item),
-                                  icon: const Icon(Icons.visibility_rounded),
+                                  icon: Icon(Icons.visibility_rounded),
                                 ),
                                 IconButton(
                                   tooltip: 'Edit',
                                   onPressed: () => _edit(item),
-                                  icon: const Icon(Icons.edit_rounded),
+                                  icon: Icon(Icons.edit_rounded),
                                 ),
                                 IconButton(
                                   tooltip: 'Delete',
                                   onPressed: () => _delete(item),
-                                  icon: const Icon(
+                                  icon: Icon(
                                     Icons.delete_rounded,
                                     color: AppColors.error,
                                   ),
@@ -268,7 +268,7 @@ class _Header extends StatelessWidget {
         const SizedBox(width: 12),
         IconButton.filledTonal(
           onPressed: onRefresh,
-          icon: const Icon(Icons.refresh_rounded),
+          icon: Icon(Icons.refresh_rounded),
         ),
       ],
     );

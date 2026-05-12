@@ -115,7 +115,7 @@ class _QuizBuilderPageState extends ConsumerState<QuizBuilderPage> {
         surfaceTintColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_rounded),
+          icon: Icon(Icons.arrow_back_rounded),
           onPressed: _isSaving ? null : () => Navigator.pop(context),
         ),
         title: Text(
@@ -166,7 +166,7 @@ class _QuizBuilderPageState extends ConsumerState<QuizBuilderPage> {
       ),
       child: Row(
         children: [
-          const Icon(Icons.quiz_rounded, color: AppColors.violet),
+          Icon(Icons.quiz_rounded, color: AppColors.violet),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -393,7 +393,7 @@ class _QuizBuilderPageState extends ConsumerState<QuizBuilderPage> {
             children: [
               OutlinedButton.icon(
                 onPressed: _addQuestion,
-                icon: const Icon(Icons.add_rounded, size: 16),
+                icon: Icon(Icons.add_rounded, size: 16),
                 label: const Text('Add Question'),
               ),
               if (ref
@@ -402,7 +402,7 @@ class _QuizBuilderPageState extends ConsumerState<QuizBuilderPage> {
                   .canGenerateSingleQuestion)
                 ElevatedButton.icon(
                   onPressed: _isSaving ? null : _generateQuestion,
-                  icon: const Icon(Icons.auto_awesome_rounded, size: 16),
+                  icon: Icon(Icons.auto_awesome_rounded, size: 16),
                   label: const Text('Generate Question'),
                 ),
             ],
@@ -816,7 +816,7 @@ class _QuestionCardState extends State<_QuestionCard> {
                 ),
                 if (widget.canDelete)
                   IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.delete_outline_rounded,
                       size: 18,
                       color: AppColors.textSecondary,
@@ -826,7 +826,7 @@ class _QuestionCardState extends State<_QuestionCard> {
               ],
             ),
           ),
-          const Divider(height: 1, color: AppColors.border),
+          Divider(height: 1, color: AppColors.border),
           Padding(
             padding: const EdgeInsets.all(14),
             child: Column(
@@ -1085,7 +1085,7 @@ class _QuestionCardState extends State<_QuestionCard> {
                         widget.onChanged();
                       });
                     },
-                    icon: const Icon(Icons.close_rounded, size: 18),
+                    icon: Icon(Icons.close_rounded, size: 18),
                   ),
               ],
             ),
@@ -1098,7 +1098,7 @@ class _QuestionCardState extends State<_QuestionCard> {
               widget.onChanged();
             });
           },
-          icon: const Icon(Icons.add_rounded, size: 16),
+          icon: Icon(Icons.add_rounded, size: 16),
           label: const Text('Add Row'),
         ),
       ],
@@ -1163,7 +1163,7 @@ class _QuestionImagePickerState extends State<_QuestionImagePicker> {
                     });
                     widget.onChanged();
                   },
-            icon: const Icon(Icons.close_rounded, size: 18),
+            icon: Icon(Icons.close_rounded, size: 18),
           ),
       ],
     );
@@ -1355,11 +1355,11 @@ class _DateField extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: InputDecorator(
             decoration: InputDecoration(
-              prefixIcon: const Icon(Icons.calendar_today_rounded, size: 18),
+              prefixIcon: Icon(Icons.calendar_today_rounded, size: 18),
               suffixIcon: onClear == null
                   ? null
                   : IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 18),
+                      icon: Icon(Icons.close_rounded, size: 18),
                       onPressed: onClear,
                     ),
             ),

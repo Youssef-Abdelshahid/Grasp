@@ -20,7 +20,7 @@ class StudentCourseWorkspacePage extends ConsumerStatefulWidget {
     super.key,
     required this.courseId,
     this.initialCourse,
-    this.accentColor = AppColors.primary,
+    this.accentColor = const Color(0xFF4F46E5),
   });
 
   final String courseId;
@@ -86,7 +86,7 @@ class _StudentCourseWorkspacePageState
               backgroundColor: AppColors.sidebarBg,
               foregroundColor: Colors.white,
               leading: IconButton(
-                icon: const Icon(Icons.arrow_back_rounded),
+                icon: Icon(Icons.arrow_back_rounded),
                 onPressed: () => Navigator.pop(context),
               ),
               flexibleSpace: FlexibleSpaceBar(
@@ -179,7 +179,7 @@ class _StudentCourseWorkspacePageState
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.person_rounded,
                         color: Colors.white60,
                         size: 13,
@@ -198,7 +198,7 @@ class _StudentCourseWorkspacePageState
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.book_rounded,
                         color: Colors.white60,
                         size: 13,
@@ -231,8 +231,8 @@ class _StudentCourseWorkspacePageState
         indicatorWeight: 2,
         labelColor: Colors.white,
         unselectedLabelColor: Colors.white60,
-        labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        unselectedLabelStyle: const TextStyle(
+        labelStyle: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: TextStyle(
           fontSize: 13,
           fontWeight: FontWeight.w400,
         ),

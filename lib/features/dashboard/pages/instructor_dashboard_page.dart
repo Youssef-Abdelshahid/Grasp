@@ -108,7 +108,7 @@ class InstructorDashboardPage extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [AppColors.primary, Color(0xFF6366F1)],
@@ -141,7 +141,7 @@ class InstructorDashboardPage extends ConsumerWidget {
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.school_rounded,
               color: Colors.white,
               size: 30,
@@ -295,7 +295,7 @@ class InstructorDashboardPage extends ConsumerWidget {
         physics: const NeverScrollableScrollPhysics(),
         itemCount: activity.length,
         separatorBuilder: (_, _) =>
-            const Divider(height: 1, color: AppColors.border),
+            Divider(height: 1, color: AppColors.border),
         itemBuilder: (_, index) {
           final item = activity[index];
           return ListTile(
@@ -382,7 +382,7 @@ class _DashboardErrorState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.cloud_off_rounded, size: 40),
+            Icon(Icons.cloud_off_rounded, size: 40),
             const SizedBox(height: 12),
             Text(
               'Failed to load instructor dashboard data.',

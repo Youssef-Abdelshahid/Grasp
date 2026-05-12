@@ -1,21 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_constants.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/user_utils.dart';
+import '../../../features/theme/providers/theme_mode_provider.dart';
 import '../../../models/admin_models.dart';
 import '../../../models/dashboard_models.dart';
 import '../../../services/admin_service.dart';
 
-class AdminProfilePage extends StatefulWidget {
+class AdminProfilePage extends ConsumerStatefulWidget {
   const AdminProfilePage({super.key});
 
   @override
-  State<AdminProfilePage> createState() => _AdminProfilePageState();
+  ConsumerState<AdminProfilePage> createState() => _AdminProfilePageState();
 }
 
-class _AdminProfilePageState extends State<AdminProfilePage> {
+class _AdminProfilePageState extends ConsumerState<AdminProfilePage> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
@@ -176,6 +178,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(themeModeProvider);
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
 
@@ -185,13 +188,10 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
         backgroundColor: AppColors.surface,
         elevation: 0,
         title: Text('My Profile', style: AppTextStyles.h3),
-        iconTheme: const IconThemeData(color: AppColors.textPrimary),
+        iconTheme: IconThemeData(color: AppColors.textPrimary),
         actions: [
           IconButton(
-            icon: const Icon(
-              Icons.refresh_rounded,
-              color: AppColors.textSecondary,
-            ),
+            icon: Icon(Icons.refresh_rounded, color: AppColors.textSecondary),
             onPressed: () => setState(_loadProfile),
           ),
         ],
@@ -243,6 +243,8 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                             _buildEditForm(),
                             const SizedBox(height: 20),
                             _buildPasswordSection(),
+                            const SizedBox(height: 20),
+                            const _ThemePreferenceCard(),
                           ],
                         ),
                       ),
@@ -255,6 +257,8 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                       _buildEditForm(),
                       const SizedBox(height: 20),
                       _buildPasswordSection(),
+                      const SizedBox(height: 20),
+                      const _ThemePreferenceCard(),
                       const SizedBox(height: 20),
                       _buildActivitySection(data.activity),
                     ],
@@ -269,7 +273,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [Color(0xFF0F172A), Color(0xFF1E1B4B)],
@@ -536,7 +540,7 @@ class _AdminProfilePageState extends State<AdminProfilePage> {
                             color: AppColors.emerald.withValues(alpha: 0.12),
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.history_rounded,
                             size: 14,
                             color: AppColors.emerald,
@@ -589,6 +593,52 @@ class _Divider extends StatelessWidget {
       width: 1,
       height: 32,
       color: Colors.white.withValues(alpha: 0.1),
+    );
+  }
+}
+
+class _ThemePreferenceCard extends ConsumerWidget {
+  const _ThemePreferenceCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode =
+        ref.watch(themeModeProvider).valueOrNull ?? ThemeMode.light;
+    final value = themeMode == ThemeMode.dark ? themeModeDark : themeModeLight;
+
+    return _Card(
+      title: 'Appearance',
+      icon: Icons.dark_mode_rounded,
+      iconColor: AppColors.primary,
+      iconBg: AppColors.primaryLight,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          DropdownButtonFormField<String>(
+            initialValue: value,
+            decoration: const InputDecoration(labelText: 'Theme'),
+            items: const [
+              DropdownMenuItem(value: themeModeLight, child: Text('Light')),
+              DropdownMenuItem(value: themeModeDark, child: Text('Dark')),
+            ],
+            onChanged: (newValue) {
+              if (newValue == null) return;
+              ref
+                  .read(themeModeProvider.notifier)
+                  .setThemeMode(
+                    newValue == themeModeDark
+                        ? ThemeMode.dark
+                        : ThemeMode.light,
+                  );
+            },
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Applies immediately and is saved on this device.',
+            style: AppTextStyles.bodySmall,
+          ),
+        ],
+      ),
     );
   }
 }
@@ -705,7 +755,7 @@ class _Card extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          const Divider(color: AppColors.border, height: 1),
+          Divider(color: AppColors.border, height: 1),
           const SizedBox(height: 16),
           child,
         ],
@@ -749,11 +799,11 @@ class _FormField extends StatelessWidget {
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
           ),
         ),
@@ -794,11 +844,11 @@ class _PasswordField extends StatelessWidget {
             ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(8),
-              borderSide: const BorderSide(color: AppColors.border),
+              borderSide: BorderSide(color: AppColors.border),
             ),
             suffixIcon: IconButton(
               icon: Icon(
@@ -828,7 +878,7 @@ class _ErrorState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.cloud_off_rounded, size: 36),
+          Icon(Icons.cloud_off_rounded, size: 36),
           const SizedBox(height: 12),
           Text('Failed to load admin profile', style: AppTextStyles.h3),
           const SizedBox(height: 12),

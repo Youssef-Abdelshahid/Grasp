@@ -12,7 +12,7 @@ import '../course_workspace/student_course_workspace_page.dart';
 class StudentCoursesPage extends ConsumerWidget {
   const StudentCoursesPage({super.key});
 
-  static const _courseColors = [
+  static final _courseColors = [
     AppColors.primary,
     AppColors.cyan,
     AppColors.violet,
@@ -206,7 +206,7 @@ class _StudentCourseCard extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Divider(color: AppColors.border, height: 1),
+                  Divider(color: AppColors.border, height: 1),
                   const SizedBox(height: 10),
                   Row(
                     children: [

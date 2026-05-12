@@ -89,12 +89,12 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                   const SizedBox(width: 12),
                   IconButton.filledTonal(
                     onPressed: _load,
-                    icon: const Icon(Icons.refresh_rounded),
+                    icon: Icon(Icons.refresh_rounded),
                   ),
                   const SizedBox(width: 8),
                   ElevatedButton.icon(
                     onPressed: () => _showEdit(),
-                    icon: const Icon(Icons.add_rounded, size: 16),
+                    icon: Icon(Icons.add_rounded, size: 16),
                     label: const Text('Create'),
                   ),
                 ],
@@ -163,17 +163,17 @@ class _AdminAnnouncementsPageState extends State<AdminAnnouncementsPage> {
                             IconButton(
                               tooltip: 'View',
                               onPressed: () => _showDetails(item),
-                              icon: const Icon(Icons.visibility_rounded),
+                              icon: Icon(Icons.visibility_rounded),
                             ),
                             IconButton(
                               tooltip: 'Edit',
                               onPressed: () => _showEdit(item),
-                              icon: const Icon(Icons.edit_rounded),
+                              icon: Icon(Icons.edit_rounded),
                             ),
                             IconButton(
                               tooltip: 'Delete',
                               onPressed: () => _delete(item),
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.delete_rounded,
                                 color: AppColors.error,
                               ),

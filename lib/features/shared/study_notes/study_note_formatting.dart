@@ -245,14 +245,14 @@ TextSpan _inlineTextSpan(String text) {
       spans.add(
         TextSpan(
           text: token.substring(2, token.length - 2),
-          style: const TextStyle(fontWeight: FontWeight.w700),
+          style: TextStyle(fontWeight: FontWeight.w700),
         ),
       );
     } else if (token.startsWith('`')) {
       spans.add(
         TextSpan(
           text: token.substring(1, token.length - 1),
-          style: const TextStyle(
+          style: TextStyle(
             fontFamily: 'monospace',
             backgroundColor: AppColors.background,
           ),

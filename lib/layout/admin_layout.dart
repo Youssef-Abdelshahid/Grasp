@@ -4,6 +4,7 @@ import '../core/constants/app_constants.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_text_styles.dart';
 import '../core/utils/user_utils.dart';
+import '../core/widgets/app_avatar.dart';
 import '../core/widgets/top_bar_actions.dart';
 import '../features/admin/dashboard/admin_dashboard_page.dart';
 import '../features/admin/content/admin_announcements_page.dart';
@@ -20,6 +21,7 @@ import '../features/admin/platform/admin_platform_page.dart';
 import '../features/admin/profile/admin_profile_page.dart';
 import '../features/auth/providers/auth_providers.dart';
 import '../features/platform_settings/providers/platform_settings_provider.dart';
+import '../features/theme/providers/theme_mode_provider.dart';
 import '../features/notifications/notifications_page.dart';
 import '../widgets/auth/logout_flow.dart';
 
@@ -103,6 +105,7 @@ class _AdminLayoutState extends ConsumerState<AdminLayout> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(themeModeProvider);
     final user = ref.watch(currentUserProvider);
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= AppConstants.mobileBreakpoint;
@@ -124,6 +127,7 @@ class _AdminLayoutState extends ConsumerState<AdminLayout> {
                     onNotificationsTap: _openNotifications,
                     onProfileTap: _openProfile,
                     initials: UserUtils.initials(user?.name ?? 'Admin'),
+                    avatarUrl: user?.avatarUrl,
                   ),
                   Expanded(child: _pages[_selectedIndex]),
                 ],
@@ -163,6 +167,7 @@ class _AdminLayoutState extends ConsumerState<AdminLayout> {
         MobileNotificationBadgeButton(onPressed: _openNotifications),
         ProfileAvatarButton(
           initials: UserUtils.initials(user?.name ?? 'Admin'),
+          avatarUrl: user?.avatarUrl,
           backgroundColor: AppColors.roseLight,
           textColor: AppColors.rose,
           radius: 16,
@@ -253,7 +258,7 @@ class _AdminSidebar extends ConsumerWidget {
         .platformName;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: AppColors.sidebarHover)),
       ),
       child: Row(
@@ -264,7 +269,7 @@ class _AdminSidebar extends ConsumerWidget {
               color: AppColors.primary,
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.school_rounded,
               color: Colors.white,
               size: 18,
@@ -317,7 +322,7 @@ class _AdminSidebar extends ConsumerWidget {
 
     return Container(
       padding: const EdgeInsets.all(12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         border: Border(top: BorderSide(color: AppColors.sidebarHover)),
       ),
       child: Column(
@@ -341,21 +346,15 @@ class _AdminSidebar extends ConsumerWidget {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AppColors.rose.withValues(alpha: 0.3),
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.rose.withValues(alpha: 0.5),
-                        ),
+                    AppAvatar(
+                      initials: UserUtils.initials(
+                        user?.name ?? 'System Admin',
                       ),
-                      child: const Icon(
-                        Icons.admin_panel_settings_rounded,
-                        color: Colors.white,
-                        size: 16,
-                      ),
+                      avatarUrl: user?.avatarUrl,
+                      radius: 16,
+                      backgroundColor: AppColors.rose.withValues(alpha: 0.3),
+                      textColor: Colors.white,
+                      borderColor: AppColors.rose.withValues(alpha: 0.5),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -378,7 +377,7 @@ class _AdminSidebar extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.chevron_right_rounded,
                       size: 14,
                       color: AppColors.sidebarTextMuted,
@@ -453,12 +452,14 @@ class _AdminTopBar extends StatelessWidget {
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onProfileTap;
   final String initials;
+  final String? avatarUrl;
 
   const _AdminTopBar({
     required this.title,
     this.onNotificationsTap,
     this.onProfileTap,
     required this.initials,
+    this.avatarUrl,
   });
 
   @override
@@ -466,7 +467,7 @@ class _AdminTopBar extends StatelessWidget {
     return Container(
       height: 64,
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColors.surface,
         border: Border(bottom: BorderSide(color: AppColors.border)),
       ),
@@ -495,6 +496,7 @@ class _AdminTopBar extends StatelessWidget {
           const SizedBox(width: 12),
           ProfileAvatarButton(
             initials: initials,
+            avatarUrl: avatarUrl,
             backgroundColor: AppColors.roseLight,
             textColor: AppColors.rose,
             onTap: () => onProfileTap?.call(),
