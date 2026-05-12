@@ -1,7 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/auth/app_role.dart';
+import '../core/local_db/local_cache_service.dart';
 import '../models/study_note_model.dart';
 import '../models/permissions_model.dart';
+import 'auth_service.dart';
 import 'permissions_service.dart';
 
 class StudyNoteService {
@@ -9,17 +12,41 @@ class StudyNoteService {
 
   static final instance = StudyNoteService._();
 
+  bool lastCourseNotesFromCache = false;
+
   SupabaseClient get _client => Supabase.instance.client;
 
   Future<List<StudyNoteModel>> getCourseNotes(String courseId) async {
-    final response = await _client
-        .from('study_notes')
-        .select('*, courses!study_notes_course_id_fkey(title, code)')
-        .eq('course_id', courseId)
-        .order('created_at', ascending: false);
+    final user = AuthService.instance.currentUser;
+    try {
+      final response = await _client
+          .from('study_notes')
+          .select('*, courses!study_notes_course_id_fkey(title, code)')
+          .eq('course_id', courseId)
+          .order('created_at', ascending: false);
 
-    final items = _mapList(response);
-    return _withMaterialNames(items);
+      final items = await _withMaterialNames(_mapList(response));
+      lastCourseNotesFromCache = false;
+      if (user?.role == AppRole.student) {
+        await LocalCacheService.instance.cacheStudyNotes(
+          items.where((item) => item.studentId == user!.id).toList(),
+          pruneStaleForCourse: true,
+        );
+      }
+      return items;
+    } catch (_) {
+      if (user?.role == AppRole.student) {
+        final cached = await LocalCacheService.instance.getCachedStudyNotes(
+          studentId: user!.id,
+          courseId: courseId,
+        );
+        if (cached.isNotEmpty) {
+          lastCourseNotesFromCache = true;
+          return cached;
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<List<StudyNoteModel>> getAllNotes({
@@ -71,6 +98,7 @@ class StudyNoteService {
     final items = await _withMaterialNames([
       StudyNoteModel.fromJson(Map<String, dynamic>.from(response)),
     ]);
+    await LocalCacheService.instance.cacheStudyNotes(items);
     return items.single;
   }
 
@@ -88,11 +116,16 @@ class StudyNoteService {
     final items = await _withMaterialNames([
       StudyNoteModel.fromJson(Map<String, dynamic>.from(response)),
     ]);
+    await LocalCacheService.instance.cacheStudyNotes(items);
     return items.single;
   }
 
   Future<void> deleteNote(String noteId) async {
     await _client.from('study_notes').delete().eq('id', noteId);
+    final userId = _client.auth.currentUser?.id;
+    if (userId != null) {
+      await LocalCacheService.instance.removeCachedStudyNote(noteId, userId);
+    }
   }
 
   Future<List<StudyNoteModel>> _listAdminNotesFromTables({

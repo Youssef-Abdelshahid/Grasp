@@ -36,7 +36,7 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
     return FutureBuilder<_FlashcardTabData>(
       future: _future,
       builder: (context, snapshot) {
-        final data = snapshot.data ?? const _FlashcardTabData([], []);
+        final data = snapshot.data ?? const _FlashcardTabData([], [], false);
         final aiControls = ref.watch(aiControlsProvider).valueOrDefaults;
         final canGenerate =
             ref.watch(permissionsProvider).valueOrDefaults.generateFlashcards &&
@@ -62,9 +62,18 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
               ),
               const SizedBox(height: 4),
               Text(
-                '${data.flashcards.length} private study sets',
+                data.fromCache
+                    ? '${data.flashcards.length} private study sets - Showing cached flashcards'
+                    : '${data.flashcards.length} private study sets',
                 style: AppTextStyles.bodySmall,
               ),
+              if (data.fromCache) ...[
+                const SizedBox(height: 8),
+                _OfflineCacheLabel(
+                  label: 'Offline copy',
+                  subtitle: 'Editing is available again when Supabase is reachable.',
+                ),
+              ],
               const SizedBox(height: 20),
               if (snapshot.connectionState != ConnectionState.done)
                 const Center(child: CircularProgressIndicator())
@@ -82,8 +91,8 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
                     child: _FlashcardSetCard(
                       flashcards: set,
                       onStudy: () => _openStudySheet(set),
-                      onEdit: () => _edit(set),
-                      onDelete: () => _delete(set),
+                      onEdit: data.fromCache ? null : () => _edit(set),
+                      onDelete: data.fromCache ? null : () => _delete(set),
                     ),
                   ),
                 ),
@@ -101,7 +110,12 @@ class _StudentFlashcardsTabState extends ConsumerState<StudentFlashcardsTab> {
     final materials = await MaterialService.instance.getCourseMaterials(
       widget.courseId,
     );
-    return _FlashcardTabData(flashcards, materials);
+    return _FlashcardTabData(
+      flashcards,
+      materials,
+      FlashcardService.instance.lastCourseFlashcardsFromCache ||
+          MaterialService.instance.lastCourseMaterialsFromCache,
+    );
   }
 
   void _refresh() {
@@ -390,8 +404,8 @@ class _FlashcardSetCard extends StatelessWidget {
 
   final FlashcardModel flashcards;
   final VoidCallback onStudy;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -581,8 +595,40 @@ class _FlashcardStudySheetState extends State<_FlashcardStudySheet> {
 }
 
 class _FlashcardTabData {
-  const _FlashcardTabData(this.flashcards, this.materials);
+  const _FlashcardTabData(this.flashcards, this.materials, this.fromCache);
 
   final List<FlashcardModel> flashcards;
   final List<MaterialModel> materials;
+  final bool fromCache;
+}
+
+class _OfflineCacheLabel extends StatelessWidget {
+  const _OfflineCacheLabel({required this.label, required this.subtitle});
+
+  final String label;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.amberLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off_rounded, size: 16, color: AppColors.amber),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label - $subtitle',
+              style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

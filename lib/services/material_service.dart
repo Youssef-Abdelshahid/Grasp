@@ -1,9 +1,11 @@
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:http/http.dart' as http;
 import 'package:path/path.dart' as p;
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/local_db/local_cache_service.dart';
 import '../core/utils/file_utils.dart';
 import '../models/material_model.dart';
 import '../models/permissions_model.dart';
@@ -18,21 +20,40 @@ class MaterialService {
 
   static const bucketName = 'course-materials';
 
+  bool lastCourseMaterialsFromCache = false;
+
   SupabaseClient get _client => Supabase.instance.client;
 
   Future<List<MaterialModel>> getCourseMaterials(String courseId) async {
-    final response = await _client
-        .from('materials')
-        .select('*, profiles!materials_uploaded_by_fkey(full_name)')
-        .eq('course_id', courseId)
-        .order('created_at', ascending: false);
+    try {
+      final response = await _client
+          .from('materials')
+          .select('*, profiles!materials_uploaded_by_fkey(full_name)')
+          .eq('course_id', courseId)
+          .order('created_at', ascending: false);
 
-    return (response as List<dynamic>)
-        .map(
-          (item) =>
-              MaterialModel.fromJson(Map<String, dynamic>.from(item as Map)),
-        )
-        .toList();
+      final materials = (response as List<dynamic>)
+          .map(
+            (item) =>
+                MaterialModel.fromJson(Map<String, dynamic>.from(item as Map)),
+          )
+          .toList();
+      lastCourseMaterialsFromCache = false;
+      await LocalCacheService.instance.cacheMaterials(
+        materials,
+        pruneStaleForCourse: true,
+      );
+      return materials;
+    } catch (_) {
+      final cached = await LocalCacheService.instance.getCachedMaterials(
+        courseId,
+      );
+      if (cached.isNotEmpty) {
+        lastCourseMaterialsFromCache = true;
+        return cached;
+      }
+      rethrow;
+    }
   }
 
   Future<MaterialModel> getMaterial(String materialId) async {
@@ -42,7 +63,9 @@ class MaterialService {
         .eq('id', materialId)
         .single();
 
-    return MaterialModel.fromJson(Map<String, dynamic>.from(response));
+    final material = MaterialModel.fromJson(Map<String, dynamic>.from(response));
+    await LocalCacheService.instance.cacheMaterials([material]);
+    return material;
   }
 
   Future<MaterialModel> uploadMaterial({
@@ -106,6 +129,7 @@ class MaterialService {
       courseId: courseId,
       materialId: material.id,
     );
+    await LocalCacheService.instance.cacheMaterials([material]);
     return material;
   }
 
@@ -128,7 +152,9 @@ class MaterialService {
         .select('*, profiles!materials_uploaded_by_fkey(full_name)')
         .single();
 
-    return MaterialModel.fromJson(Map<String, dynamic>.from(response));
+    final material = MaterialModel.fromJson(Map<String, dynamic>.from(response));
+    await LocalCacheService.instance.cacheMaterials([material]);
+    return material;
   }
 
   Future<void> deleteMaterial(MaterialModel material) async {
@@ -142,6 +168,17 @@ class MaterialService {
   }
 
   Future<String?> createSignedUrl(MaterialModel material) async {
+    final localPath = await LocalCacheService.instance.localMaterialPath(
+      material.id,
+    );
+    if (localPath != null) {
+      await trackMaterialOpened(material);
+      return Uri.file(localPath).toString();
+    }
+    return createRemoteSignedUrl(material);
+  }
+
+  Future<String?> createRemoteSignedUrl(MaterialModel material) async {
     await PermissionsService.instance.requireStudentPermission(
       PermissionKeys.downloadMaterials,
     );
@@ -149,7 +186,86 @@ class MaterialService {
     if (path == null || path.isEmpty) {
       return null;
     }
-    return _client.storage.from(bucketName).createSignedUrl(path, 3600);
+    final url = await _client.storage.from(bucketName).createSignedUrl(path, 3600);
+    await trackMaterialOpened(material);
+    return url;
+  }
+
+  Future<String> downloadMaterialForOffline(MaterialModel material) async {
+    await PermissionsService.instance.requireStudentPermission(
+      PermissionKeys.downloadMaterials,
+    );
+    final path = material.storagePath;
+    if (path == null || path.isEmpty) {
+      throw const MaterialUploadException('No file found for this material.');
+    }
+    final bytes = await _downloadMaterialBytes(material, path);
+    final savedPath = await LocalCacheService.instance.saveDownloadedMaterial(
+      material: material,
+      bytes: bytes,
+    );
+    await trackMaterialOpened(material);
+    return savedPath;
+  }
+
+  Future<Uint8List> _downloadMaterialBytes(
+    MaterialModel material,
+    String path,
+  ) async {
+    try {
+      return await _client.storage.from(bucketName).download(path);
+    } catch (_) {
+      final url = await createRemoteSignedUrl(material);
+      if (url == null) {
+        throw const MaterialUploadException('No file URL found for this material.');
+      }
+      final response = await http.get(Uri.parse(url));
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        throw const MaterialUploadException(
+          'The material could not be downloaded right now.',
+        );
+      }
+      return response.bodyBytes;
+    }
+  }
+
+  Future<String?> getLocalMaterialPath(MaterialModel material) {
+    return LocalCacheService.instance.localMaterialPath(material.id);
+  }
+
+  Future<void> trackMaterialOpened(MaterialModel material) async {
+    await LocalCacheService.instance.markMaterialOpened(
+      material: material,
+      studentId: _client.auth.currentUser?.id,
+    );
+  }
+
+  Future<bool> isMaterialFavorite(MaterialModel material) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return false;
+    return LocalCacheService.instance.isMaterialFavorite(
+      materialId: material.id,
+      studentId: userId,
+    );
+  }
+
+  Future<Set<String>> favoriteMaterialIds() async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return const <String>{};
+    return LocalCacheService.instance.favoriteMaterialIds(userId);
+  }
+
+  Future<void> setMaterialFavorite({
+    required MaterialModel material,
+    required bool isFavorite,
+  }) async {
+    final userId = _client.auth.currentUser?.id;
+    if (userId == null) return;
+    await LocalCacheService.instance.setMaterialFavorite(
+      material: material,
+      studentId: userId,
+      isFavorite: isFavorite,
+    );
   }
 
   Future<Uint8List> _readFileBytes(PlatformFile file) async {

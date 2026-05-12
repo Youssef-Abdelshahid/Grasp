@@ -1,8 +1,10 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'core/local_db/app_local_database.dart';
 import 'core/theme/app_theme.dart';
 import 'features/platform_settings/providers/platform_settings_provider.dart';
 import 'routing/app_navigator.dart';
@@ -13,6 +15,9 @@ import 'services/platform_settings_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await AuthService.instance.initialize();
+  if (!kIsWeb) {
+    await AppLocalDatabase.instance.database;
+  }
   runApp(const ProviderScope(child: GraspApp()));
 }
 
@@ -73,7 +78,11 @@ class _PlatformInactivityLogoutState
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(platformSettingsProvider, (_, __) => _resetTimer());
+    ref.listen(platformSettingsProvider, (previous, next) {
+      if (previous?.valueOrNull != next.valueOrNull) {
+        _resetTimer();
+      }
+    });
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (_) => _resetTimer(),
@@ -115,16 +124,14 @@ class _PlatformInactivityLogoutState
   }
 
   Future<void> _logoutWithMessage(String message) async {
+    final navigator = rootNavigatorKey.currentState;
+    final currentContext = rootNavigatorKey.currentContext;
+    final messenger = currentContext == null
+        ? null
+        : ScaffoldMessenger.maybeOf(currentContext);
     await AuthService.instance.logout();
-    rootNavigatorKey.currentState?.pushNamedAndRemoveUntil(
-      AppRouter.authGate,
-      (_) => false,
-    );
-    final context = rootNavigatorKey.currentContext;
-    if (context != null) {
-      ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-        SnackBar(content: Text(message)),
-      );
-    }
+    if (!mounted) return;
+    navigator?.pushNamedAndRemoveUntil(AppRouter.authGate, (_) => false);
+    messenger?.showSnackBar(SnackBar(content: Text(message)));
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:open_filex/open_filex.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../core/theme/app_colors.dart';
@@ -19,6 +20,23 @@ class MaterialStudyPage extends StatefulWidget {
 
 class _MaterialStudyPageState extends State<MaterialStudyPage> {
   bool _isOpening = false;
+  bool _isDownloading = false;
+  String? _localPath;
+
+  @override
+  void initState() {
+    super.initState();
+    MaterialService.instance.trackMaterialOpened(widget.material);
+    _loadLocalPath();
+  }
+
+  Future<void> _loadLocalPath() async {
+    final path = await MaterialService.instance.getLocalMaterialPath(
+      widget.material,
+    );
+    if (!mounted) return;
+    setState(() => _localPath = path);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +132,36 @@ class _MaterialStudyPageState extends State<MaterialStudyPage> {
                       foregroundColor: Colors.white,
                     ),
                   ),
+                  const SizedBox(height: 10),
+                  OutlinedButton.icon(
+                    onPressed: _isDownloading ? null : _downloadForOffline,
+                    icon: _isDownloading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            _localPath == null
+                                ? Icons.download_rounded
+                                : Icons.download_done_rounded,
+                            size: 16,
+                          ),
+                    label: Text(
+                      _localPath == null
+                          ? 'Download for Offline'
+                          : 'Available Offline',
+                    ),
+                  ),
+                  if (_localPath != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      'This material is downloaded on this device.',
+                      style: AppTextStyles.caption.copyWith(
+                        color: AppColors.emerald,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -160,26 +208,78 @@ class _MaterialStudyPageState extends State<MaterialStudyPage> {
   Future<void> _openFile() async {
     setState(() => _isOpening = true);
     try {
-      final url = await MaterialService.instance.createSignedUrl(
+      final localPath = await MaterialService.instance.getLocalMaterialPath(
         widget.material,
       );
-      if (url == null) {
-        _showMessage('No file URL found for this material.');
+      if (localPath != null) {
+        final result = await OpenFilex.open(
+          localPath,
+          type: widget.material.mimeType.trim().isEmpty
+              ? null
+              : widget.material.mimeType,
+        );
+        if (result.type != ResultType.done) {
+          final openedRemote = await _openRemoteFile();
+          if (!openedRemote) {
+            _showMessage(
+              result.message.trim().isEmpty
+                  ? 'No app is available to open this downloaded file.'
+                  : result.message,
+            );
+          }
+        }
         return;
       }
 
-      final launched = await launchUrl(
-        Uri.parse(url),
-        mode: LaunchMode.externalApplication,
-      );
-      if (!launched) {
-        _showMessage('Unable to open the file.');
-      }
+      await _openRemoteFile(showErrors: true);
     } on PermissionsException catch (error) {
       _showMessage(error.message);
+    } catch (_) {
+      _showMessage('Unable to open the file.');
     } finally {
       if (mounted) {
         setState(() => _isOpening = false);
+      }
+    }
+  }
+
+  Future<bool> _openRemoteFile({bool showErrors = false}) async {
+    final url = await MaterialService.instance.createRemoteSignedUrl(
+      widget.material,
+    );
+    if (url == null) {
+      if (showErrors) _showMessage('No file URL found for this material.');
+      return false;
+    }
+
+    final launched = await launchUrl(
+      Uri.parse(url),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!launched && showErrors) {
+      _showMessage('Unable to open the file.');
+    }
+    return launched;
+  }
+
+  Future<void> _downloadForOffline() async {
+    setState(() => _isDownloading = true);
+    try {
+      final path = await MaterialService.instance.downloadMaterialForOffline(
+        widget.material,
+      );
+      if (!mounted) return;
+      setState(() => _localPath = path);
+      _showMessage('Material is available offline on this device.');
+    } on PermissionsException catch (error) {
+      _showMessage(error.message);
+    } on MaterialUploadException catch (error) {
+      _showMessage(error.message);
+    } catch (error) {
+      _showMessage('Unable to download this material for offline use.');
+    } finally {
+      if (mounted) {
+        setState(() => _isDownloading = false);
       }
     }
   }

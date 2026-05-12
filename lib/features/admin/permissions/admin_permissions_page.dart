@@ -575,14 +575,12 @@ class _ToggleTile extends StatelessWidget {
   final String label, subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
-  final bool dangerColor;
 
   const _ToggleTile({
     required this.label,
     required this.subtitle,
     required this.value,
     required this.onChanged,
-    this.dangerColor = false,
   });
 
   @override
@@ -597,11 +595,7 @@ class _ToggleTile extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: AppTextStyles.label.copyWith(
-                    color: dangerColor && value
-                        ? AppColors.error
-                        : AppColors.textPrimary,
-                  ),
+                  style: AppTextStyles.label,
                 ),
                 Text(subtitle, style: AppTextStyles.caption),
               ],
@@ -610,10 +604,8 @@ class _ToggleTile extends StatelessWidget {
           Switch(
             value: value,
             onChanged: onChanged,
-            activeThumbColor:
-                dangerColor ? AppColors.error : AppColors.primary,
-            activeTrackColor:
-                dangerColor ? AppColors.errorLight : AppColors.primaryLight,
+            activeThumbColor: AppColors.primary,
+            activeTrackColor: AppColors.primaryLight,
           ),
         ],
       ),

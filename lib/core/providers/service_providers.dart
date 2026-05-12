@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../local_db/local_cache_service.dart';
 import '../../services/activity_service.dart';
 import '../../services/ai_controls_service.dart';
 import '../../services/admin_content_service.dart';
@@ -96,4 +97,7 @@ final geminiAiServiceProvider = Provider<GeminiAiService>(
 );
 final userSettingsServiceProvider = Provider<UserSettingsService>(
   (ref) => UserSettingsService.instance,
+);
+final localCacheServiceProvider = Provider<LocalCacheService>(
+  (ref) => LocalCacheService.instance,
 );

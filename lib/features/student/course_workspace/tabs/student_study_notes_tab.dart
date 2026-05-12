@@ -36,7 +36,7 @@ class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
     return FutureBuilder<_StudyNotesTabData>(
       future: _future,
       builder: (context, snapshot) {
-        final data = snapshot.data ?? const _StudyNotesTabData([], []);
+        final data = snapshot.data ?? const _StudyNotesTabData([], [], false);
         final aiControls = ref.watch(aiControlsProvider).valueOrDefaults;
         final canGenerate =
             ref.watch(permissionsProvider).valueOrDefaults.generateStudyNotes &&
@@ -62,9 +62,18 @@ class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
               ),
               const SizedBox(height: 4),
               Text(
-                '${data.notes.length} private revision sheets',
+                data.fromCache
+                    ? '${data.notes.length} private revision sheets - Showing cached study notes'
+                    : '${data.notes.length} private revision sheets',
                 style: AppTextStyles.bodySmall,
               ),
+              if (data.fromCache) ...[
+                const SizedBox(height: 8),
+                _OfflineCacheLabel(
+                  label: 'Offline copy',
+                  subtitle: 'Editing is available again when Supabase is reachable.',
+                ),
+              ],
               const SizedBox(height: 20),
               if (snapshot.connectionState != ConnectionState.done)
                 const Center(child: CircularProgressIndicator())
@@ -82,8 +91,8 @@ class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
                     child: _StudyNoteCard(
                       note: note,
                       onOpen: () => _openNotePage(note),
-                      onEdit: () => _edit(note),
-                      onDelete: () => _delete(note),
+                      onEdit: data.fromCache ? null : () => _edit(note),
+                      onDelete: data.fromCache ? null : () => _delete(note),
                     ),
                   ),
                 ),
@@ -101,7 +110,12 @@ class _StudentStudyNotesTabState extends ConsumerState<StudentStudyNotesTab> {
     final materials = await MaterialService.instance.getCourseMaterials(
       widget.courseId,
     );
-    return _StudyNotesTabData(notes, materials);
+    return _StudyNotesTabData(
+      notes,
+      materials,
+      StudyNoteService.instance.lastCourseNotesFromCache ||
+          MaterialService.instance.lastCourseMaterialsFromCache,
+    );
   }
 
   void _refresh() {
@@ -328,8 +342,8 @@ class _StudyNoteCard extends StatelessWidget {
 
   final StudyNoteModel note;
   final VoidCallback onOpen;
-  final VoidCallback onEdit;
-  final VoidCallback onDelete;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -420,8 +434,40 @@ class _StudyNoteCard extends StatelessWidget {
 }
 
 class _StudyNotesTabData {
-  const _StudyNotesTabData(this.notes, this.materials);
+  const _StudyNotesTabData(this.notes, this.materials, this.fromCache);
 
   final List<StudyNoteModel> notes;
   final List<MaterialModel> materials;
+  final bool fromCache;
+}
+
+class _OfflineCacheLabel extends StatelessWidget {
+  const _OfflineCacheLabel({required this.label, required this.subtitle});
+
+  final String label;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.amberLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off_rounded, size: 16, color: AppColors.amber),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label - $subtitle',
+              style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

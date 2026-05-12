@@ -21,6 +21,7 @@ class StudentMaterialsTab extends ConsumerStatefulWidget {
 
 class _StudentMaterialsTabState extends ConsumerState<StudentMaterialsTab> {
   late Future<List<MaterialModel>> _materialsFuture;
+  Set<String> _favoriteIds = const <String>{};
 
   @override
   void initState() {
@@ -28,6 +29,13 @@ class _StudentMaterialsTabState extends ConsumerState<StudentMaterialsTab> {
     _materialsFuture = MaterialService.instance.getCourseMaterials(
       widget.courseId,
     );
+    _loadFavorites();
+  }
+
+  Future<void> _loadFavorites() async {
+    final ids = await MaterialService.instance.favoriteMaterialIds();
+    if (!mounted) return;
+    setState(() => _favoriteIds = ids);
   }
 
   @override
@@ -67,6 +75,13 @@ class _StudentMaterialsTabState extends ConsumerState<StudentMaterialsTab> {
                 ],
               ),
               const SizedBox(height: 16),
+              if (MaterialService.instance.lastCourseMaterialsFromCache) ...[
+                _OfflineCacheLabel(
+                  label: 'Showing cached data',
+                  subtitle: 'Materials metadata is from this device.',
+                ),
+                const SizedBox(height: 12),
+              ],
               if (snapshot.connectionState != ConnectionState.done)
                 const Center(child: CircularProgressIndicator())
               else if (materials.isEmpty)
@@ -83,6 +98,14 @@ class _StudentMaterialsTabState extends ConsumerState<StudentMaterialsTab> {
                     child: _StudentMaterialCard(
                       material: material,
                       canOpen: canDownload,
+                      isFavorite: _favoriteIds.contains(material.id),
+                      onFavoriteChanged: (favorite) async {
+                        await MaterialService.instance.setMaterialFavorite(
+                          material: material,
+                          isFavorite: favorite,
+                        );
+                        await _loadFavorites();
+                      },
                     ),
                   ),
                 ),
@@ -95,10 +118,17 @@ class _StudentMaterialsTabState extends ConsumerState<StudentMaterialsTab> {
 }
 
 class _StudentMaterialCard extends StatelessWidget {
-  const _StudentMaterialCard({required this.material, required this.canOpen});
+  const _StudentMaterialCard({
+    required this.material,
+    required this.canOpen,
+    required this.isFavorite,
+    required this.onFavoriteChanged,
+  });
 
   final MaterialModel material;
   final bool canOpen;
+  final bool isFavorite;
+  final ValueChanged<bool> onFavoriteChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -169,9 +199,75 @@ class _StudentMaterialCard extends StatelessWidget {
                   ),
                 ),
               ],
+              FutureBuilder<String?>(
+                future: MaterialService.instance.getLocalMaterialPath(material),
+                builder: (context, snapshot) {
+                  final downloaded = snapshot.data != null;
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (downloaded)
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: Tooltip(
+                            message: 'Available offline',
+                            child: Icon(
+                              Icons.download_done_rounded,
+                              color: AppColors.emerald,
+                              size: 18,
+                            ),
+                          ),
+                        ),
+                      IconButton(
+                        tooltip: isFavorite ? 'Unsave material' : 'Save material',
+                        icon: Icon(
+                          isFavorite
+                              ? Icons.bookmark_rounded
+                              : Icons.bookmark_border_rounded,
+                          color: isFavorite
+                              ? AppColors.primary
+                              : AppColors.textMuted,
+                        ),
+                        onPressed: () => onFavoriteChanged(!isFavorite),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _OfflineCacheLabel extends StatelessWidget {
+  const _OfflineCacheLabel({required this.label, required this.subtitle});
+
+  final String label;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: AppColors.amberLight,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off_rounded, size: 16, color: AppColors.amber),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '$label - $subtitle',
+              style: AppTextStyles.caption.copyWith(color: AppColors.textPrimary),
+            ),
+          ),
+        ],
       ),
     );
   }

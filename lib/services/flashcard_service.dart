@@ -1,7 +1,10 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../core/auth/app_role.dart';
+import '../core/local_db/local_cache_service.dart';
 import '../models/flashcard_model.dart';
 import '../models/permissions_model.dart';
+import 'auth_service.dart';
 import 'permissions_service.dart';
 
 class FlashcardService {
@@ -9,17 +12,41 @@ class FlashcardService {
 
   static final instance = FlashcardService._();
 
+  bool lastCourseFlashcardsFromCache = false;
+
   SupabaseClient get _client => Supabase.instance.client;
 
   Future<List<FlashcardModel>> getCourseFlashcards(String courseId) async {
-    final response = await _client
-        .from('flashcard_sets')
-        .select('*, courses!flashcard_sets_course_id_fkey(title, code)')
-        .eq('course_id', courseId)
-        .order('created_at', ascending: false);
+    final user = AuthService.instance.currentUser;
+    try {
+      final response = await _client
+          .from('flashcard_sets')
+          .select('*, courses!flashcard_sets_course_id_fkey(title, code)')
+          .eq('course_id', courseId)
+          .order('created_at', ascending: false);
 
-    final items = _mapList(response);
-    return _withMaterialNames(items);
+      final items = await _withMaterialNames(_mapList(response));
+      lastCourseFlashcardsFromCache = false;
+      if (user?.role == AppRole.student) {
+        await LocalCacheService.instance.cacheFlashcards(
+          items.where((item) => item.studentId == user!.id).toList(),
+          pruneStaleForCourse: true,
+        );
+      }
+      return items;
+    } catch (_) {
+      if (user?.role == AppRole.student) {
+        final cached = await LocalCacheService.instance.getCachedFlashcards(
+          studentId: user!.id,
+          courseId: courseId,
+        );
+        if (cached.isNotEmpty) {
+          lastCourseFlashcardsFromCache = true;
+          return cached;
+        }
+      }
+      rethrow;
+    }
   }
 
   Future<List<FlashcardModel>> getAllFlashcards({
@@ -132,6 +159,7 @@ class FlashcardService {
     final items = await _withMaterialNames([
       FlashcardModel.fromJson(Map<String, dynamic>.from(response)),
     ]);
+    await LocalCacheService.instance.cacheFlashcards(items);
     return items.single;
   }
 
@@ -149,11 +177,19 @@ class FlashcardService {
     final items = await _withMaterialNames([
       FlashcardModel.fromJson(Map<String, dynamic>.from(response)),
     ]);
+    await LocalCacheService.instance.cacheFlashcards(items);
     return items.single;
   }
 
   Future<void> deleteFlashcards(String flashcardSetId) async {
     await _client.from('flashcard_sets').delete().eq('id', flashcardSetId);
+    final userId = _client.auth.currentUser?.id;
+    if (userId != null) {
+      await LocalCacheService.instance.removeCachedFlashcard(
+        flashcardSetId,
+        userId,
+      );
+    }
   }
 
   List<FlashcardModel> _mapList(dynamic response) {
